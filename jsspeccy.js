@@ -42,7 +42,7 @@ class CanvasRenderer {
         }
     }
 
-    renderFrame(frameBuffer) {
+    showFrame(frameBuffer) {
         const frameBytes = new Uint8Array(frameBuffer);
         let pixelPtr = 0;
         let bufferPtr = 0;
@@ -68,21 +68,72 @@ window.JSSpeccy = (container) => {
     container.appendChild(canvas);
     const renderer = new CanvasRenderer(canvas);
 
-    const frameBuffer = new ArrayBuffer(0x3000);
+    const msPerFrame = 20;
+    const frameBuffers = [
+        new ArrayBuffer(0x3000),
+        new ArrayBuffer(0x3000),
+        new ArrayBuffer(0x3000),
+    ];
+    let bufferBeingShown = null;
+    let bufferAwaitingShow = null;
+    let lockedBuffer = null;
+
+    let isRunningFrame = false;
+    let nextFrameTime = performance.now();
+
     const worker = new Worker('worker.js');
+
+    const getBufferToLock = () => {
+        for (let i = 0; i < 3; i++) {
+            if (i !== bufferBeingShown && i !== bufferAwaitingShow) {
+                return i;
+            }
+        }
+    }
 
     worker.onmessage = function(e) {
         switch(e.data.message) {
             case 'frameCompleted':
-                renderer.renderFrame(e.data.frameBuffer);
+                frameBuffers[lockedBuffer] = e.data.frameBuffer;
+                bufferAwaitingShow = lockedBuffer;
+                lockedBuffer = null;
+                const time = performance.now();
+                if (time > nextFrameTime) {
+                    /* running at full blast - start next frame but adjust time base
+                    to give it the full time allocation */
+                    runFrame();
+                    nextFrameTime = time + msPerFrame;
+                } else {
+                    isRunningFrame = false;
+                }
                 break;
             default:
                 console.log('message received by host:', e.data);
         }
     }
 
-    worker.postMessage({
-        'message': 'runFrame',
-        'frameBuffer': frameBuffer,
-    }, [frameBuffer]);
+    const runFrame = () => {
+        isRunningFrame = true;
+        lockedBuffer = getBufferToLock();
+        worker.postMessage({
+            'message': 'runFrame',
+            'frameBuffer': frameBuffers[lockedBuffer],
+        }, [frameBuffers[lockedBuffer]]);
+    }
+
+    const runAnimationFrame = (time) => {
+        if (bufferAwaitingShow !== null) {
+            bufferBeingShown = bufferAwaitingShow;
+            bufferAwaitingShow = null;
+            renderer.showFrame(frameBuffers[bufferBeingShown]);
+            bufferBeingShown = null;
+        }
+        if (time > nextFrameTime && !isRunningFrame) {
+            runFrame();
+            nextFrameTime += msPerFrame;
+        }
+        window.requestAnimationFrame(runAnimationFrame);
+    };
+    window.requestAnimationFrame(runAnimationFrame);
+
 };
