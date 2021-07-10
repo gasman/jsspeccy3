@@ -62,6 +62,9 @@ class CanvasRenderer {
 
 
 window.JSSpeccy = (container) => {
+    let benchmarkRunCount = 0;
+    let benchmarkRenderCount = 0;
+
     const canvas = document.createElement('canvas');
     canvas.width = 320;
     canvas.height = 240;
@@ -94,6 +97,7 @@ window.JSSpeccy = (container) => {
     worker.onmessage = function(e) {
         switch(e.data.message) {
             case 'frameCompleted':
+                benchmarkRunCount++;
                 frameBuffers[lockedBuffer] = e.data.frameBuffer;
                 bufferAwaitingShow = lockedBuffer;
                 lockedBuffer = null;
@@ -127,6 +131,7 @@ window.JSSpeccy = (container) => {
             bufferAwaitingShow = null;
             renderer.showFrame(frameBuffers[bufferBeingShown]);
             bufferBeingShown = null;
+            benchmarkRenderCount++;
         }
         if (time > nextFrameTime && !isRunningFrame) {
             runFrame();
@@ -136,4 +141,13 @@ window.JSSpeccy = (container) => {
     };
     window.requestAnimationFrame(runAnimationFrame);
 
+    benchmarkElement = document.getElementById('benchmark');
+    setInterval(() => {
+        benchmarkElement.innerText = (
+            "Running at " + benchmarkRunCount + "fps, rendering at "
+            + benchmarkRenderCount + "fps"
+        );
+        benchmarkRunCount = 0;
+        benchmarkRenderCount = 0;
+    }, 1000)
 };
