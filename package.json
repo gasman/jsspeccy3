@@ -1,0 +1,12 @@
+{
+  "name": "jsspeccy",
+  "version": "3.0.0",
+  "description": "a ZX Spectrum emulator in the browser",
+  "main": "jsspeccy.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "cp js/*.js dist/ && cp html/*.html dist/"
+  },
+  "author": "Matt Westcott",
+  "license": "ISC"
+}
