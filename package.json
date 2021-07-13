@@ -10,7 +10,7 @@
     "asbuild": "npm run asbuild:untouched && npm run asbuild:optimized",
     "build:js": "webpack",
     "build:html": "cp html/*.html dist/",
-    "build": "npm run build:js && npm run build:html && npm run asbuild",
+    "build": "npm run asbuild && npm run build:js && npm run build:html",
     "watch": "npm-watch"
   },
   "watch": {
@@ -19,7 +19,7 @@
       "extensions": "ts"
     },
     "build:js": {
-      "patterns": "js/*.js",
+      "patterns": ["js/*.js", "build/*.js"],
       "extensions": "js"
     },
     "build:html": {

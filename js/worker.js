@@ -1,9 +1,8 @@
 import { FRAME_BUFFER_SIZE } from './constants';
+import * as jsCore from '../build/untouched';
 
-WebAssembly.instantiateStreaming(
-    fetch('untouched.wasm', {})
-).then(results => {
-    const memory = results.instance.exports.memory;
+const run = (core) => {
+    const memory = core.memory;
     const memoryData = new Uint8Array(memory.buffer);
     const workerFrameData = memoryData.subarray(0, FRAME_BUFFER_SIZE);
 
@@ -13,7 +12,7 @@ WebAssembly.instantiateStreaming(
                 const frameBuffer = e.data.frameBuffer;
                 const frameData = new Uint8Array(frameBuffer);
 
-                results.instance.exports.runFrame();
+                core.runFrame();
                 frameData.set(workerFrameData);
                 postMessage({
                     'message': 'frameCompleted',
@@ -29,4 +28,14 @@ WebAssembly.instantiateStreaming(
     postMessage({
         'message': 'ready',
     });
-});
+}
+
+if (WebAssembly) {
+    WebAssembly.instantiateStreaming(
+        fetch('untouched.wasm', {})
+    ).then(results => {
+        run(results.instance.exports);
+    });
+} else {
+    run(jsCore);
+}

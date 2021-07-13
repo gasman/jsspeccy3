@@ -3,12 +3,14 @@
     "debug": {
       "binaryFile": "dist/untouched.wasm",
       "textFile": "dist/untouched.wat",
+      "jsFile": "build/untouched.js",
       "sourceMap": true,
       "debug": true
     },
     "release": {
       "binaryFile": "dist/optimized.wasm",
       "textFile": "dist/optimized.wat",
+      "jsFile": "build/optimized.js",
       "sourceMap": true,
       "optimizeLevel": 3,
       "shrinkLevel": 0,
