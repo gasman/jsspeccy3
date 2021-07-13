@@ -1,7 +1,10 @@
 // The entry file of your WebAssembly module.
 
-export const fortytwo = 42;
+let frameNum = 0;
 
-export function add(a: i32, b: i32): i32 {
-    return a + b;
+export function runFrame(): void {
+    for (let i:u16 = 0; i < 12288; i++) {
+        store<u8>(i, i + frameNum);
+    }
+    frameNum += 2;
 }

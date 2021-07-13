@@ -96,6 +96,9 @@ window.JSSpeccy = (container) => {
 
     worker.onmessage = function(e) {
         switch(e.data.message) {
+            case 'ready':
+                window.requestAnimationFrame(runAnimationFrame);
+                break;
             case 'frameCompleted':
                 benchmarkRunCount++;
                 frameBuffers[lockedBuffer] = e.data.frameBuffer;
@@ -139,7 +142,6 @@ window.JSSpeccy = (container) => {
         }
         window.requestAnimationFrame(runAnimationFrame);
     };
-    window.requestAnimationFrame(runAnimationFrame);
 
     benchmarkElement = document.getElementById('benchmark');
     setInterval(() => {
