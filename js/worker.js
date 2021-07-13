@@ -1,9 +1,11 @@
+import { FRAME_BUFFER_SIZE } from './constants';
+
 WebAssembly.instantiateStreaming(
     fetch('untouched.wasm', {})
 ).then(results => {
     const memory = results.instance.exports.memory;
     const memoryData = new Uint8Array(memory.buffer);
-    const workerFrameData = memoryData.subarray(0, 0x3000);
+    const workerFrameData = memoryData.subarray(0, FRAME_BUFFER_SIZE);
 
     onmessage = (e) => {
         switch (e.data.message) {

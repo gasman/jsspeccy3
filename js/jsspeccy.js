@@ -1,3 +1,5 @@
+import { FRAME_BUFFER_SIZE } from './constants';
+
 class CanvasRenderer {
     constructor(canvas) {
         this.canvas = canvas;
@@ -46,7 +48,7 @@ class CanvasRenderer {
         const frameBytes = new Uint8Array(frameBuffer);
         let pixelPtr = 0;
         let bufferPtr = 0;
-        while (bufferPtr < 0x3000) {
+        while (bufferPtr < FRAME_BUFFER_SIZE) {
             const attr = frameBytes[bufferPtr++];
             let bitmap = frameBytes[bufferPtr++];
             const ink = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
@@ -73,9 +75,9 @@ window.JSSpeccy = (container) => {
 
     const msPerFrame = 20;
     const frameBuffers = [
-        new ArrayBuffer(0x3000),
-        new ArrayBuffer(0x3000),
-        new ArrayBuffer(0x3000),
+        new ArrayBuffer(FRAME_BUFFER_SIZE),
+        new ArrayBuffer(FRAME_BUFFER_SIZE),
+        new ArrayBuffer(FRAME_BUFFER_SIZE),
     ];
     let bufferBeingShown = null;
     let bufferAwaitingShow = null;
@@ -143,7 +145,7 @@ window.JSSpeccy = (container) => {
         window.requestAnimationFrame(runAnimationFrame);
     };
 
-    benchmarkElement = document.getElementById('benchmark');
+    const benchmarkElement = document.getElementById('benchmark');
     setInterval(() => {
         benchmarkElement.innerText = (
             "Running at " + benchmarkRunCount + "fps, rendering at "
