@@ -1,6 +1,6 @@
 // The entry file of your WebAssembly module.
 
-let frameNum = 0;
+let frameNum = 1;
 
 export function runFrame(): void {
     for (let i:u16 = 0; i < 12288; i++) {
