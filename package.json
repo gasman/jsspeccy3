@@ -5,16 +5,16 @@
   "main": "jsspeccy.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "asbuild:untouched": "asc assembly/index.ts --target debug",
-    "asbuild:optimized": "asc assembly/index.ts --target release",
-    "asbuild": "npm run asbuild:untouched && npm run asbuild:optimized",
+    "asbuild:debug": "asc assembly/index.ts --target debug",
+    "asbuild:release": "asc assembly/index.ts --target release",
     "build:js": "webpack",
     "build:html": "cp html/*.html dist/",
-    "build": "npm run asbuild && npm run build:js && npm run build:html",
+    "build": "npm run asbuild:debug && npm run build:js && npm run build:html",
+    "build:release": "npm run asbuild:release && npm run build:js && npm run build:html",
     "watch": "npm-watch"
   },
   "watch": {
-    "asbuild:untouched": {
+    "asbuild:debug": {
       "patterns": "assembly/*.ts",
       "extensions": "ts"
     },

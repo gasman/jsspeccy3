@@ -86,7 +86,7 @@ window.JSSpeccy = (container) => {
     let isRunningFrame = false;
     let nextFrameTime = performance.now();
 
-    const worker = new Worker('worker.js');
+    const worker = new Worker('jsspeccy-worker.js');
 
     const getBufferToLock = () => {
         for (let i = 0; i < 3; i++) {

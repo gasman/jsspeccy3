@@ -9,7 +9,7 @@ module.exports = [
     },
     {
         output: {
-            filename: 'worker.js',
+            filename: 'jsspeccy-worker.js',
         },
         name: 'worker',
         entry: './js/worker.js',
