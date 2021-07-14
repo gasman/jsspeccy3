@@ -8,7 +8,7 @@
     "asbuild:debug": "asc assembly/index.ts --target debug",
     "asbuild:release": "asc assembly/index.ts --target release",
     "build:js": "webpack",
-    "build:html": "cp html/*.html dist/",
+    "build:static": "cp static/* dist/",
     "build": "npm run asbuild:debug && npm run build:js && npm run build:html",
     "build:release": "npm run asbuild:release && npm run build:js && npm run build:html",
     "watch": "npm-watch"
@@ -22,9 +22,9 @@
       "patterns": ["js/*.js", "build/*.js"],
       "extensions": "js"
     },
-    "build:html": {
-      "patterns": "html/*.html",
-      "extensions": "html"
+    "build:static": {
+      "patterns": ["static/*.html", "static/*.rom"],
+      "extensions": ["html", "rom"]
     }
   },
   "author": "Matt Westcott",

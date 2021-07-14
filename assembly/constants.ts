@@ -1,0 +1,5 @@
+export const FRAME_BUFFER:u32 = 0x0000;
+export const FRAME_BUFFER_SIZE:u32 = 0x3000;
+
+export const MACHINE_MEMORY:u32 = FRAME_BUFFER + FRAME_BUFFER_SIZE;
+export const MACHINE_MEMORY_SIZE:u32 = 0x10000;

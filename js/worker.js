@@ -1,4 +1,4 @@
-import { FRAME_BUFFER_SIZE } from './constants';
+import { FRAME_BUFFER_SIZE, MACHINE_MEMORY } from './constants';
 import * as jsCore from '../build/jsspeccy-core';
 
 const run = (core) => {
@@ -19,6 +19,9 @@ const run = (core) => {
                     'frameBuffer': frameBuffer,
                 }, [frameBuffer]);
 
+                break;
+            case 'loadMemory':
+                memoryData.set(e.data.data, MACHINE_MEMORY + e.data.offset);
                 break;
             default:
                 console.log('message received by worker:', e.data);

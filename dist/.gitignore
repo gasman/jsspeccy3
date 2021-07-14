@@ -3,3 +3,4 @@
 *.wasm.map
 *.wat
 *.html
+*.rom

@@ -99,7 +99,9 @@ window.JSSpeccy = (container) => {
     worker.onmessage = function(e) {
         switch(e.data.message) {
             case 'ready':
-                window.requestAnimationFrame(runAnimationFrame);
+                loadRom('48.rom').then(() => {
+                    window.requestAnimationFrame(runAnimationFrame);
+                })
                 break;
             case 'frameCompleted':
                 benchmarkRunCount++;
@@ -119,6 +121,16 @@ window.JSSpeccy = (container) => {
             default:
                 console.log('message received by host:', e.data);
         }
+    }
+
+    const loadRom = async (url) => {
+        const response = await fetch(url);
+        const data = new Uint8Array(await response.arrayBuffer());
+        worker.postMessage({
+            message: 'loadMemory',
+            data,
+            offset: 0,
+        })
     }
 
     const runFrame = () => {
