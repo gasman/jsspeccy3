@@ -3,3 +3,5 @@ export const FRAME_BUFFER_SIZE:u32 = 0x3000;
 
 export const MACHINE_MEMORY:u32 = FRAME_BUFFER + FRAME_BUFFER_SIZE;
 export const MACHINE_MEMORY_SIZE:u32 = 0x10000;
+
+export const FRAME_CYCLE_COUNT:u32 = 69888;

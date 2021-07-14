@@ -12,7 +12,10 @@ const run = (core) => {
                 const frameBuffer = e.data.frameBuffer;
                 const frameData = new Uint8Array(frameBuffer);
 
-                core.runFrame();
+                const result = core.runFrame();
+                if (result != -1) {
+                    throw "Unhandled opcode: " + result.toString(16);
+                }
                 frameData.set(workerFrameData);
                 postMessage({
                     'message': 'frameCompleted',
