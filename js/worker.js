@@ -1,5 +1,4 @@
 import { FRAME_BUFFER_SIZE, MACHINE_MEMORY } from './constants';
-import * as jsCore from '../build/jsspeccy-core';
 
 const run = (core) => {
     const memory = core.memory;
@@ -36,12 +35,8 @@ const run = (core) => {
     });
 }
 
-if (WebAssembly) {
-    WebAssembly.instantiateStreaming(
-        fetch('jsspeccy-core.wasm', {})
-    ).then(results => {
-        run(results.instance.exports);
-    });
-} else {
-    run(jsCore);
-}
+WebAssembly.instantiateStreaming(
+    fetch('jsspeccy-core.wasm', {})
+).then(results => {
+    run(results.instance.exports);
+});

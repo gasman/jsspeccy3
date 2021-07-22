@@ -3,14 +3,12 @@
     "debug": {
       "binaryFile": "dist/jsspeccy-core.wasm",
       "textFile": "dist/jsspeccy-core.wat",
-      "jsFile": "build/jsspeccy-core.js",
       "sourceMap": true,
       "debug": true
     },
     "release": {
       "binaryFile": "dist/jsspeccy-core.wasm",
       "textFile": "dist/jsspeccy-core.wat",
-      "jsFile": "build/jsspeccy-core.js",
       "sourceMap": true,
       "optimizeLevel": 3,
       "shrinkLevel": 0,
