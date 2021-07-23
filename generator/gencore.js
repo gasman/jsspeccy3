@@ -44,7 +44,7 @@ class PointerVariable extends Variable {
         return `load<${this.type}>(${this.address})`;
     }
     setter(expr) {
-        throw `store<${this.type}>(${this.address}, (${parseExpression(expr)}));`;
+        return `store<${this.type}>(${this.address}, (${parseExpression(expr)}));`;
     }
 }
 
@@ -99,7 +99,7 @@ const allocateArray = (varName, type, count) => {
 const allocateRegisterPair = (pair, hi, lo) => {
     vars[pair] = new PointerVariable(mem, 'u16');
     if (lo) vars[lo] = new PointerVariable(mem, 'u8');
-    if (hi) vars[hi] = new PointerVariable(mem + 1, 'u16');
+    if (hi) vars[hi] = new PointerVariable(mem + 1, 'u8');
     mem += 2;
 }
 const defineConstant = (varName, val) => {

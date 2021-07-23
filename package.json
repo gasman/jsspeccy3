@@ -17,8 +17,8 @@
   },
   "watch": {
     "build:core": {
-      "patterns": ["generator/*.js"],
-      "extensions": "js"
+      "patterns": ["generator/*.js", "generator/*.ts.in"],
+      "extensions": ["js", "in"]
     },
     "build:wasm:debug": {
       "patterns": ["build/core.ts"],

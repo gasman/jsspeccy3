@@ -61,22 +61,39 @@ while (true) {
 }
 
 
-function readMem(addr:u16):u8 {
-    return machineMemory[addr];
-}
-
-
 let frameNum:u8 = 1;
 let t:u32 = 0;
 let pc:u16 = 0;
 let iff1:bool = 0;
 let iff2:bool = 0;
 
+function readMem(addr:u16):u8 {
+    t += 3;
+    return machineMemory[addr];
+}
+
 export function runFrame():i16 {
     while (t < FRAME_CYCLE_COUNT) {
         let op:u8 = readMem(pc++);
-        t += 4;
+        t++;
         switch (op) {
+            case 0x11:  /* LD DE,nnnn */
+                E = readMem(pc++);
+                D = readMem(pc++);
+                break;
+            case 0x3e:  /* LD A,nn */
+                A = readMem(pc++);
+                break;
+            case 0x47:  /* LD B,A */
+                B = A;
+                break;
+            case 0xaf:  /* XOR A */
+                A = 0;
+                F = sz53pTable[0];
+                break;
+            case 0xc3:  /* JP nnnn */
+                pc = u16(readMem(pc++)) + (u16(readMem(pc++)) << 8);
+                break;
             case 0xf3:  /* DI */
                 iff1 = iff2 = 0;
                 break;
