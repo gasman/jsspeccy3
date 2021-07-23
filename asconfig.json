@@ -2,13 +2,13 @@
   "targets": {
     "debug": {
       "binaryFile": "dist/jsspeccy-core.wasm",
-      "textFile": "dist/jsspeccy-core.wat",
+      "textFile": "build/core.wat",
       "sourceMap": true,
       "debug": true
     },
     "release": {
       "binaryFile": "dist/jsspeccy-core.wasm",
-      "textFile": "dist/jsspeccy-core.wat",
+      "textFile": "build/core.wat",
       "sourceMap": true,
       "optimizeLevel": 3,
       "shrinkLevel": 0,

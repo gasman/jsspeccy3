@@ -1,10 +1,10 @@
-module.exports = [
+export default [
     {
         output: {
             filename: 'jsspeccy.js',
         },
         name: 'jsspeccy',
-        entry: './js/jsspeccy.js',
+        entry: './runtime/jsspeccy.js',
         mode: 'production',
     },
     {
@@ -12,7 +12,7 @@ module.exports = [
             filename: 'jsspeccy-worker.js',
         },
         name: 'worker',
-        entry: './js/worker.js',
+        entry: './runtime/worker.js',
         mode: 'production',
     },
 ];

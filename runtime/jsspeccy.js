@@ -1,4 +1,4 @@
-import { FRAME_BUFFER_SIZE } from './constants';
+import { FRAME_BUFFER_SIZE } from './constants.js';
 
 class CanvasRenderer {
     constructor(canvas) {

@@ -1,0 +1,95 @@
+#alloc frameBuffer[0x3000]: u8
+#const FRAME_BUFFER_SIZE 0x3000
+#alloc machineMemory[0x10000]: u8
+
+export const FRAME_CYCLE_COUNT:u32 = 69888;
+
+#regpair AF A F
+#regpair BC B C
+#regpair DE D E
+#regpair HL H L
+#regpair AF_
+#regpair BC_
+#regpair DE_
+#regpair HL_
+#regpair IX IXH IXL
+#regpair IY IYH IYL
+#regpair IR I R
+
+#const FLAG_C 0x01
+#const FLAG_N 0x02
+#const FLAG_P 0x04
+#const FLAG_V 0x04
+#const FLAG_3 0x08
+#const FLAG_H 0x10
+#const FLAG_5 0x20
+#const FLAG_Z 0x40
+#const FLAG_S 0x80
+
+#alloc halfcarryAddTable[8]: u8
+halfcarryAddTable = [0, FLAG_H, FLAG_H, FLAG_H, 0, 0, 0, FLAG_H];
+
+#alloc halfcarrySubTable[8]: u8
+halfcarrySubTable = [0, 0, FLAG_H, 0, FLAG_H, 0, FLAG_H, FLAG_H];
+
+#alloc overflowAddTable[8]: u8
+overflowAddTable = [0, 0, 0, FLAG_V, FLAG_V, 0, 0, 0];
+#alloc overflowSubTable[8]: u8
+overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
+
+#alloc sz53Table[0x100]: u8
+#alloc parityTable[0x100]: u8
+#alloc sz53pTable[0x100]: u8
+
+let i:u8 = 0;
+while (true) {
+    sz53Table[i] = u8(i) & ( FLAG_3 | FLAG_5 | FLAG_S );
+    let j = i;
+    let parity:u8 = 0;
+    for (let k:i8 = 0; k < 8; k++) {
+        parity ^= j & 1;
+        j >>= 1;
+    }
+
+    parityTable[i] = (parity ? 0 : FLAG_P);
+    sz53pTable[i] = sz53Table[i] | parityTable[i];
+
+    sz53Table[0] |= FLAG_Z;
+    sz53pTable[0] |= FLAG_Z;
+    i++;
+    if (i == 0) break;
+}
+
+
+function readMem(addr:u16):u8 {
+    return machineMemory[addr];
+}
+
+
+let frameNum:u8 = 1;
+let t:u32 = 0;
+let pc:u16 = 0;
+let iff1:bool = 0;
+let iff2:bool = 0;
+
+export function runFrame():i16 {
+    while (t < FRAME_CYCLE_COUNT) {
+        let op:u8 = readMem(pc++);
+        t += 4;
+        switch (op) {
+            case 0xf3:  /* DI */
+                iff1 = iff2 = 0;
+                break;
+            default:
+                return op;
+        }
+    }
+    t -= FRAME_CYCLE_COUNT;
+
+    for (let i:u16 = 0; i < FRAME_BUFFER_SIZE; i++) {
+        store<u8>(i, i + frameNum);
+    }
+    frameNum += 2;
+
+    return -1;
+}

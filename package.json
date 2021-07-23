@@ -3,23 +3,29 @@
   "version": "3.0.0",
   "description": "a ZX Spectrum emulator in the browser",
   "main": "jsspeccy.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "asbuild:debug": "asc assembly/index.ts --target debug",
-    "asbuild:release": "asc assembly/index.ts --target release",
+    "build:core": "node generator/gencore.js generator/core.ts.in build/core.ts",
+    "build:wasm:debug": "asc build/core.ts --target debug",
+    "build:wasm:release": "asc build/core.ts --target release",
     "build:js": "webpack",
     "build:static": "cp static/* dist/",
-    "build": "npm run asbuild:debug && npm run build:js && npm run build:static",
-    "build:release": "npm run asbuild:release && npm run build:js && npm run build:static",
+    "build": "npm run build:core && npm run build:wasm:debug && npm run build:js && npm run build:static",
+    "build:release": "npm run build:core && npm run build:wasm:release && npm run build:js && npm run build:static",
     "watch": "npm-watch"
   },
   "watch": {
-    "asbuild:debug": {
-      "patterns": "assembly/*.ts",
+    "build:core": {
+      "patterns": ["generator/*.js"],
+      "extensions": "js"
+    },
+    "build:wasm:debug": {
+      "patterns": ["build/core.ts"],
       "extensions": "ts"
     },
     "build:js": {
-      "patterns": ["js/*.js", "build/*.js"],
+      "patterns": ["runtime/*.js", "build/*.js"],
       "extensions": "js"
     },
     "build:static": {

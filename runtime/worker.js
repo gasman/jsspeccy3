@@ -1,4 +1,4 @@
-import { FRAME_BUFFER_SIZE, MACHINE_MEMORY } from './constants';
+import { FRAME_BUFFER_SIZE, MACHINE_MEMORY } from './constants.js';
 
 const run = (core) => {
     const memory = core.memory;
