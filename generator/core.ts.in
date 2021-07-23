@@ -66,6 +66,7 @@ let t:u32 = 0;
 let pc:u16 = 0;
 let iff1:bool = 0;
 let iff2:bool = 0;
+let opcodePrefix:u8 = 0;
 
 function readMem(addr:u16):u8 {
     t += 3;
@@ -75,30 +76,54 @@ function readMem(addr:u16):u8 {
 export function runFrame():i16 {
     while (t < FRAME_CYCLE_COUNT) {
         let op:u8 = readMem(pc++);
-        t++;
-        switch (op) {
-            case 0x11:  /* LD DE,nnnn */
-                E = readMem(pc++);
-                D = readMem(pc++);
-                break;
-            case 0x3e:  /* LD A,nn */
-                A = readMem(pc++);
-                break;
-            case 0x47:  /* LD B,A */
-                B = A;
-                break;
-            case 0xaf:  /* XOR A */
-                A = 0;
-                F = sz53pTable[0];
-                break;
-            case 0xc3:  /* JP nnnn */
-                pc = u16(readMem(pc++)) + (u16(readMem(pc++)) << 8);
-                break;
-            case 0xf3:  /* DI */
-                iff1 = iff2 = 0;
-                break;
-            default:
-                return op;
+        t++;  // 1T to decode in addition to the memory read
+        if (opcodePrefix == 0) {
+            switch (op) {
+                case 0x00:  /* NOP */
+                    break;
+                case 0x11:  /* LD DE,nnnn */
+                    E = readMem(pc++);
+                    D = readMem(pc++);
+                    break;
+                case 0x3e:  /* LD A,nn */
+                    A = readMem(pc++);
+                    break;
+                case 0x47:  /* LD B,A */
+                    B = A;
+                    break;
+                case 0x62:  /* LD H,D */
+                    H = D;
+                    break;
+                case 0xaf:  /* XOR A */
+                    A = 0;
+                    F = sz53pTable[0];
+                    break;
+                case 0xc3:  /* JP nnnn */
+                    pc = u16(readMem(pc++)) + (u16(readMem(pc++)) << 8);
+                    break;
+                case 0xd3:  /* OUT (nn),A */
+                    readMem(pc++);
+                    t += 4;
+                    break;
+                case 0xed:  /* opcode prefix */
+                    opcodePrefix = 0xed;
+                    break;
+                case 0xf3:  /* DI */
+                    iff1 = iff2 = 0;
+                    break;
+                default:
+                    return op;
+            }
+        } else if (opcodePrefix == 0xed) {
+            switch (op) {
+                case 0x47:  /* LD I,A */
+                    I = A;
+                    t++;
+                    break;
+                default:
+                    return i16(0xe00) | i16(op);
+            }
+            opcodePrefix = 0;
         }
     }
     t -= FRAME_CYCLE_COUNT;
