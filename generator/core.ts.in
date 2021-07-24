@@ -95,10 +95,15 @@ export function runFrame():i16 {
                 #op 16 LD D,n
                 #op 1b DEC DE
                 #op 1e LD E,n
+
+                #op 20 JR NZ,n
                 #op 26 LD H,n
+                #op 28 JR Z,n
                 #op 2e LD L,n
                 #op 2b DEC HL
+                #op 30 JR NC,n
                 #op 36 LD (HL),n
+                #op 38 JR C,n
                 #op 3b DEC SP
                 #op 3e LD A,n
 
@@ -147,6 +152,13 @@ export function runFrame():i16 {
                 #op 6d LD L,L
                 #op 6f LD L,A
 
+                #op a0 AND B
+                #op a1 AND C
+                #op a2 AND D
+                #op a3 AND E
+                #op a4 AND H
+                #op a5 AND L
+                #op a7 AND A
                 #op a8 XOR B
                 #op a9 XOR C
                 #op aa XOR D
@@ -154,6 +166,22 @@ export function runFrame():i16 {
                 #op ac XOR H
                 #op ad XOR L
                 #op af XOR A
+
+                #op b0 OR B
+                #op b1 OR C
+                #op b2 OR D
+                #op b3 OR E
+                #op b4 OR H
+                #op b5 OR L
+                #op b7 OR A
+                #op b8 CP B
+                #op b9 CP C
+                #op ba CP D
+                #op bb CP E
+                #op bc CP H
+                #op bd CP L
+                #op bf CP A
+
                 #op c3 JP nn
                 #op c5 PUSH BC
                 #op cb prefix cb

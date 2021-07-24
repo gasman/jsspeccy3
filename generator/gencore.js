@@ -204,6 +204,8 @@ const processLine = (line) => {
                                 args.push(instructionToken);
                             } else if (candidateToken == 'rr' && instructionToken.match(/^(AF|BC|DE|HL|SP)$/)) {
                                 args.push(instructionToken);
+                            } else if (candidateToken == 'c' && instructionToken.match(/^(C|NC|Z|NZ|PO|PE|P|M)$/)) {
+                                args.push(instructionToken);
                             } else if (candidateToken != instructionToken) {
                                 fuzzyMatchOk = false;
                                 break;
