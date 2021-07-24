@@ -187,7 +187,7 @@ const processLine = (line) => {
                     a fuzzy match succeeds if both are the same length, and each token either:
                     - matches exactly, or
                     - is a placeholder that's valid for the target instruction
-                      ('r' is valid for any of ABCDEHL),
+                      ('r' is valid for any of ABCDEHL; 'rr' is valid for BC, DE, HL, SP),
                       in which case the token in the target is stored to be passed as a parameter.
                     */
                     const instructionTokens = instruction.split(/\b/);
@@ -201,6 +201,8 @@ const processLine = (line) => {
                             const instructionToken = instructionTokens[i];
                             const candidateToken = candidateTokens[i];
                             if (candidateToken == 'r' && instructionToken.match(/^[ABCDEHL]$/)) {
+                                args.push(instructionToken);
+                            } else if (candidateToken == 'rr' && instructionToken.match(/^(AF|BC|DE|HL|SP)$/)) {
                                 args.push(instructionToken);
                             } else if (candidateToken != instructionToken) {
                                 fuzzyMatchOk = false;

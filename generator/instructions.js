@@ -5,12 +5,19 @@ export default {
     'prefix ed': () => `
         opcodePrefix = 0xed;
     `,
+    'DEC rr': (rr) => `
+        ${rr} = ${rr} - 1;
+        t += 2;
+    `,
     'DI': () => `
         iff1 = iff2 = 0;
         break;
     `,
     'JP nn': () => `
         pc = u16(readMem(pc++)) + (u16(readMem(pc++)) << 8);
+    `,
+    'LD (HL),n': () => `
+        writeMem(HL, readMem(pc++));
     `,
     'LD DE,nn': () => `
         E = readMem(pc++);
@@ -32,6 +39,13 @@ export default {
     'OUT (n),A': () => `
         readMem(pc++);
         t += 4;
+    `,
+    'PUSH rr': (rr) => `
+        t++;
+        SP = SP - 1;
+        writeMem(SP, ${rr.charAt(0)});
+        SP = SP - 1;
+        writeMem(SP, ${rr.charAt(1)});
     `,
     'XOR A': () => `
         A = 0;

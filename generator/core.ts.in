@@ -14,6 +14,7 @@ export const FRAME_CYCLE_COUNT:u32 = 69888;
 #regpair HL_
 #regpair IX IXH IXL
 #regpair IY IYH IYL
+#regpair SP
 #regpair IR I R
 
 #const FLAG_C 0x01
@@ -73,6 +74,13 @@ function readMem(addr:u16):u8 {
     return machineMemory[addr];
 }
 
+function writeMem(addr:u16, val:u8):void {
+    t += 3;
+    if (addr & 0xc000) {
+        machineMemory[addr] = val;
+    }
+}
+
 export function runFrame():i16 {
     while (t < FRAME_CYCLE_COUNT) {
         let op:u8 = readMem(pc++);
@@ -81,12 +89,17 @@ export function runFrame():i16 {
             switch (op) {
                 #op 00 NOP
                 #op 06 LD B,n
+                #op 0b DEC BC
                 #op 0e LD C,n
                 #op 11 LD DE,nn
                 #op 16 LD D,n
+                #op 1b DEC DE
                 #op 1e LD E,n
                 #op 26 LD H,n
                 #op 2e LD L,n
+                #op 2b DEC HL
+                #op 36 LD (HL),n
+                #op 3b DEC SP
                 #op 3e LD A,n
 
                 #op 40 LD B,B
@@ -142,10 +155,14 @@ export function runFrame():i16 {
                 #op ad XOR L
                 #op af XOR A
                 #op c3 JP nn
+                #op c5 PUSH BC
                 #op cb prefix cb
                 #op d3 OUT (n),A
+                #op d5 PUSH DE
+                #op e5 PUSH HL
                 #op ed prefix ed
                 #op f3 DI
+                #op f5 PUSH AF
 
                 default:
                     return op;
