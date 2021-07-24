@@ -202,7 +202,7 @@ const processLine = (line) => {
                             const candidateToken = candidateTokens[i];
                             if (candidateToken == 'r' && instructionToken.match(/^[ABCDEHL]$/)) {
                                 args.push(instructionToken);
-                            } else if (candidateToken == 'rr' && instructionToken.match(/^(AF|BC|DE|HL|SP)$/)) {
+                            } else if (candidateToken == 'rr' && instructionToken.match(/^(AF|BC|DE|HL|IX|IY|SP)$/)) {
                                 args.push(instructionToken);
                             } else if (candidateToken == 'c' && instructionToken.match(/^(C|NC|Z|NZ|PO|PE|P|M)$/)) {
                                 args.push(instructionToken);

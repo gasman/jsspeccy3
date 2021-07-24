@@ -78,6 +78,8 @@ let t:u32 = 0;
 let pc:u16 = 0;
 let iff1:bool = 0;
 let iff2:bool = 0;
+let im:u8 = 0;
+let interruptible:bool = false;
 let opcodePrefix:u8 = 0;
 let framebufferIndex = 0;
 
@@ -114,27 +116,50 @@ export function runFrame():i16 {
     framebufferIndex = 0;
 
     while (t < FRAME_CYCLE_COUNT) {
+        interruptible = true; // unless overridden by opcode
         let op:u8 = readMem(pc++);
         t++;  // 1T to decode in addition to the memory read
         if (opcodePrefix == 0) {
             switch (op) {
                 #op 00 NOP
+                #op 01 LD BC,nn
+                #op 03 INC BC
+                #op 04 INC B
                 #op 06 LD B,n
+                #op 09 ADD HL,BC
                 #op 0b DEC BC
+                #op 0c INC C
                 #op 0e LD C,n
                 #op 11 LD DE,nn
+                #op 13 INC DE
+                #op 14 INC D
                 #op 16 LD D,n
+                #op 19 ADD HL,DE
                 #op 1b DEC DE
+                #op 1c INC E
                 #op 1e LD E,n
 
                 #op 20 JR NZ,n
+                #op 21 LD HL,nn
+                #op 22 LD (nn),HL
+                #op 23 INC HL
+                #op 24 INC H
                 #op 26 LD H,n
                 #op 28 JR Z,n
+                #op 29 ADD HL,HL
+                #op 2a LD HL,(nn)
                 #op 2e LD L,n
                 #op 2b DEC HL
+                #op 2c INC L
+
                 #op 30 JR NC,n
+                #op 31 LD SP,nn
+                #op 32 LD (nn),A
+                #op 33 INC SP
+                #op 35 DEC (HL)
                 #op 36 LD (HL),n
                 #op 38 JR C,n
+                #op 39 ADD HL,SP
                 #op 3b DEC SP
                 #op 3e LD A,n
 
@@ -218,20 +243,69 @@ export function runFrame():i16 {
                 #op cb prefix cb
                 #op d3 OUT (n),A
                 #op d5 PUSH DE
+                #op d9 EXX
+                #op dd prefix dd
                 #op e5 PUSH HL
+                #op eb EX DE,HL
                 #op ed prefix ed
                 #op f3 DI
                 #op f5 PUSH AF
+                #op f9 LD SP,HL
+                #op fb EI
+                #op fd prefix fd
 
                 default:
                     return op;
             }
+        } else if (opcodePrefix == 0xdd) {
+            switch (op) {
+                #op 21 LD IX,nn
+                #op 22 LD (nn),IX
+                #op 23 INC IX
+                #op 2a LD IX,(nn)
+                #op 2b DEC IX
+                #op e5 PUSH IX
+                #op f9 LD SP,IX
+
+                default:
+                    return i16(0xd00) | i16(op);
+            }
+            opcodePrefix = 0;
         } else if (opcodePrefix == 0xed) {
             switch (op) {
+                #op 42 SBC HL,BC
+                #op 43 LD (nn),BC
+                #op 46 IM 0
                 #op 47 LD I,A
+                #op 4b LD BC,(nn)
+                #op 52 SBC HL,DE
+                #op 53 LD (nn),DE
+                #op 56 IM 1
+                #op 5b LD DE,(nn)
+                #op 5e IM 2
+                #op 62 SBC HL,HL
+                #op 6b LD HL,(nn)
+                #op 72 SBC HL,SP
+                #op 73 LD (nn),SP
+                #op b0 LDIR
+                #op b8 LDDR
 
                 default:
                     return i16(0xe00) | i16(op);
+            }
+            opcodePrefix = 0;
+        } else if (opcodePrefix == 0xfd) {
+            switch (op) {
+                #op 21 LD IY,nn
+                #op 22 LD (nn),IY
+                #op 23 INC IY
+                #op 2a LD IY,(nn)
+                #op 2b DEC IY
+                #op e5 PUSH IY
+                #op f9 LD SP,IY
+
+                default:
+                    return i16(0xf00) | i16(op);
             }
             opcodePrefix = 0;
         }
