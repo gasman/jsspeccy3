@@ -49,8 +49,8 @@ class CanvasRenderer {
         let pixelPtr = 0;
         let bufferPtr = 0;
         while (bufferPtr < FRAME_BUFFER_SIZE) {
-            const attr = frameBytes[bufferPtr++];
             let bitmap = frameBytes[bufferPtr++];
+            const attr = frameBytes[bufferPtr++];
             const ink = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
             const paper = this.palette[(attr & 0x78) >> 3];
             for (let i = 0; i < 8; i++) {

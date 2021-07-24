@@ -42,6 +42,10 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 #alloc parityTable[0x100]: u8
 #alloc sz53pTable[0x100]: u8
 
+const SCREEN_EVENT_COUNT:u16 = 3072;
+const SCREEN_EVENTS_SIZE:u16 = SCREEN_EVENT_COUNT * 3;
+#alloc screenEvents[9216]: u16
+
 let i:u8 = 0;
 while (true) {
     sz53Table[i] = u8(i) & ( FLAG_3 | FLAG_5 | FLAG_S );
@@ -61,13 +65,21 @@ while (true) {
     if (i == 0) break;
 }
 
+/* build screen events table: a list of which screen bytes should be fetched on which
+t-states. A sequence of: tstate number, screen address offset, attr address offset */
+let screenEventPointer:u32 = 0;
+for (let i:u16 = 0; i < SCREEN_EVENT_COUNT; i++) {
+    screenEvents[screenEventPointer++] = 14335 + 224 * (i >> 4) + 8 * (i & 0x0f);
+    screenEvents[screenEventPointer++] = ((i & 0x0c0f) << 1) | ((i & 0x0070) << 4) | ((i & 0x0380) >> 2);
+    screenEvents[screenEventPointer++] = 0x1800 | ((i & 0x0f80) >> 2) | ((i & 0x000f) << 1);
+}
 
-let frameNum:u8 = 1;
 let t:u32 = 0;
 let pc:u16 = 0;
 let iff1:bool = 0;
 let iff2:bool = 0;
 let opcodePrefix:u8 = 0;
+let framebufferIndex = 0;
 
 function readMem(addr:u16):u8 {
     t += 3;
@@ -76,12 +88,31 @@ function readMem(addr:u16):u8 {
 
 function writeMem(addr:u16, val:u8):void {
     t += 3;
+    if (addr >= 0x4000 && addr < 0x5b00) {
+        updateFramebuffer();
+    }
     if (addr & 0xc000) {
         machineMemory[addr] = val;
     }
 }
 
+function updateFramebuffer():void {
+    /* process all of the screen bytes that are due up to the current tstate */
+    while (screenEventPointer < SCREEN_EVENTS_SIZE && screenEvents[screenEventPointer] <= t) {
+        const screenAddr:u16 = 0x4000 | screenEvents[screenEventPointer + 1];
+        const attributeAddr:u16 = 0x4000 | screenEvents[screenEventPointer + 1];
+        frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
+        frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
+        frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
+        frameBuffer[framebufferIndex++] = machineMemory[attributeAddr + 1];
+        screenEventPointer += 3;
+    }
+}
+
 export function runFrame():i16 {
+    screenEventPointer = 0;
+    framebufferIndex = 0;
+
     while (t < FRAME_CYCLE_COUNT) {
         let op:u8 = readMem(pc++);
         t++;  // 1T to decode in addition to the memory read
@@ -205,12 +236,8 @@ export function runFrame():i16 {
             opcodePrefix = 0;
         }
     }
+    updateFramebuffer();
     t -= FRAME_CYCLE_COUNT;
-
-    for (let i:u16 = 0; i < FRAME_BUFFER_SIZE; i++) {
-        store<u8>(i, i + frameNum);
-    }
-    frameNum += 2;
 
     return -1;
 }
