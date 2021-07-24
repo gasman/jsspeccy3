@@ -190,8 +190,8 @@ const processLine = (line) => {
                       ('r' is valid for any of ABCDEHL; 'rr' is valid for BC, DE, HL, SP),
                       in which case the token in the target is stored to be passed as a parameter.
                     */
-                    const instructionTokens = instruction.split(/\b/);
-                    const candidateTokens = candidate.split(/\b/);
+                    const instructionTokens = instruction.split(/[\s,]/);
+                    const candidateTokens = candidate.split(/[\s,]/);
                     let fuzzyMatchOk = true;
                     let args = [];
                     if (instructionTokens.length != candidateTokens.length) {
@@ -205,6 +205,8 @@ const processLine = (line) => {
                             } else if (candidateToken == 'rr' && instructionToken.match(/^(AF|BC|DE|HL|IX|IY|SP)$/)) {
                                 args.push(instructionToken);
                             } else if (candidateToken == 'c' && instructionToken.match(/^(C|NC|Z|NZ|PO|PE|P|M)$/)) {
+                                args.push(instructionToken);
+                            } else if (candidateToken == 'v' && instructionToken.match(/^([ABCDEHL]|\(HL\)|\(IX\+n\)|\(IY\+n\)|n)$/)) {
                                 args.push(instructionToken);
                             } else if (candidateToken != instructionToken) {
                                 fuzzyMatchOk = false;

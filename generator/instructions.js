@@ -9,6 +9,60 @@ const CONDITIONS = {
     'P': '!(F & FLAG_S)',
 };
 
+const VALUE_INITTERS = {
+    'A': '',
+    'B': '',
+    'C': '',
+    'D': '',
+    'E': '',
+    'H': '',
+    'L': '',
+    '(HL)': 'const hl:u16 = HL;',
+    '(IX+n)': 'const ixAddr:u16 = IX + i8(readMem(pc++));',
+    '(IY+n)': 'const iyAddr:u16 = IY + i8(readMem(pc++));',
+    'n': '',
+};
+const VALUE_GETTERS = {
+    'A': 'const val = A;',
+    'B': 'const val = B;',
+    'C': 'const val = C;',
+    'D': 'const val = D;',
+    'E': 'const val = E;',
+    'H': 'const val = H;',
+    'L': 'const val = L;',
+    '(HL)': 'const val = readMem(hl);',
+    '(IX+n)': `
+        const val = readMem(ixAddr);
+        t += 5;
+    `,
+    '(IY+n)': `
+        const val = readMem(iyAddr);
+        t += 5;
+    `,
+    'n': 'const val = readMem(pc++);',
+};
+const VALUE_SETTERS = {
+    'A': 'A = result;',
+    'B': 'B = result;',
+    'C': 'C = result;',
+    'D': 'D = result;',
+    'E': 'E = result;',
+    'H': 'H = result;',
+    'L': 'L = result;',
+    '(HL)': `
+        t++;
+        writeMem(hl, result);
+    `,
+    '(IX+n)': `
+        t++;
+        writeMem(ixAddr, result);
+    `,
+    '(IY+n)': `
+        t++;
+        writeMem(iyAddr, result);
+    `,
+};
+
 export default {
     'prefix cb': () => `
         opcodePrefix = 0xcb;
@@ -37,15 +91,18 @@ export default {
     'AND A': () => `
         F = sz53pTable[0];
     `,
-    'AND r': (r) => `
-        let val:u8 = A & ${r};
-        A = val;
-        F = sz53pTable[val];
+    'AND v': (v) => `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
+        const result:u8 = A & val;
+        A = result;
+        F = sz53pTable[result];
     `,
-    'CP r': (r) => `
+    'CP v': (v) => `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
         let a:u32 = u32(A);
-        let val:u32 = u32(${r});
-        let cptemp:u32 = a - val;
+        let cptemp:u32 = a - u32(val);
         let lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
         F = ( cptemp & 0x100 ? FLAG_C : ( cptemp ? 0 : FLAG_Z ) ) | FLAG_N | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( val & ( FLAG_3 | FLAG_5 ) ) | ( cptemp & FLAG_S );
     `,
@@ -53,10 +110,13 @@ export default {
         ${rr} = ${rr} - 1;
         t += 2;
     `,
-    'DEC (HL)': () => `
-        const hl:u16 = HL;
-        writeMem(hl, readMem(hl) + 1);
-        t++;
+    'DEC v': (v) => `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
+        const tempF:u8 = (F & FLAG_C) | (val & 0x0f ? 0 : FLAG_H) | FLAG_N;
+        const result:u8 = val - 1;
+        ${VALUE_SETTERS[v]}
+        F = tempF | (result == 0x7f ? FLAG_V : 0) | sz53Table[result];
     `,
     'DI': () => `
         iff1 = iff2 = 0;
@@ -90,9 +150,11 @@ export default {
     'IM 2': () => `
         im = 2;
     `,
-    'INC r': (r) => `
-        const result:u8 = ${r} + 1;
-        ${r} = result;
+    'INC v': (v) => `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
+        const result:u8 = val + 1;
+        ${VALUE_SETTERS[v]}
         F = (F & FLAG_C) | (result == 0x80 ? FLAG_V : 0) | (result & 0x0f ? 0 : FLAG_H) | sz53Table[result];
     `,
     'INC rr': (rr) => `
@@ -128,12 +190,11 @@ export default {
         const addr = lo | (hi << 8);
         writeMem(addr, A);
     `,
-    'LD r,n': (r) => `
-        ${r} = readMem(pc++);
-    `,
-    'LD r,r': (r1, r2) => (
-        r1 == r2 ? '' : `
-        ${r1} = ${r2};
+    'LD r,v': (r, v) => (
+        r == v ? '' : `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
+        ${r} = val;
         `
     ),
     'LD rr,(nn)': (rr) => `
@@ -200,10 +261,12 @@ export default {
     'OR A': () => `
         F = sz53pTable[0];
     `,
-    'OR r': (r) => `
-        let val:u8 = A | ${r};
-        A = val;
-        F = sz53pTable[val];
+    'OR v': (v) => `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
+        const result:u8 = A | val;
+        A = result;
+        F = sz53pTable[result];
     `,
     'PUSH rr': (rr) => `
         t++;
@@ -225,9 +288,11 @@ export default {
         A = 0;
         F = sz53pTable[0];
     `,
-    'XOR r': (r) => `
-        let val:u8 = A ^ ${r};
-        A = val;
-        F = sz53pTable[val];
+    'XOR v': (v) => `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
+        const result:u8 = A ^ val;
+        A = result;
+        F = sz53pTable[result];
     `,
 }
