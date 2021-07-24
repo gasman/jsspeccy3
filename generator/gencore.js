@@ -2,6 +2,8 @@ import { argv, exit } from 'process';
 import * as fs from 'fs';
 import * as readline from 'readline';
 
+import instructionTable from './instructions.js';
+
 if (argv.length != 4) {
     console.log("Usage: node gencore.js path/to/input.ts.in path/to/output.ts");
     exit(1);
@@ -127,8 +129,7 @@ const parseExpression = (expr) => {
 const inFile = fs.createReadStream(inputFilename);
 const outFile = fs.createWriteStream(outputFilename);
 
-const reader = readline.createInterface({input: inFile, crlfDelay: Infinity});
-for await (let line of reader) {
+const processLine = (line) => {
     if (line.startsWith('#')) {
         let match;
         match = line.match(/^#alloc\s+(\w+)\s*\[\s*(\w+)\s*\]\s*:\s*(\w+)\s*$/);
@@ -137,14 +138,14 @@ for await (let line of reader) {
             const len = parseInt(match[2]);
             const type = match[3];
             allocateArray(varName, type, len);
-            continue;
+            return;
         }
         match = line.match(/^#const\s+(\w+)\s+(.+)$/);
         if (match) {
             const varName = match[1];
             const expr = match[2];
             defineConstant(varName, expr);
-            continue;
+            return;
         }
         match = line.match(/^#regpair\s+(\w+)\s+(\w+)\s+(\w+)\s*$/);
         if (match) {
@@ -152,17 +153,88 @@ for await (let line of reader) {
             const hi = match[2];
             const lo = match[3];
             allocateRegisterPair(pair, hi, lo);
-            continue;
+            return;
         }
         match = line.match(/^#regpair\s+(\w+)\s*$/);
         if (match) {
             const pair = match[1];
             allocateRegisterPair(pair);
-            continue;
+            return;
         }
         throw "Unrecognised directive: " + line;
     } else {
         let match;
+
+        /* opcode case */
+        match = line.match(/^\s*#op\s+(\w+)\s+(.*)$/);
+        if (match) {
+            let code = parseInt(match[1], 16);
+            let instruction = match[2].trim();
+
+            let exactMatchFunc = null;
+            let fuzzyMatchFunc = null;
+            let fuzzyMatchArgs = null;
+
+            /* check every instruction in the table for a match */
+            for (let [candidate, func] of Object.entries(instructionTable)) {
+                if (candidate == instruction) {
+                    exactMatchFunc = func;
+                    break;
+                } else {
+                    /*
+                    look for a fuzzy match - e.g. ADD A,r for ADD A,B.
+                    Split candidate and target instruction into tokens by word break;
+                    a fuzzy match succeeds if both are the same length, and each token either:
+                    - matches exactly, or
+                    - is a placeholder that's valid for the target instruction
+                      ('r' is valid for any of ABCDEHL),
+                      in which case the token in the target is stored to be passed as a parameter.
+                    */
+                    const instructionTokens = instruction.split(/\b/);
+                    const candidateTokens = candidate.split(/\b/);
+                    let fuzzyMatchOk = true;
+                    let args = [];
+                    if (instructionTokens.length != candidateTokens.length) {
+                        fuzzyMatchOk = false;
+                    } else {
+                        for (let i = 0; i < instructionTokens.length; i++) {
+                            const instructionToken = instructionTokens[i];
+                            const candidateToken = candidateTokens[i];
+                            if (candidateToken == 'r' && instructionToken.match(/^[ABCDEHL]$/)) {
+                                args.push(instructionToken);
+                            } else if (candidateToken != instructionToken) {
+                                fuzzyMatchOk = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (fuzzyMatchOk) {
+                        fuzzyMatchFunc = func;
+                        fuzzyMatchArgs = args;
+                    }
+                }
+            }
+            let impl;
+            if (exactMatchFunc) {
+                impl = exactMatchFunc();
+            } else if (fuzzyMatchFunc) {
+                impl = fuzzyMatchFunc(...fuzzyMatchArgs);
+            } else {
+                throw("Unmatched instruction: " + instruction);
+            }
+
+            outFile.write(`
+                case 0x${code.toString(16)}:  /* ${instruction} */
+            `)
+            for (const implLine of impl.split(/\n/)) {
+                processLine(implLine);
+            }
+            outFile.write(`
+                    break;
+            `)
+
+            return;
+        }
 
         /* array assignment */
         match = line.match(/^\s*(\w+)\s*\[([^\]]+)\]\s*(\|\=|\=)\s*(.*);/);
@@ -183,7 +255,7 @@ for await (let line of reader) {
             } else {
                 throw "unknown operator " + operator
             }
-            continue;
+            return;
         }
 
         /* var assignment */
@@ -192,11 +264,16 @@ for await (let line of reader) {
             let variable = vars[match[1]];
             let expr = parseExpression(match[2]);
             outFile.write(variable.setter(expr) + "\n");
-            continue;
+            return;
         }
 
         outFile.write(parseExpression(line) + "\n");
     }
+}
+
+const reader = readline.createInterface({input: inFile, crlfDelay: Infinity});
+for await (let line of reader) {
+    processLine(line);
 }
 inFile.close();
 outFile.close();

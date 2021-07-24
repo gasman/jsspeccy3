@@ -79,47 +79,81 @@ export function runFrame():i16 {
         t++;  // 1T to decode in addition to the memory read
         if (opcodePrefix == 0) {
             switch (op) {
-                case 0x00:  /* NOP */
-                    break;
-                case 0x11:  /* LD DE,nnnn */
-                    E = readMem(pc++);
-                    D = readMem(pc++);
-                    break;
-                case 0x3e:  /* LD A,nn */
-                    A = readMem(pc++);
-                    break;
-                case 0x47:  /* LD B,A */
-                    B = A;
-                    break;
-                case 0x62:  /* LD H,D */
-                    H = D;
-                    break;
-                case 0xaf:  /* XOR A */
-                    A = 0;
-                    F = sz53pTable[0];
-                    break;
-                case 0xc3:  /* JP nnnn */
-                    pc = u16(readMem(pc++)) + (u16(readMem(pc++)) << 8);
-                    break;
-                case 0xd3:  /* OUT (nn),A */
-                    readMem(pc++);
-                    t += 4;
-                    break;
-                case 0xed:  /* opcode prefix */
-                    opcodePrefix = 0xed;
-                    break;
-                case 0xf3:  /* DI */
-                    iff1 = iff2 = 0;
-                    break;
+                #op 00 NOP
+                #op 06 LD B,n
+                #op 0e LD C,n
+                #op 11 LD DE,nn
+                #op 16 LD D,n
+                #op 1e LD E,n
+                #op 26 LD H,n
+                #op 2e LD L,n
+                #op 3e LD A,n
+
+                #op 40 LD B,B
+                #op 41 LD B,C
+                #op 42 LD B,D
+                #op 43 LD B,E
+                #op 44 LD B,H
+                #op 45 LD B,L
+                #op 47 LD B,A
+                #op 48 LD C,B
+                #op 49 LD C,C
+                #op 4a LD C,D
+                #op 4b LD C,E
+                #op 4c LD C,H
+                #op 4d LD C,L
+                #op 4f LD C,A
+
+                #op 50 LD D,B
+                #op 51 LD D,C
+                #op 52 LD D,D
+                #op 53 LD D,E
+                #op 54 LD D,H
+                #op 55 LD D,L
+                #op 57 LD D,A
+                #op 58 LD E,B
+                #op 59 LD E,C
+                #op 5a LD E,D
+                #op 5b LD E,E
+                #op 5c LD E,H
+                #op 5d LD E,L
+                #op 5f LD E,A
+
+                #op 60 LD H,B
+                #op 61 LD H,C
+                #op 62 LD H,D
+                #op 63 LD H,E
+                #op 64 LD H,H
+                #op 65 LD H,L
+                #op 67 LD H,A
+                #op 68 LD L,B
+                #op 69 LD L,C
+                #op 6a LD L,D
+                #op 6b LD L,E
+                #op 6c LD L,H
+                #op 6d LD L,L
+                #op 6f LD L,A
+
+                #op a8 XOR B
+                #op a9 XOR C
+                #op aa XOR D
+                #op ab XOR E
+                #op ac XOR H
+                #op ad XOR L
+                #op af XOR A
+                #op c3 JP nn
+                #op cb prefix cb
+                #op d3 OUT (n),A
+                #op ed prefix ed
+                #op f3 DI
+
                 default:
                     return op;
             }
         } else if (opcodePrefix == 0xed) {
             switch (op) {
-                case 0x47:  /* LD I,A */
-                    I = A;
-                    t++;
-                    break;
+                #op 47 LD I,A
+
                 default:
                     return i16(0xe00) | i16(op);
             }
