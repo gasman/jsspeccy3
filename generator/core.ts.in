@@ -457,8 +457,8 @@ export function runFrame():i16 {
                 #op fa JP M,nn
                 #op fb EI
                 #op fc CALL M,nn
-                #op fe CP n
                 #op fd prefix fd
+                #op fe CP n
                 #op ff RST 0x38
 
                 default:
