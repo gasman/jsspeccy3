@@ -201,6 +201,7 @@ export function runFrame():i16 {
                 #op 2c INC L
                 #op 2d DEC L
                 #op 2e LD L,n
+                #op 2f CPL
 
                 #op 30 JR NC,n
                 #op 31 LD SP,nn
@@ -722,20 +723,27 @@ export function runFrame():i16 {
             let op:u8 = readMem(pc++);
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
+                #op 40 IN B,(C)
                 #op 42 SBC HL,BC
                 #op 43 LD (nn),BC
                 #op 46 IM 0
                 #op 47 LD I,A
+                #op 48 IN C,(C)
                 #op 4b LD BC,(nn)
+                #op 50 IN D,(C)
                 #op 52 SBC HL,DE
                 #op 53 LD (nn),DE
                 #op 56 IM 1
+                #op 58 IN E,(C)
                 #op 5b LD DE,(nn)
                 #op 5e IM 2
+                #op 60 IN H,(C)
                 #op 62 SBC HL,HL
+                #op 68 IN L,(C)
                 #op 6b LD HL,(nn)
                 #op 72 SBC HL,SP
                 #op 73 LD (nn),SP
+                #op 78 IN A,(C)
                 #op b0 LDIR
                 #op b8 LDDR
 

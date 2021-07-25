@@ -207,6 +207,11 @@ export default {
         let lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
         F = ( cptemp & 0x100 ? FLAG_C : ( cptemp ? 0 : FLAG_Z ) ) | FLAG_N | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( val & ( FLAG_3 | FLAG_5 ) ) | ( cptemp & FLAG_S );
     `,
+    'CPL': () => `
+        const result:u8 = A ^ 0xff;
+        A = result;
+        F = (F & (FLAG_C | FLAG_P | FLAG_Z | FLAG_S)) | (result & (FLAG_3 | FLAG_5)) | FLAG_N | FLAG_H;
+    `,
     'DEC rr': (rr) => `
         ${rr} = ${rr} - 1;
         t += 2;
@@ -275,6 +280,10 @@ export default {
     `,
     'IM k': (k) => `
         im = ${k};
+    `,
+    'IN r,(C)': (r) => `
+        ${r} = 0xff;
+        t += 4;
     `,
     'IN A,(n)': () => `
         readMem(pc++);
