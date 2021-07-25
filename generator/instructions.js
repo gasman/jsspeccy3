@@ -167,6 +167,22 @@ export default {
         ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
         F = f;
     `,
+    'CALL c,nn': (cond) => `
+        if (${CONDITIONS[cond]}) {
+            let lo = u16(readMem(pc++));
+            let hi = u16(readMem(pc++));
+            t++;
+            let sp = SP;
+            sp--;
+            writeMem(sp, u8(pc >> 8));
+            sp--;
+            writeMem(sp, u8(pc & 0xff));
+            SP = sp;
+            pc = lo + (hi << 8);
+        } else {
+            t += 6;
+        }
+    `,
     'CALL nn': () => `
         let lo = u16(readMem(pc++));
         let hi = u16(readMem(pc++));
@@ -178,6 +194,10 @@ export default {
         writeMem(sp, u8(pc & 0xff));
         SP = sp;
         pc = lo + (hi << 8);
+    `,
+    'CCF': () => `
+        const f:u8 = F;
+        F = ( f & ( FLAG_P | FLAG_Z | FLAG_S ) ) | ( ( f & FLAG_C ) ? FLAG_H : FLAG_C ) | ( A & ( FLAG_3 | FLAG_5 ) );
     `,
     'CP v': (v) => `
         ${VALUE_INITTERS[v]}
@@ -221,6 +241,17 @@ export default {
         iff1 = iff2 = 1;
         interruptible = false;
     `,
+    'EX (SP),rr': (rr) => `
+        const sp:u16 = SP;
+        const lo = u16(readMem(sp));
+        const hi = u16(readMem(sp + 1));
+        t++;
+        const rr:u16 = ${rr};
+        writeMem(sp + 1, u8(rr >> 8));
+        writeMem(sp, u8(rr & 0xff));
+        ${rr} = lo | (hi << 8);
+        t += 2;
+    `,
     'EX DE,HL': () => `
         let tmp:u16 = DE;
         DE = HL;
@@ -251,10 +282,28 @@ export default {
         ${rr} = ${rr} + 1;
         t += 2;
     `,
+    'JP c,nn': (cond) => `
+        if (${CONDITIONS[cond]}) {
+            let lo = u16(readMem(pc++));
+            let hi = u16(readMem(pc++));
+            pc = lo + (hi << 8);
+        } else {
+            t += 6;
+        }
+    `,
     'JP nn': () => `
         let lo = u16(readMem(pc++));
         let hi = u16(readMem(pc++));
         pc = lo + (hi << 8);
+    `,
+    'JP (HL)': () => `
+        pc = HL;
+    `,
+    'JP (IX)': () => `
+        pc = IX;
+    `,
+    'JP (IY)': () => `
+        pc = IY;
     `,
     'JR c,n': (cond) => `
         if (${CONDITIONS[cond]}) {
@@ -266,6 +315,11 @@ export default {
             pc++;
         }
     `,
+    'JR n': () => `
+        t += 5;
+        let offset = i8(readMem(pc++));
+        pc += offset;
+    `,
     'LD (nn),rr': (rr) => `
         const lo = u16(readMem(pc++));
         const hi = u16(readMem(pc++));
@@ -274,11 +328,10 @@ export default {
         writeMem(addr, u8(rr & 0xff));
         writeMem(addr + 1, u8(rr >> 8));
     `,
-    'LD (nn),A': (rr) => `
+    'LD (nn),A': () => `
         const lo = u16(readMem(pc++));
         const hi = u16(readMem(pc++));
-        const addr = lo | (hi << 8);
-        writeMem(addr, A);
+        writeMem(lo | (hi << 8), A);
     `,
     'LD r,v': (r, v) => (
         r == v ? '' : `
@@ -319,6 +372,20 @@ export default {
         ${VALUE_GETTERS[v]}
         const result = val;
         ${VALUE_SETTERS['(IY+n)']}
+    `,
+    'LD A,(nn)': () => `
+        const lo = u16(readMem(pc++));
+        const hi = u16(readMem(pc++));
+        A = readMem(lo | (hi << 8));
+    `,
+    'LD A,(BC)': () => `
+        A = readMem(BC);
+    `,
+    'LD A,(DE)': () => `
+        A = readMem(DE);
+    `,
+    'LD A,(HL)': () => `
+        A = readMem(HL);
     `,
     'LD I,A': () => `
         I = A;
@@ -373,6 +440,13 @@ export default {
         A = result;
         F = sz53pTable[result];
     `,
+    'POP rr': (rr) => `
+        let sp = SP;
+        const lo = u16(readMem(sp++));
+        const hi = u16(readMem(sp++));
+        SP = sp;
+        ${rr} = lo | (hi << 8);
+    `,
     'PUSH rr': (rr) => `
         t++;
         const rr:u16 = ${rr};
@@ -405,6 +479,23 @@ export default {
             SP = sp;
             pc = lo | (hi << 8);
         }
+    `,
+    'RRCA': () => `
+        let a:u8 = A;
+        const f:u8 = (F & (FLAG_P | FLAG_Z | FLAG_S)) | (a & FLAG_C);
+        a = (a >> 1) | (a << 7);
+        A = a;
+        F = f | (a & (FLAG_3 | FLAG_5));
+    `,
+    'RST k': (k) => `
+        t++;
+        let sp = SP;
+        sp--;
+        writeMem(sp, ${k >> 8});
+        sp--;
+        writeMem(sp, ${k & 0xff});
+        SP = sp;
+        pc = ${k};
     `,
     'SBC HL,rr': (rr) => `
         const hl:u16 = HL;

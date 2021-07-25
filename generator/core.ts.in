@@ -128,10 +128,12 @@ export function runFrame():i16 {
                 #op 05 DEC B
                 #op 06 LD B,n
                 #op 09 ADD HL,BC
+                #op 0a LD A,(BC)
                 #op 0b DEC BC
                 #op 0c INC C
                 #op 0d DEC C
                 #op 0e LD C,n
+                #op 0f RRCA
 
                 #op 10 DJNZ n
                 #op 11 LD DE,nn
@@ -139,7 +141,9 @@ export function runFrame():i16 {
                 #op 14 INC D
                 #op 15 DEC D
                 #op 16 LD D,n
+                #op 18 JR n
                 #op 19 ADD HL,DE
+                #op 1a LD A,(DE)
                 #op 1b DEC DE
                 #op 1c INC E
                 #op 1d DEC E
@@ -169,10 +173,12 @@ export function runFrame():i16 {
                 #op 36 LD (HL),n
                 #op 38 JR C,n
                 #op 39 ADD HL,SP
+                #op 3a LD A,(nn)
                 #op 3b DEC SP
                 #op 3c INC A
                 #op 3d DEC A
                 #op 3e LD A,n
+                #op 3f CCF
 
                 #op 40 LD B,B
                 #op 41 LD B,C
@@ -273,6 +279,7 @@ export function runFrame():i16 {
                 #op ab XOR E
                 #op ac XOR H
                 #op ad XOR L
+                #op ae XOR (HL)
                 #op af XOR A
 
                 #op b0 OR B
@@ -281,6 +288,7 @@ export function runFrame():i16 {
                 #op b3 OR E
                 #op b4 OR H
                 #op b5 OR L
+                #op b6 OR (HL)
                 #op b7 OR A
                 #op b8 CP B
                 #op b9 CP C
@@ -292,32 +300,69 @@ export function runFrame():i16 {
                 #op bf CP A
 
                 #op c0 RET NZ
+                #op c1 POP BC
+                #op c2 JP NZ,nn
                 #op c3 JP nn
+                #op c4 CALL NZ,nn
                 #op c5 PUSH BC
                 #op c6 ADD A,n
+                #op c7 RST 0x00
                 #op c8 RET Z
                 #op c9 RET
+                #op ca JP Z,nn
                 #op cb prefix cb
+                #op cc CALL Z,nn
                 #op cd CALL nn
+                #op cf RST 0x08
+
                 #op d0 RET NC
+                #op d1 POP DE
+                #op d2 JP NC,nn
                 #op d3 OUT (n),A
+                #op d4 CALL NC,nn
                 #op d5 PUSH DE
                 #op d6 SUB n
+                #op d7 RST 0x10
                 #op d8 RET C
                 #op d9 EXX
+                #op da JP C,nn
+                #op dc CALL C,nn
                 #op dd prefix dd
+                #op df RST 0x18
+
                 #op e0 RET PO
+                #op e1 POP HL
+                #op e2 JP PO,nn
+                #op e3 EX (SP),HL
+                #op e4 CALL PO,nn
                 #op e5 PUSH HL
+                #op e6 AND n
+                #op e7 RST 0x20
                 #op e8 RET PE
+                #op e9 JP (HL)
+                #op ea JP PE,nn
                 #op eb EX DE,HL
+                #op ec CALL PE,nn
                 #op ed prefix ed
+                #op ee XOR n
+                #op ef RST 0x28
+
                 #op f0 RET P
+                #op f1 POP AF
+                #op f2 JP P,nn
                 #op f3 DI
+                #op f4 CALL P,nn
                 #op f5 PUSH AF
+                #op f6 OR n
+                #op f7 RST 0x30
                 #op f8 RET M
                 #op f9 LD SP,HL
+                #op fa JP M,nn
                 #op fb EI
+                #op fc CALL M,nn
+                #op fe CP n
                 #op fd prefix fd
+                #op ff RST 0x38
 
                 default:
                     return op;
@@ -564,9 +609,13 @@ export function runFrame():i16 {
                 #op 86 ADD A,(IX+n)
                 #op 96 SUB (IX+n)
                 #op a6 AND (IX+n)
+                #op ae XOR (IX+n)
+                #op b6 OR (IX+n)
                 #op be CP (IX+n)
                 #op cb prefix ddcb
+                #op e3 EX (SP),IX
                 #op e5 PUSH IX
+                #op e9 JP (IX)
                 #op f9 LD SP,IX
 
                 default:
@@ -662,9 +711,13 @@ export function runFrame():i16 {
                 #op 86 ADD A,(IY+n)
                 #op 96 SUB (IY+n)
                 #op a6 AND (IY+n)
+                #op ae XOR (IY+n)
+                #op b6 OR (IY+n)
                 #op be CP (IY+n)
                 #op cb prefix fdcb
+                #op e3 EX (SP),IY
                 #op e5 PUSH IY
+                #op e9 JP (IY)
                 #op f9 LD SP,IY
 
                 default:
