@@ -241,6 +241,24 @@ export function runFrame():i16 {
                 #op 7e LD A,(HL)
                 #op 7f LD A,A
 
+                #op 80 ADD A,B
+                #op 81 ADD A,C
+                #op 82 ADD A,D
+                #op 83 ADD A,E
+                #op 84 ADD A,H
+                #op 85 ADD A,L
+                #op 86 ADD A,(HL)
+                #op 87 ADD A,A
+
+                #op 90 SUB B
+                #op 91 SUB C
+                #op 92 SUB D
+                #op 93 SUB E
+                #op 94 SUB H
+                #op 95 SUB L
+                #op 96 SUB (HL)
+                #op 97 SUB A
+
                 #op a0 AND B
                 #op a1 AND C
                 #op a2 AND D
@@ -273,19 +291,30 @@ export function runFrame():i16 {
                 #op be CP (HL)
                 #op bf CP A
 
+                #op c0 RET NZ
                 #op c3 JP nn
                 #op c5 PUSH BC
+                #op c6 ADD A,n
+                #op c8 RET Z
+                #op c9 RET
                 #op cb prefix cb
                 #op cd CALL nn
+                #op d0 RET NC
                 #op d3 OUT (n),A
                 #op d5 PUSH DE
+                #op d6 SUB n
+                #op d8 RET C
                 #op d9 EXX
                 #op dd prefix dd
+                #op e0 RET PO
                 #op e5 PUSH HL
+                #op e8 RET PE
                 #op eb EX DE,HL
                 #op ed prefix ed
+                #op f0 RET P
                 #op f3 DI
                 #op f5 PUSH AF
+                #op f8 RET M
                 #op f9 LD SP,HL
                 #op fb EI
                 #op fd prefix fd
@@ -532,6 +561,8 @@ export function runFrame():i16 {
                 #op 75 LD (IX+n),L
                 #op 77 LD (IX+n),A
                 #op 7e LD A,(IX+n)
+                #op 86 ADD A,(IX+n)
+                #op 96 SUB (IX+n)
                 #op a6 AND (IX+n)
                 #op be CP (IX+n)
                 #op cb prefix ddcb
@@ -628,6 +659,8 @@ export function runFrame():i16 {
                 #op 75 LD (IY+n),L
                 #op 77 LD (IY+n),A
                 #op 7e LD A,(IY+n)
+                #op 86 ADD A,(IY+n)
+                #op 96 SUB (IY+n)
                 #op a6 AND (IY+n)
                 #op be CP (IY+n)
                 #op cb prefix fdcb

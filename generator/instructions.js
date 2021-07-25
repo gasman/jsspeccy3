@@ -4,7 +4,7 @@ const CONDITIONS = {
     'C': '(F & FLAG_C)',
     'NC': '!(F & FLAG_C)',
     'PE': '(F & FLAG_V)',
-    'PV': '!(F & FLAG_V)',
+    'PO': '!(F & FLAG_V)',
     'M': '(F & FLAG_S)',
     'P': '!(F & FLAG_S)',
 };
@@ -114,6 +114,15 @@ export default {
         const lookup:u32 = ((rr1 & 0x0800) >> 11) | ((rr2 & 0x0800) >> 10) | ((add16temp & 0x0800) >>  9);
         ${rr1} = add16temp;
         F = (F & ( FLAG_V | FLAG_Z | FLAG_S )) | (add16temp & 0x10000 ? FLAG_C : 0) | ((add16temp >> 8) & ( FLAG_3 | FLAG_5 )) | halfcarryAddTable[lookup];
+    `,
+    'ADD A,v': (v) => `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
+        let a:u32 = u32(A);
+        const result:u32 = a + u32(val);
+        const lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (result & 0x88) >> 1 );
+        A = result;
+        F = (result & 0x100 ? FLAG_C : 0) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[u8(result)];
     `,
     'AND A': () => `
         F = sz53pTable[0];
@@ -380,6 +389,23 @@ export default {
         const result:u8 = val & ${0xff ^ (1 << k)};
         ${VALUE_SETTERS[v]}
     `,
+    'RET': () => `
+        let sp = SP;
+        const lo = u16(readMem(sp++));
+        const hi = u16(readMem(sp++));
+        SP = sp;
+        pc = lo | (hi << 8);
+    `,
+    'RET c': (cond) => `
+        t++;
+        if (${CONDITIONS[cond]}) {
+            let sp = SP;
+            const lo = u16(readMem(sp++));
+            const hi = u16(readMem(sp++));
+            SP = sp;
+            pc = lo | (hi << 8);
+        }
+    `,
     'SBC HL,rr': (rr) => `
         const hl:u16 = HL;
         const rr:u16 = ${rr};
@@ -393,6 +419,15 @@ export default {
         ${VALUE_GETTERS[v]}
         const result:u8 = val | ${1 << k};
         ${VALUE_SETTERS[v]}
+    `,
+    'SUB v': (v) => `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
+        let a:u32 = u32(A);
+        const result:u32 = a - u32(val);
+        const lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (result & 0x88) >> 1 );
+        A = result;
+        F = (result & 0x100 ? FLAG_C : 0) | FLAG_N | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[u8(result)];
     `,
     'XOR A': () => `
         A = 0;
