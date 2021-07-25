@@ -46,6 +46,8 @@ const SCREEN_EVENT_COUNT:u16 = 3072;
 const SCREEN_EVENTS_SIZE:u16 = SCREEN_EVENT_COUNT * 3;
 #alloc screenEvents[9216]: u16
 
+#alloc keyStates[8]: u8
+
 let i:u8 = 0;
 while (true) {
     sz53Table[i] = u8(i) & ( FLAG_3 | FLAG_5 | FLAG_S );
@@ -74,6 +76,10 @@ for (let i:u16 = 0; i < SCREEN_EVENT_COUNT; i++) {
     screenEvents[screenEventPointer++] = 0x1800 | ((i & 0x0f80) >> 2) | ((i & 0x000f) << 1);
 }
 
+for (let i=0; i < 8; i++) {
+    keyStates[i] = 0xff;
+}
+
 let t:u32 = 0;
 let pc:u16 = 0;
 let iff1:bool = 0;
@@ -98,6 +104,18 @@ function writeMem(addr:u16, val:u8):void {
     }
 }
 
+function readPort(addr:u16):u8 {
+    if (!(addr & 0x0001)) {
+        /* poll keyboard */
+        return pollKeyboard(u8(addr >> 8));
+    } else if (!(addr & 0x00e0)) {
+        /* kempston joystick */
+        return 0;
+    } else {
+        return 0xff;
+    }
+}
+
 function updateFramebuffer():void {
     /* process all of the screen bytes that are due up to the current tstate */
     while (screenEventPointer < SCREEN_EVENTS_SIZE && screenEvents[screenEventPointer] <= t) {
@@ -109,6 +127,24 @@ function updateFramebuffer():void {
         frameBuffer[framebufferIndex++] = machineMemory[attributeAddr + 1];
         screenEventPointer += 3;
     }
+}
+
+export function keyDown(row:u8, mask:u8):void {
+    keyStates[row] = keyStates[row] & ~mask;
+}
+export function keyUp(row:u8, mask:u8):void {
+    keyStates[row] = keyStates[row] | mask;
+}
+
+function pollKeyboard(addr:u8):u8 {
+    let result:u8 = 0xff;
+    for (let row:u8 = 0; row < 8; row++) {
+        if (!(addr & (1<<row))) {
+            /* scan this row */
+            result &= keyStates[row];
+        }
+    }
+    return result;
 }
 
 export function runFrame():i16 {
@@ -431,6 +467,15 @@ export function runFrame():i16 {
                 #op 06 RLC (HL)
                 #op 07 RLC A
 
+                #op 38 SRL B
+                #op 39 SRL C
+                #op 3a SRL D
+                #op 3b SRL E
+                #op 3c SRL H
+                #op 3d SRL L
+                #op 3e SRL (HL)
+                #op 3f SRL A
+
                 #op 40 BIT 0,B
                 #op 41 BIT 0,C
                 #op 42 BIT 0,D
@@ -688,6 +733,8 @@ export function runFrame():i16 {
             switch (op) {
                 #op 06 RLC (IX+n)
 
+                #op 3e SRL (IX+n)
+
                 #op 46 BIT 0,(IX+n)
                 #op 4e BIT 1,(IX+n)
                 #op 56 BIT 2,(IX+n)
@@ -799,6 +846,8 @@ export function runFrame():i16 {
             let op:u8 = readMem(pc++);
             switch (op) {
                 #op 06 RLC (IY+n)
+
+                #op 3e SRL (IY+n)
 
                 #op 46 BIT 0,(IY+n)
                 #op 4e BIT 1,(IY+n)

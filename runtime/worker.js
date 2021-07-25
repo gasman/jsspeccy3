@@ -25,7 +25,12 @@ const run = (core) => {
                     stopped = true;
                     throw "Unhandled opcode: " + result.toString(16);
                 }
-
+                break;
+            case 'keyDown':
+                core.keyDown(e.data.row, e.data.mask);
+                break;
+            case 'keyUp':
+                core.keyUp(e.data.row, e.data.mask);
                 break;
             case 'loadMemory':
                 memoryData.set(e.data.data, MACHINE_MEMORY + e.data.offset);

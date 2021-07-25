@@ -282,13 +282,15 @@ export default {
         im = ${k};
     `,
     'IN r,(C)': (r) => `
-        ${r} = 0xff;
-        t += 4;
+        t++;
+        ${r} = readPort(BC);
+        t += 3;
     `,
     'IN A,(n)': () => `
-        readMem(pc++);
-        A = 0xff;
-        t += 4;
+        t++;
+        const port:u16 = (u16(A) << 8) | u16(readMem(pc++));
+        A = readPort(port);
+        t += 3;
     `,
     'INC v': (v) => `
         ${VALUE_INITTERS[v]}
@@ -560,6 +562,14 @@ export default {
         ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
         ${VALUE_GETTERS[v]}
         const result:u8 = val | ${1 << k};
+        ${VALUE_SETTERS[v]}
+    `,
+    'SRL v': (v) => `
+        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
+        ${VALUE_GETTERS[v]}
+        const f:u8 = val & FLAG_C;
+        const result:u8 = val >> 1;
+        F = f | sz53pTable[result];
         ${VALUE_SETTERS[v]}
     `,
     'SUB v': (v) => `
