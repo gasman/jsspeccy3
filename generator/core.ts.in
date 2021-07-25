@@ -107,6 +107,7 @@ function writeMem(addr:u16, val:u8):void {
 function readPort(addr:u16):u8 {
     if (!(addr & 0x0001)) {
         /* poll keyboard */
+        if (addr == 0x7ffe) return 0xfe;
         return pollKeyboard(u8(addr >> 8));
     } else if (!(addr & 0x00e0)) {
         /* kempston joystick */
@@ -152,10 +153,10 @@ export function runFrame():i16 {
     framebufferIndex = 0;
 
     while (t < FRAME_CYCLE_COUNT) {
-        //if (pc == 0x0038) {
+        //if (pc == 0x10af && machineMemory[0x5c3b] != 0x00) {
         //    t = FRAME_CYCLE_COUNT;
         //    updateFramebuffer();
-        //    return 0x3838;
+        //    return machineMemory[0x5c3b];
         //}
 
         if (t < 36 && iff1 && interruptible) {

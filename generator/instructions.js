@@ -180,6 +180,7 @@ export default {
             SP = sp;
             pc = lo + (hi << 8);
         } else {
+            pc += 2;
             t += 6;
         }
     `,
