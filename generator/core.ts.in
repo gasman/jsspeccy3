@@ -117,9 +117,9 @@ export function runFrame():i16 {
 
     while (t < FRAME_CYCLE_COUNT) {
         interruptible = true; // unless overridden by opcode
-        let op:u8 = readMem(pc++);
-        t++;  // 1T to decode in addition to the memory read
         if (opcodePrefix == 0) {
+            let op:u8 = readMem(pc++);
+            t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #op 00 NOP
                 #op 01 LD BC,nn
@@ -284,7 +284,154 @@ export function runFrame():i16 {
                 default:
                     return op;
             }
+        } else if (opcodePrefix == 0xcb) {
+            opcodePrefix = 0;  // for the next instruction (unless overridden)
+            let op:u8 = readMem(pc++);
+            t++;  // 1T to decode in addition to the memory read
+            switch (op) {
+                #op 80 RES 0,B
+                #op 81 RES 0,C
+                #op 82 RES 0,D
+                #op 83 RES 0,E
+                #op 84 RES 0,H
+                #op 85 RES 0,L
+                #op 86 RES 0,(HL)
+                #op 87 RES 0,A
+                #op 88 RES 1,B
+                #op 89 RES 1,C
+                #op 8a RES 1,D
+                #op 8b RES 1,E
+                #op 8c RES 1,H
+                #op 8d RES 1,L
+                #op 8e RES 1,(HL)
+                #op 8f RES 1,A
+
+                #op 90 RES 2,B
+                #op 91 RES 2,C
+                #op 92 RES 2,D
+                #op 93 RES 2,E
+                #op 94 RES 2,H
+                #op 95 RES 2,L
+                #op 96 RES 2,(HL)
+                #op 97 RES 2,A
+                #op 98 RES 3,B
+                #op 99 RES 3,C
+                #op 9a RES 3,D
+                #op 9b RES 3,E
+                #op 9c RES 3,H
+                #op 9d RES 3,L
+                #op 9e RES 3,(HL)
+                #op 9f RES 3,A
+
+                #op a0 RES 4,B
+                #op a1 RES 4,C
+                #op a2 RES 4,D
+                #op a3 RES 4,E
+                #op a4 RES 4,H
+                #op a5 RES 4,L
+                #op a6 RES 4,(HL)
+                #op a7 RES 4,A
+                #op a8 RES 5,B
+                #op a9 RES 5,C
+                #op aa RES 5,D
+                #op ab RES 5,E
+                #op ac RES 5,H
+                #op ad RES 5,L
+                #op ae RES 5,(HL)
+                #op af RES 5,A
+
+                #op b0 RES 6,B
+                #op b1 RES 6,C
+                #op b2 RES 6,D
+                #op b3 RES 6,E
+                #op b4 RES 6,H
+                #op b5 RES 6,L
+                #op b6 RES 6,(HL)
+                #op b7 RES 6,A
+                #op b8 RES 7,B
+                #op b9 RES 7,C
+                #op ba RES 7,D
+                #op bb RES 7,E
+                #op bc RES 7,H
+                #op bd RES 7,L
+                #op be RES 7,(HL)
+                #op bf RES 7,A
+
+                #op c0 SET 0,B
+                #op c1 SET 0,C
+                #op c2 SET 0,D
+                #op c3 SET 0,E
+                #op c4 SET 0,H
+                #op c5 SET 0,L
+                #op c6 SET 0,(HL)
+                #op c7 SET 0,A
+                #op c8 SET 1,B
+                #op c9 SET 1,C
+                #op ca SET 1,D
+                #op cb SET 1,E
+                #op cc SET 1,H
+                #op cd SET 1,L
+                #op ce SET 1,(HL)
+                #op cf SET 1,A
+
+                #op d0 SET 2,B
+                #op d1 SET 2,C
+                #op d2 SET 2,D
+                #op d3 SET 2,E
+                #op d4 SET 2,H
+                #op d5 SET 2,L
+                #op d6 SET 2,(HL)
+                #op d7 SET 2,A
+                #op d8 SET 3,B
+                #op d9 SET 3,C
+                #op da SET 3,D
+                #op db SET 3,E
+                #op dc SET 3,H
+                #op dd SET 3,L
+                #op de SET 3,(HL)
+                #op df SET 3,A
+
+                #op e0 SET 4,B
+                #op e1 SET 4,C
+                #op e2 SET 4,D
+                #op e3 SET 4,E
+                #op e4 SET 4,H
+                #op e5 SET 4,L
+                #op e6 SET 4,(HL)
+                #op e7 SET 4,A
+                #op e8 SET 5,B
+                #op e9 SET 5,C
+                #op ea SET 5,D
+                #op eb SET 5,E
+                #op ec SET 5,H
+                #op ed SET 5,L
+                #op ee SET 5,(HL)
+                #op ef SET 5,A
+
+                #op f0 SET 6,B
+                #op f1 SET 6,C
+                #op f2 SET 6,D
+                #op f3 SET 6,E
+                #op f4 SET 6,H
+                #op f5 SET 6,L
+                #op f6 SET 6,(HL)
+                #op f7 SET 6,A
+                #op f8 SET 7,B
+                #op f9 SET 7,C
+                #op fa SET 7,D
+                #op fb SET 7,E
+                #op fc SET 7,H
+                #op fd SET 7,L
+                #op fe SET 7,(HL)
+                #op ff SET 7,A
+
+                default:
+                    return i16(0xc00) | i16(op);
+            }
         } else if (opcodePrefix == 0xdd) {
+            opcodePrefix = 0;  // for the next instruction (unless overridden)
+            let op:u8 = readMem(pc++);
+            t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #op 21 LD IX,nn
                 #op 22 LD (nn),IX
@@ -302,14 +449,43 @@ export function runFrame():i16 {
                 #op 7e LD A,(IX+n)
                 #op a6 AND (IX+n)
                 #op be CP (IX+n)
+                #op cb prefix ddcb
                 #op e5 PUSH IX
                 #op f9 LD SP,IX
 
                 default:
                     return i16(0xd00) | i16(op);
             }
-            opcodePrefix = 0;
+        } else if (opcodePrefix == 0xdc) {  // ddcb
+            opcodePrefix = 0;  // for the next instruction (unless overridden)
+            const indexOffset:i8 = i8(readMem(pc++));
+            let op:u8 = readMem(pc++);
+            switch (op) {
+                #op 86 RES 0,(IX+n)
+                #op 8e RES 1,(IX+n)
+                #op 96 RES 2,(IX+n)
+                #op 9e RES 3,(IX+n)
+                #op a6 RES 4,(IX+n)
+                #op ae RES 5,(IX+n)
+                #op b6 RES 6,(IX+n)
+                #op be RES 7,(IX+n)
+
+                #op c6 SET 0,(IX+n)
+                #op ce SET 1,(IX+n)
+                #op d6 SET 2,(IX+n)
+                #op de SET 3,(IX+n)
+                #op e6 SET 4,(IX+n)
+                #op ee SET 5,(IX+n)
+                #op f6 SET 6,(IX+n)
+                #op fe SET 7,(IX+n)
+
+                default:
+                    return i16(0x2c00) | i16(op);
+            }
         } else if (opcodePrefix == 0xed) {
+            opcodePrefix = 0;  // for the next instruction (unless overridden)
+            let op:u8 = readMem(pc++);
+            t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #op 42 SBC HL,BC
                 #op 43 LD (nn),BC
@@ -331,8 +507,10 @@ export function runFrame():i16 {
                 default:
                     return i16(0xe00) | i16(op);
             }
-            opcodePrefix = 0;
         } else if (opcodePrefix == 0xfd) {
+            opcodePrefix = 0;  // for the next instruction (unless overridden)
+            let op:u8 = readMem(pc++);
+            t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #op 21 LD IY,nn
                 #op 22 LD (nn),IY
@@ -350,13 +528,39 @@ export function runFrame():i16 {
                 #op 7e LD A,(IY+n)
                 #op a6 AND (IY+n)
                 #op be CP (IY+n)
+                #op cb prefix fdcb
                 #op e5 PUSH IY
                 #op f9 LD SP,IY
 
                 default:
                     return i16(0xf00) | i16(op);
             }
-            opcodePrefix = 0;
+        } else if (opcodePrefix == 0xfc) {  // fdcb
+            opcodePrefix = 0;  // for the next instruction (unless overridden)
+            const indexOffset:i8 = i8(readMem(pc++));
+            let op:u8 = readMem(pc++);
+            switch (op) {
+                #op 86 RES 0,(IY+n)
+                #op 8e RES 1,(IY+n)
+                #op 96 RES 2,(IY+n)
+                #op 9e RES 3,(IY+n)
+                #op a6 RES 4,(IY+n)
+                #op ae RES 5,(IY+n)
+                #op b6 RES 6,(IY+n)
+                #op be RES 7,(IY+n)
+
+                #op c6 SET 0,(IY+n)
+                #op ce SET 1,(IY+n)
+                #op d6 SET 2,(IY+n)
+                #op de SET 3,(IY+n)
+                #op e6 SET 4,(IY+n)
+                #op ee SET 5,(IY+n)
+                #op f6 SET 6,(IY+n)
+                #op fe SET 7,(IY+n)
+
+                default:
+                    return i16(0x4c00) | i16(op);
+            }
         }
     }
     updateFramebuffer();

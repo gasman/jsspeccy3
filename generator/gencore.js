@@ -208,6 +208,8 @@ const processLine = (line) => {
                                 args.push(instructionToken);
                             } else if (candidateToken == 'v' && instructionToken.match(/^([ABCDEHL]|\(HL\)|\(IX\+n\)|\(IY\+n\)|n)$/)) {
                                 args.push(instructionToken);
+                            } else if (candidateToken == 'k' && instructionToken.match(/^[0123456789abcdefx]+$/)) {
+                                args.push(parseInt(instructionToken));
                             } else if (candidateToken != instructionToken) {
                                 fuzzyMatchOk = false;
                                 break;

@@ -18,8 +18,33 @@ const VALUE_INITTERS = {
     'H': '',
     'L': '',
     '(HL)': 'const hl:u16 = HL;',
-    '(IX+n)': 'const ixAddr:u16 = IX + i8(readMem(pc++));',
-    '(IY+n)': 'const iyAddr:u16 = IY + i8(readMem(pc++));',
+    '(IX+n)': `
+        const ixAddr:u16 = IX + i8(readMem(pc++));
+        t += 5;
+    `,
+    '(IY+n)': `
+        const iyAddr:u16 = IY + i8(readMem(pc++));
+        t += 5;
+    `,
+    'n': '',
+};
+const VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET = {
+    'A': '',
+    'B': '',
+    'C': '',
+    'D': '',
+    'E': '',
+    'H': '',
+    'L': '',
+    '(HL)': 'const hl:u16 = HL;',
+    '(IX+n)': `
+        const ixAddr:u16 = IX + indexOffset;
+        t += 2;
+    `,
+    '(IY+n)': `
+        const iyAddr:u16 = IY + indexOffset;
+        t += 2;
+    `,
     'n': '',
 };
 const VALUE_GETTERS = {
@@ -31,14 +56,8 @@ const VALUE_GETTERS = {
     'H': 'const val = H;',
     'L': 'const val = L;',
     '(HL)': 'const val = readMem(hl);',
-    '(IX+n)': `
-        const val = readMem(ixAddr);
-        t += 5;
-    `,
-    '(IY+n)': `
-        const val = readMem(iyAddr);
-        t += 5;
-    `,
+    '(IX+n)': 'const val = readMem(ixAddr);',
+    '(IY+n)': 'const val = readMem(iyAddr);',
     'n': 'const val = readMem(pc++);',
 };
 const VALUE_SETTERS = {
@@ -72,12 +91,20 @@ export default {
         opcodePrefix = 0xdd;
         interruptible = false;
     `,
+    'prefix ddcb': () => `
+        opcodePrefix = 0xdc;
+        interruptible = false;
+    `,
     'prefix ed': () => `
         opcodePrefix = 0xed;
         interruptible = false;
     `,
     'prefix fd': () => `
         opcodePrefix = 0xfd;
+        interruptible = false;
+    `,
+    'prefix fdcb': () => `
+        opcodePrefix = 0xfc;
         interruptible = false;
     `,
     'ADD rr,rr': (rr1, rr2) => `
@@ -141,14 +168,8 @@ export default {
         HL = HL_;
         HL_ = tmp;
     `,
-    'IM 0': () => `
-        im = 0;
-    `,
-    'IM 1': () => `
-        im = 1;
-    `,
-    'IM 2': () => `
-        im = 2;
+    'IM k': (k) => `
+        im = ${k};
     `,
     'INC v': (v) => `
         ${VALUE_INITTERS[v]}
@@ -276,6 +297,12 @@ export default {
         SP = SP - 1;
         writeMem(SP, u8(rr & 0xff));
     `,
+    'RES k,v': (k, v) => `
+        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
+        ${VALUE_GETTERS[v]}
+        const result:u8 = val & ${0xff ^ (1 << k)};
+        ${VALUE_SETTERS[v]}
+    `,
     'SBC HL,rr': (rr) => `
         const hl:u16 = HL;
         const rr:u16 = ${rr};
@@ -283,6 +310,12 @@ export default {
         const lookup:u32 = ((hl & 0x8800) >> 11) | ((rr & 0x8800) >> 10) | ((sub16temp & 0x8800) >> 9);
         HL = u16(sub16temp);
         F = (sub16temp & 0x10000 ? FLAG_C : 0) | FLAG_N | overflowSubTable[lookup >> 4] | (((sub16temp & 0xff00) >> 8) & ( FLAG_3 | FLAG_5 | FLAG_S )) | halfcarrySubTable[lookup&0x07] | (sub16temp & 0xffff ? 0 : FLAG_Z);
+    `,
+    'SET k,v': (k, v) => `
+        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
+        ${VALUE_GETTERS[v]}
+        const result:u8 = val | ${1 << k};
+        ${VALUE_SETTERS[v]}
     `,
     'XOR A': () => `
         A = 0;
