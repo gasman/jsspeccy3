@@ -125,7 +125,7 @@ export default {
         F = (result & 0x100 ? FLAG_C : 0) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[u8(result)];
     `,
     'AND A': () => `
-        F = sz53pTable[0];
+        F = sz53pTable[A];
     `,
     'AND v': (v) => `
         ${VALUE_INITTERS[v]}
@@ -447,7 +447,7 @@ export default {
         t += 4;
     `,
     'OR A': () => `
-        F = sz53pTable[0];
+        F = sz53pTable[A];
     `,
     'OR v': (v) => `
         ${VALUE_INITTERS[v]}

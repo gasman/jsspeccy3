@@ -116,6 +116,11 @@ export function runFrame():i16 {
     framebufferIndex = 0;
 
     while (t < FRAME_CYCLE_COUNT) {
+        //if (pc == 0x16de) {
+        //    t = FRAME_CYCLE_COUNT;
+        //    updateFramebuffer();
+        //    return AF;
+        //}
         interruptible = true; // unless overridden by opcode
         if (opcodePrefix == 0) {
             let op:u8 = readMem(pc++);

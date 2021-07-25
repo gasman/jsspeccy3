@@ -5,21 +5,26 @@ const run = (core) => {
     const memoryData = new Uint8Array(memory.buffer);
     const workerFrameData = memoryData.subarray(0, FRAME_BUFFER_SIZE);
 
+    let stopped = false;
+
     onmessage = (e) => {
         switch (e.data.message) {
             case 'runFrame':
+                if (stopped) return;
                 const frameBuffer = e.data.frameBuffer;
                 const frameData = new Uint8Array(frameBuffer);
 
                 const result = core.runFrame();
-                if (result != -1) {
-                    throw "Unhandled opcode: " + result.toString(16);
-                }
                 frameData.set(workerFrameData);
                 postMessage({
                     'message': 'frameCompleted',
                     'frameBuffer': frameBuffer,
                 }, [frameBuffer]);
+
+                if (result != -1) {
+                    stopped = true;
+                    throw "Unhandled opcode: " + result.toString(16);
+                }
 
                 break;
             case 'loadMemory':
