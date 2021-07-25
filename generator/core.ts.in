@@ -116,11 +116,40 @@ export function runFrame():i16 {
     framebufferIndex = 0;
 
     while (t < FRAME_CYCLE_COUNT) {
-        //if (pc == 0x16de) {
+        //if (pc == 0x0038) {
         //    t = FRAME_CYCLE_COUNT;
         //    updateFramebuffer();
-        //    return AF;
+        //    return 0x3838;
         //}
+
+        if (t < 36 && iff1 && interruptible) {
+            /* process interrupt */
+
+            iff1 = iff2 = 0;
+
+            /* push current PC in readiness for call to interrupt handler */
+            let sp = SP;
+            sp--;
+            writeMem(sp, u8(pc >> 8));
+            sp--;
+            writeMem(sp, u8(pc & 0xff));
+            SP = sp;
+
+            if (im == 1) {
+                pc = 0x0038;
+                t += 7;
+            } else if (im == 2) {
+                const intVector:u16 = (u16(I) << 8) | 0xff;
+                const lo = readMem(intVector);
+                const hi = readMem(intVector + 1);
+                pc = (lo | (hi << 8));
+                t += 7;
+            } else { /* im == 0 */
+                pc = 0x0038;
+                t += 6;
+            }
+        }
+
         interruptible = true; // unless overridden by opcode
         if (opcodePrefix == 0) {
             let op:u8 = readMem(pc++);
