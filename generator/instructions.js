@@ -252,6 +252,11 @@ export default {
         ${rr} = lo | (hi << 8);
         t += 2;
     `,
+    'EX AF,AF\'': () => `
+        let tmp:u16 = AF;
+        AF = AF_;
+        AF_ = tmp;
+    `,
     'EX DE,HL': () => `
         let tmp:u16 = DE;
         DE = HL;
@@ -270,6 +275,11 @@ export default {
     `,
     'IM k': (k) => `
         im = ${k};
+    `,
+    'IN A,(n)': () => `
+        readMem(pc++);
+        A = 0xff;
+        t += 4;
     `,
     'INC v': (v) => `
         ${VALUE_INITTERS[v]}
@@ -354,6 +364,12 @@ export default {
     'LD rr,rr': (rr1, rr2) => `
         ${rr1} = ${rr2};
         t += 2;
+    `,
+    'LD (BC),A': () => `
+        writeMem(BC, A);
+    `,
+    'LD (DE),A': () => `
+        writeMem(DE, A);
     `,
     'LD (HL),n': () => `
         writeMem(HL, readMem(pc++));
@@ -480,6 +496,13 @@ export default {
             pc = lo | (hi << 8);
         }
     `,
+    'RRA': () => `
+        const val:u8 = A;
+        const f:u8 = F;
+        const result = (val >> 1) | (f << 7);
+        A = result;
+        F = (f & (FLAG_P | FLAG_Z | FLAG_S)) | (result & (FLAG_3 | FLAG_5)) | (val & FLAG_C);
+    `,
     'RRCA': () => `
         let a:u8 = A;
         const f:u8 = (F & (FLAG_P | FLAG_Z | FLAG_S)) | (a & FLAG_C);
@@ -497,6 +520,15 @@ export default {
         SP = sp;
         pc = ${k};
     `,
+    'SBC A,v': (v) => `
+        ${VALUE_INITTERS[v]}
+        ${VALUE_GETTERS[v]}
+        let a:u32 = u32(A);
+        const result:u32 = a - u32(val) - u32(F & FLAG_C);
+        const lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (result & 0x88) >> 1 );
+        A = result;
+        F = (result & 0x100 ? FLAG_C : 0) | FLAG_N | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[u8(result)];
+    `,
     'SBC HL,rr': (rr) => `
         const hl:u16 = HL;
         const rr:u16 = ${rr};
@@ -504,6 +536,9 @@ export default {
         const lookup:u32 = ((hl & 0x8800) >> 11) | ((rr & 0x8800) >> 10) | ((sub16temp & 0x8800) >> 9);
         HL = u16(sub16temp);
         F = (sub16temp & 0x10000 ? FLAG_C : 0) | FLAG_N | overflowSubTable[lookup >> 4] | (((sub16temp & 0xff00) >> 8) & ( FLAG_3 | FLAG_5 | FLAG_S )) | halfcarrySubTable[lookup&0x07] | (sub16temp & 0xffff ? 0 : FLAG_Z);
+    `,
+    'SCF': () => `
+        F = (F & (FLAG_P | FLAG_Z | FLAG_S)) | (A & (FLAG_3 | FLAG_5)) | FLAG_C;
     `,
     'SET k,v': (k, v) => `
         ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}

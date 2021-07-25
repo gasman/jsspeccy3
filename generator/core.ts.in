@@ -123,10 +123,12 @@ export function runFrame():i16 {
             switch (op) {
                 #op 00 NOP
                 #op 01 LD BC,nn
+                #op 02 LD (BC),A
                 #op 03 INC BC
                 #op 04 INC B
                 #op 05 DEC B
                 #op 06 LD B,n
+                #op 08 EX AF,AF'
                 #op 09 ADD HL,BC
                 #op 0a LD A,(BC)
                 #op 0b DEC BC
@@ -137,6 +139,7 @@ export function runFrame():i16 {
 
                 #op 10 DJNZ n
                 #op 11 LD DE,nn
+                #op 12 LD (DE),A
                 #op 13 INC DE
                 #op 14 INC D
                 #op 15 DEC D
@@ -148,6 +151,7 @@ export function runFrame():i16 {
                 #op 1c INC E
                 #op 1d DEC E
                 #op 1e LD E,n
+                #op 1f RRA
 
                 #op 20 JR NZ,n
                 #op 21 LD HL,nn
@@ -171,6 +175,7 @@ export function runFrame():i16 {
                 #op 34 INC (HL)
                 #op 35 DEC (HL)
                 #op 36 LD (HL),n
+                #op 37 SCF
                 #op 38 JR C,n
                 #op 39 ADD HL,SP
                 #op 3a LD A,(nn)
@@ -264,6 +269,14 @@ export function runFrame():i16 {
                 #op 95 SUB L
                 #op 96 SUB (HL)
                 #op 97 SUB A
+                #op 98 SBC A,B
+                #op 99 SBC A,C
+                #op 9a SBC A,D
+                #op 9b SBC A,E
+                #op 9c SBC A,H
+                #op 9d SBC A,L
+                #op 9e SBC A,(HL)
+                #op 9f SBC A,A
 
                 #op a0 AND B
                 #op a1 AND C
@@ -326,8 +339,10 @@ export function runFrame():i16 {
                 #op d8 RET C
                 #op d9 EXX
                 #op da JP C,nn
+                #op db IN A,(n)
                 #op dc CALL C,nn
                 #op dd prefix dd
+                #op de SBC A,n
                 #op df RST 0x18
 
                 #op e0 RET PO
@@ -608,6 +623,7 @@ export function runFrame():i16 {
                 #op 7e LD A,(IX+n)
                 #op 86 ADD A,(IX+n)
                 #op 96 SUB (IX+n)
+                #op 9e SBC A,(IX+n)
                 #op a6 AND (IX+n)
                 #op ae XOR (IX+n)
                 #op b6 OR (IX+n)
@@ -710,6 +726,7 @@ export function runFrame():i16 {
                 #op 7e LD A,(IY+n)
                 #op 86 ADD A,(IY+n)
                 #op 96 SUB (IY+n)
+                #op 9e SBC A,(IY+n)
                 #op a6 AND (IY+n)
                 #op ae XOR (IY+n)
                 #op b6 OR (IY+n)
