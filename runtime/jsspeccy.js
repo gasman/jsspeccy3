@@ -60,6 +60,7 @@ class CanvasRenderer {
         this.ctx = this.canvas.getContext('2d');
         this.imageData = this.ctx.getImageData(32, 24, 256, 192);
         this.pixels = new Uint32Array(this.imageData.data.buffer);
+        this.flashPhase = 0;
 
         this.palette = new Uint32Array([
             /* RGBA dark */
@@ -105,14 +106,22 @@ class CanvasRenderer {
         while (bufferPtr < FRAME_BUFFER_SIZE) {
             let bitmap = frameBytes[bufferPtr++];
             const attr = frameBytes[bufferPtr++];
-            const ink = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
-            const paper = this.palette[(attr & 0x78) >> 3];
+            let ink, paper;
+            if ((attr & 0x80) && (this.flashPhase & 0x10)) {
+                // reverse ink and paper
+                paper = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
+                ink = this.palette[(attr & 0x78) >> 3];
+            } else {
+                ink = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
+                paper = this.palette[(attr & 0x78) >> 3];
+            }
             for (let i = 0; i < 8; i++) {
                 this.pixels[pixelPtr++] = (bitmap & 0x80) ? ink : paper;
                 bitmap <<= 1;
             }
         }
         this.ctx.putImageData(this.imageData, 32, 24);
+        this.flashPhase = (this.flashPhase + 1) & 0x1f;
     }
 }
 
