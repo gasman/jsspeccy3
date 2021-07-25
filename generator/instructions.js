@@ -496,6 +496,13 @@ export default {
             pc = lo | (hi << 8);
         }
     `,
+    'RLC v': (v) => `
+        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
+        ${VALUE_GETTERS[v]}
+        const result:u8 = ((val << 1) | (val >> 7));
+        F = (result & FLAG_C) | sz53pTable[result];
+        ${VALUE_SETTERS[v]}
+    `,
     'RRA': () => `
         const val:u8 = A;
         const f:u8 = F;

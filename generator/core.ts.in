@@ -102,7 +102,7 @@ function updateFramebuffer():void {
     /* process all of the screen bytes that are due up to the current tstate */
     while (screenEventPointer < SCREEN_EVENTS_SIZE && screenEvents[screenEventPointer] <= t) {
         const screenAddr:u16 = 0x4000 | screenEvents[screenEventPointer + 1];
-        const attributeAddr:u16 = 0x4000 | screenEvents[screenEventPointer + 1];
+        const attributeAddr:u16 = 0x4000 | screenEvents[screenEventPointer + 2];
         frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
         frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
         frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
@@ -387,6 +387,15 @@ export function runFrame():i16 {
             let op:u8 = readMem(pc++);
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
+                #op 00 RLC B
+                #op 01 RLC C
+                #op 02 RLC D
+                #op 03 RLC E
+                #op 04 RLC H
+                #op 05 RLC L
+                #op 06 RLC (HL)
+                #op 07 RLC A
+
                 #op 40 BIT 0,B
                 #op 41 BIT 0,C
                 #op 42 BIT 0,D
@@ -642,6 +651,8 @@ export function runFrame():i16 {
             const indexOffset:i8 = i8(readMem(pc++));
             let op:u8 = readMem(pc++);
             switch (op) {
+                #op 06 RLC (IX+n)
+
                 #op 46 BIT 0,(IX+n)
                 #op 4e BIT 1,(IX+n)
                 #op 56 BIT 2,(IX+n)
@@ -745,6 +756,8 @@ export function runFrame():i16 {
             const indexOffset:i8 = i8(readMem(pc++));
             let op:u8 = readMem(pc++);
             switch (op) {
+                #op 06 RLC (IY+n)
+
                 #op 46 BIT 0,(IY+n)
                 #op 4e BIT 1,(IY+n)
                 #op 56 BIT 2,(IY+n)
