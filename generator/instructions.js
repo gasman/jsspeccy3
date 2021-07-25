@@ -514,9 +514,9 @@ export default {
         t++;
         let sp = SP;
         sp--;
-        writeMem(sp, ${k >> 8});
+        writeMem(sp, u8(pc >> 8));
         sp--;
-        writeMem(sp, ${k & 0xff});
+        writeMem(sp, u8(pc & 0xff));
         SP = sp;
         pc = ${k};
     `,
