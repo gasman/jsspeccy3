@@ -133,6 +133,7 @@ export function runFrame():i16 {
                 #op 0d DEC C
                 #op 0e LD C,n
 
+                #op 10 DJNZ n
                 #op 11 LD DE,nn
                 #op 13 INC DE
                 #op 14 INC D
@@ -224,6 +225,13 @@ export function runFrame():i16 {
                 #op 6e LD L,(HL)
                 #op 6f LD L,A
 
+                #op 70 LD (HL),B
+                #op 71 LD (HL),C
+                #op 72 LD (HL),D
+                #op 73 LD (HL),E
+                #op 74 LD (HL),H
+                #op 75 LD (HL),L
+                #op 77 LD (HL),A
                 #op 78 LD A,B
                 #op 79 LD A,C
                 #op 7a LD A,D
@@ -268,6 +276,7 @@ export function runFrame():i16 {
                 #op c3 JP nn
                 #op c5 PUSH BC
                 #op cb prefix cb
+                #op cd CALL nn
                 #op d3 OUT (n),A
                 #op d5 PUSH DE
                 #op d9 EXX
@@ -289,6 +298,74 @@ export function runFrame():i16 {
             let op:u8 = readMem(pc++);
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
+                #op 40 BIT 0,B
+                #op 41 BIT 0,C
+                #op 42 BIT 0,D
+                #op 43 BIT 0,E
+                #op 44 BIT 0,H
+                #op 45 BIT 0,L
+                #op 46 BIT 0,(HL)
+                #op 47 BIT 0,A
+                #op 48 BIT 1,B
+                #op 49 BIT 1,C
+                #op 4a BIT 1,D
+                #op 4b BIT 1,E
+                #op 4c BIT 1,H
+                #op 4d BIT 1,L
+                #op 4e BIT 1,(HL)
+                #op 4f BIT 1,A
+
+                #op 50 BIT 2,B
+                #op 51 BIT 2,C
+                #op 52 BIT 2,D
+                #op 53 BIT 2,E
+                #op 54 BIT 2,H
+                #op 55 BIT 2,L
+                #op 56 BIT 2,(HL)
+                #op 57 BIT 2,A
+                #op 58 BIT 3,B
+                #op 59 BIT 3,C
+                #op 5a BIT 3,D
+                #op 5b BIT 3,E
+                #op 5c BIT 3,H
+                #op 5d BIT 3,L
+                #op 5e BIT 3,(HL)
+                #op 5f BIT 3,A
+
+                #op 60 BIT 4,B
+                #op 61 BIT 4,C
+                #op 62 BIT 4,D
+                #op 63 BIT 4,E
+                #op 64 BIT 4,H
+                #op 65 BIT 4,L
+                #op 66 BIT 4,(HL)
+                #op 67 BIT 4,A
+                #op 68 BIT 5,B
+                #op 69 BIT 5,C
+                #op 6a BIT 5,D
+                #op 6b BIT 5,E
+                #op 6c BIT 5,H
+                #op 6d BIT 5,L
+                #op 6e BIT 5,(HL)
+                #op 6f BIT 5,A
+
+                #op 70 BIT 6,B
+                #op 71 BIT 6,C
+                #op 72 BIT 6,D
+                #op 73 BIT 6,E
+                #op 74 BIT 6,H
+                #op 75 BIT 6,L
+                #op 76 BIT 6,(HL)
+                #op 77 BIT 6,A
+                #op 78 BIT 7,B
+                #op 79 BIT 7,C
+                #op 7a BIT 7,D
+                #op 7b BIT 7,E
+                #op 7c BIT 7,H
+                #op 7d BIT 7,L
+                #op 7e BIT 7,(HL)
+                #op 7f BIT 7,A
+
                 #op 80 RES 0,B
                 #op 81 RES 0,C
                 #op 82 RES 0,D
@@ -440,12 +517,20 @@ export function runFrame():i16 {
                 #op 2b DEC IX
                 #op 34 INC (IX+n)
                 #op 35 DEC (IX+n)
+                #op 36 LD (IX+n),n
                 #op 46 LD B,(IX+n)
                 #op 4e LD C,(IX+n)
                 #op 56 LD D,(IX+n)
                 #op 5e LD E,(IX+n)
                 #op 66 LD H,(IX+n)
                 #op 6e LD L,(IX+n)
+                #op 70 LD (IX+n),B
+                #op 71 LD (IX+n),C
+                #op 72 LD (IX+n),D
+                #op 73 LD (IX+n),E
+                #op 74 LD (IX+n),H
+                #op 75 LD (IX+n),L
+                #op 77 LD (IX+n),A
                 #op 7e LD A,(IX+n)
                 #op a6 AND (IX+n)
                 #op be CP (IX+n)
@@ -461,6 +546,15 @@ export function runFrame():i16 {
             const indexOffset:i8 = i8(readMem(pc++));
             let op:u8 = readMem(pc++);
             switch (op) {
+                #op 46 BIT 0,(IX+n)
+                #op 4e BIT 1,(IX+n)
+                #op 56 BIT 2,(IX+n)
+                #op 5e BIT 3,(IX+n)
+                #op 66 BIT 4,(IX+n)
+                #op 6e BIT 5,(IX+n)
+                #op 76 BIT 6,(IX+n)
+                #op 7e BIT 7,(IX+n)
+
                 #op 86 RES 0,(IX+n)
                 #op 8e RES 1,(IX+n)
                 #op 96 RES 2,(IX+n)
@@ -519,12 +613,20 @@ export function runFrame():i16 {
                 #op 2b DEC IY
                 #op 34 INC (IY+n)
                 #op 35 DEC (IY+n)
+                #op 36 LD (IY+n),n
                 #op 46 LD B,(IY+n)
                 #op 4e LD C,(IY+n)
                 #op 56 LD D,(IY+n)
                 #op 5e LD E,(IY+n)
                 #op 66 LD H,(IY+n)
                 #op 6e LD L,(IY+n)
+                #op 70 LD (IY+n),B
+                #op 71 LD (IY+n),C
+                #op 72 LD (IY+n),D
+                #op 73 LD (IY+n),E
+                #op 74 LD (IY+n),H
+                #op 75 LD (IY+n),L
+                #op 77 LD (IY+n),A
                 #op 7e LD A,(IY+n)
                 #op a6 AND (IY+n)
                 #op be CP (IY+n)
@@ -540,6 +642,15 @@ export function runFrame():i16 {
             const indexOffset:i8 = i8(readMem(pc++));
             let op:u8 = readMem(pc++);
             switch (op) {
+                #op 46 BIT 0,(IY+n)
+                #op 4e BIT 1,(IY+n)
+                #op 56 BIT 2,(IY+n)
+                #op 5e BIT 3,(IY+n)
+                #op 66 BIT 4,(IY+n)
+                #op 6e BIT 5,(IY+n)
+                #op 76 BIT 6,(IY+n)
+                #op 7e BIT 7,(IY+n)
+
                 #op 86 RES 0,(IY+n)
                 #op 8e RES 1,(IY+n)
                 #op 96 RES 2,(IY+n)

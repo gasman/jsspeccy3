@@ -125,6 +125,51 @@ export default {
         A = result;
         F = sz53pTable[result];
     `,
+    'BIT k,(HL)': (k) => `
+        const val:u8 = readMem(HL);
+        let f:u8 = ( F & FLAG_C ) | FLAG_H | ( val & ( FLAG_3 | FLAG_5 ) );
+        if ( !(val & ${1 << k}) ) f |= FLAG_P | FLAG_Z;
+        ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
+        F = f;
+        t++;
+    `,
+    'BIT k,(IX+n)': (k) => `
+        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET['(IX+n)']}
+        ${VALUE_GETTERS['(IX+n)']}
+        let f:u8 = ( F & FLAG_C ) | FLAG_H | ( u8(ixAddr >> 8) & ( FLAG_3 | FLAG_5 ) );
+        if( !(val & ${1 << k}) ) f |= FLAG_P | FLAG_Z;
+        ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
+        F = f;
+        t++;
+    `,
+    'BIT k,(IY+n)': (k) => `
+        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET['(IY+n)']}
+        ${VALUE_GETTERS['(IY+n)']}
+        let f:u8 = ( F & FLAG_C ) | FLAG_H | ( u8(iyAddr >> 8) & ( FLAG_3 | FLAG_5 ) );
+        if( !(val & ${1 << k}) ) f |= FLAG_P | FLAG_Z;
+        ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
+        F = f;
+        t++;
+    `,
+    'BIT k,r': (k, r) => `
+        const val:u8 = ${r};
+        let f:u8 = ( F & FLAG_C ) | FLAG_H | ( val & ( FLAG_3 | FLAG_5 ) );
+        if ( !(val & ${1 << k}) ) f |= FLAG_P | FLAG_Z;
+        ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
+        F = f;
+    `,
+    'CALL nn': () => `
+        let lo = u16(readMem(pc++));
+        let hi = u16(readMem(pc++));
+        t++;
+        let sp = SP;
+        sp--;
+        writeMem(sp, u8(pc >> 8));
+        sp--;
+        writeMem(sp, u8(pc & 0xff));
+        SP = sp;
+        pc = lo + (hi << 8);
+    `,
     'CP v': (v) => `
         ${VALUE_INITTERS[v]}
         ${VALUE_GETTERS[v]}
@@ -147,6 +192,21 @@ export default {
     `,
     'DI': () => `
         iff1 = iff2 = 0;
+    `,
+    'DJNZ n': () => `
+        t++;
+        const b:u8 = B - 1;
+        B = b;
+        if (b) {
+            /* take branch */
+            const offset = i8(readMem(pc++));
+            t += 5;
+            pc += offset;
+        } else {
+            /* do not take branch */
+            t += 3;
+            pc++;
+        }
     `,
     'EI': () => `
         iff1 = iff2 = 1;
@@ -236,6 +296,21 @@ export default {
     'LD (HL),n': () => `
         writeMem(HL, readMem(pc++));
     `,
+    'LD (HL),r': (r) => `
+        writeMem(HL, ${r});
+    `,
+    'LD (IX+n),v': (v) => `
+        ${VALUE_INITTERS['(IX+n)']}
+        ${VALUE_GETTERS[v]}
+        const result = val;
+        ${VALUE_SETTERS['(IX+n)']}
+    `,
+    'LD (IY+n),v': (v) => `
+        ${VALUE_INITTERS['(IY+n)']}
+        ${VALUE_GETTERS[v]}
+        const result = val;
+        ${VALUE_SETTERS['(IY+n)']}
+    `,
     'LD I,A': () => `
         I = A;
         t++;
@@ -292,10 +367,12 @@ export default {
     'PUSH rr': (rr) => `
         t++;
         const rr:u16 = ${rr};
-        SP = SP - 1;
-        writeMem(SP, u8(rr >> 8));
-        SP = SP - 1;
-        writeMem(SP, u8(rr & 0xff));
+        let sp = SP;
+        sp--;
+        writeMem(sp, u8(rr >> 8));
+        sp--;
+        writeMem(sp, u8(rr & 0xff));
+        SP = sp;
     `,
     'RES k,v': (k, v) => `
         ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
