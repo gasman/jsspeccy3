@@ -107,7 +107,6 @@ function writeMem(addr:u16, val:u8):void {
 function readPort(addr:u16):u8 {
     if (!(addr & 0x0001)) {
         /* poll keyboard */
-        if (addr == 0x7ffe) return 0xfe;
         return pollKeyboard(u8(addr >> 8));
     } else if (!(addr & 0x00e0)) {
         /* kempston joystick */
@@ -199,6 +198,7 @@ export function runFrame():i16 {
                 #op 04 INC B
                 #op 05 DEC B
                 #op 06 LD B,n
+                #op 07 RLCA
                 #op 08 EX AF,AF'
                 #op 09 ADD HL,BC
                 #op 0a LD A,(BC)
@@ -215,6 +215,7 @@ export function runFrame():i16 {
                 #op 14 INC D
                 #op 15 DEC D
                 #op 16 LD D,n
+                #op 17 RLA
                 #op 18 JR n
                 #op 19 ADD HL,DE
                 #op 1a LD A,(DE)
@@ -332,6 +333,14 @@ export function runFrame():i16 {
                 #op 85 ADD A,L
                 #op 86 ADD A,(HL)
                 #op 87 ADD A,A
+                #op 88 ADC A,B
+                #op 89 ADC A,C
+                #op 8a ADC A,D
+                #op 8b ADC A,E
+                #op 8c ADC A,H
+                #op 8d ADC A,L
+                #op 8e ADC A,(HL)
+                #op 8f ADC A,A
 
                 #op 90 SUB B
                 #op 91 SUB C
@@ -398,6 +407,7 @@ export function runFrame():i16 {
                 #op cb prefix cb
                 #op cc CALL Z,nn
                 #op cd CALL nn
+                #op ce ADC A,n
                 #op cf RST 0x08
 
                 #op d0 RET NC
@@ -467,6 +477,32 @@ export function runFrame():i16 {
                 #op 05 RLC L
                 #op 06 RLC (HL)
                 #op 07 RLC A
+
+                #op 10 RL B
+                #op 11 RL C
+                #op 12 RL D
+                #op 13 RL E
+                #op 14 RL H
+                #op 15 RL L
+                #op 16 RL (HL)
+                #op 17 RL A
+                #op 18 RR B
+                #op 19 RR C
+                #op 1a RR D
+                #op 1b RR E
+                #op 1c RR H
+                #op 1d RR L
+                #op 1e RR (HL)
+                #op 1f RR A
+
+                #op 28 SRA B
+                #op 29 SRA C
+                #op 2a SRA D
+                #op 2b SRA E
+                #op 2c SRA H
+                #op 2d SRA L
+                #op 2e SRA (HL)
+                #op 2f SRA A
 
                 #op 38 SRL B
                 #op 39 SRL C
@@ -689,7 +725,10 @@ export function runFrame():i16 {
             let op:u8 = readMem(pc++);
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
+                #op 09 ADD IX,BC
+                #op 19 ADD IX,DE
                 #op 21 LD IX,nn
+                #op 29 ADD IX,IX
                 #op 22 LD (nn),IX
                 #op 23 INC IX
                 #op 2a LD IX,(nn)
@@ -697,6 +736,7 @@ export function runFrame():i16 {
                 #op 34 INC (IX+n)
                 #op 35 DEC (IX+n)
                 #op 36 LD (IX+n),n
+                #op 39 ADD IX,SP
                 #op 46 LD B,(IX+n)
                 #op 4e LD C,(IX+n)
                 #op 56 LD D,(IX+n)
@@ -712,6 +752,7 @@ export function runFrame():i16 {
                 #op 77 LD (IX+n),A
                 #op 7e LD A,(IX+n)
                 #op 86 ADD A,(IX+n)
+                #op 8e ADC A,(IX+n)
                 #op 96 SUB (IX+n)
                 #op 9e SBC A,(IX+n)
                 #op a6 AND (IX+n)
@@ -733,6 +774,11 @@ export function runFrame():i16 {
             let op:u8 = readMem(pc++);
             switch (op) {
                 #op 06 RLC (IX+n)
+
+                #op 16 RL (IX+n)
+                #op 1e RR (IX+n)
+
+                #op 2e SRA (IX+n)
 
                 #op 3e SRL (IX+n)
 
@@ -774,24 +820,32 @@ export function runFrame():i16 {
                 #op 40 IN B,(C)
                 #op 42 SBC HL,BC
                 #op 43 LD (nn),BC
+                #op 44 NEG
                 #op 46 IM 0
                 #op 47 LD I,A
                 #op 48 IN C,(C)
+                #op 4a ADD HL,BC
                 #op 4b LD BC,(nn)
+
                 #op 50 IN D,(C)
                 #op 52 SBC HL,DE
                 #op 53 LD (nn),DE
                 #op 56 IM 1
                 #op 58 IN E,(C)
+                #op 5a ADD HL,DE
                 #op 5b LD DE,(nn)
                 #op 5e IM 2
+
                 #op 60 IN H,(C)
                 #op 62 SBC HL,HL
                 #op 68 IN L,(C)
+                #op 6a ADD HL,HL
                 #op 6b LD HL,(nn)
                 #op 72 SBC HL,SP
                 #op 73 LD (nn),SP
                 #op 78 IN A,(C)
+                #op 7a ADD HL,SP
+
                 #op b0 LDIR
                 #op b8 LDDR
 
@@ -803,14 +857,18 @@ export function runFrame():i16 {
             let op:u8 = readMem(pc++);
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
+                #op 09 ADD IY,BC
+                #op 19 ADD IY,DE
                 #op 21 LD IY,nn
                 #op 22 LD (nn),IY
                 #op 23 INC IY
+                #op 29 ADD IY,IY
                 #op 2a LD IY,(nn)
                 #op 2b DEC IY
                 #op 34 INC (IY+n)
                 #op 35 DEC (IY+n)
                 #op 36 LD (IY+n),n
+                #op 39 ADD IY,SP
                 #op 46 LD B,(IY+n)
                 #op 4e LD C,(IY+n)
                 #op 56 LD D,(IY+n)
@@ -826,6 +884,7 @@ export function runFrame():i16 {
                 #op 77 LD (IY+n),A
                 #op 7e LD A,(IY+n)
                 #op 86 ADD A,(IY+n)
+                #op 8e ADC A,(IY+n)
                 #op 96 SUB (IY+n)
                 #op 9e SBC A,(IY+n)
                 #op a6 AND (IY+n)
@@ -847,6 +906,11 @@ export function runFrame():i16 {
             let op:u8 = readMem(pc++);
             switch (op) {
                 #op 06 RLC (IY+n)
+
+                #op 16 RL (IY+n)
+                #op 1e RR (IY+n)
+
+                #op 2e SRA (IY+n)
 
                 #op 3e SRL (IY+n)
 
