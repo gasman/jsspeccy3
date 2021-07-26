@@ -48,9 +48,7 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 #alloc parityTable[0x100]: u8
 #alloc sz53pTable[0x100]: u8
 
-const SCREEN_EVENT_COUNT:u16 = 3072;
-const SCREEN_EVENTS_SIZE:u16 = SCREEN_EVENT_COUNT * 3;
-#alloc screenEvents[6144]: u32
+#alloc screenEvents[18000]: u32
 
 #alloc keyStates[8]: u8
 
@@ -75,16 +73,23 @@ while (true) {
 
 /* build screen events table: a list of which screen bytes should be fetched on which
 t-states. A sequence of: two u32s per event:
-- tstate number or 0xffff for end marker
+- tstate number or 0xffffffff for end marker
 - screen address offset | (attr address offset << 16)
 */
 let screenEventPointer:u32 = 0;
-for (let i:u32 = 0; i < SCREEN_EVENT_COUNT; i++) {
-    screenEvents[screenEventPointer++] = 14335 + 224 * (i >> 4) + 8 * (i & 0x0f);
-    const screenOffset:u32 = ((i & 0x0c0f) << 1) | ((i & 0x0070) << 4) | ((i & 0x0380) >> 2);
-    const attrOffset:u32 = 0x1800 | ((i & 0x0f80) >> 2) | ((i & 0x000f) << 1);
-    screenEvents[screenEventPointer++] = screenOffset | (attrOffset << 16);
+for (let y:u32 = 0; y < 192; y++) {
+    const rowTime:u32 = 14335 + 224 * y;
+    const rowScreenOffset:u32 = ((y & 0xc0) << 5) | ((y & 0x07) << 8) | ((y & 0x38) << 2);
+    const rowAttrOffset:u32 = 0x1800 | ((y & 0xf8) << 2);
+    for (let x:u32 = 0; x < 16; x++) {
+        screenEvents[screenEventPointer++] = rowTime + 8 * x;
+        const screenOffset:u32 = rowScreenOffset | (x << 1);
+        const attrOffset:u32 = rowAttrOffset | (x << 1);
+        screenEvents[screenEventPointer++] = screenOffset | (attrOffset << 16);
+    }
 }
+// add end marker
+screenEvents[screenEventPointer] = 0xffffffff;
 
 for (let i=0; i < 8; i++) {
     keyStates[i] = 0xff;
@@ -148,7 +153,9 @@ function writePort(addr:u16, val:u8):void {
 function updateFramebuffer():void {
     /* process all of the screen bytes that are due up to the current tstate */
     const screenBaseAddr:u32 = screenPageIndex << 14;
-    while (screenEventPointer < SCREEN_EVENTS_SIZE && screenEvents[screenEventPointer] <= t) {
+
+    // end marker is 0xffffffff, which will always be greater than t
+    while (screenEvents[screenEventPointer] <= t) {
         const addressWord:u32 = screenEvents[screenEventPointer + 1];
         const screenAddr:u32 = screenBaseAddr | (addressWord & 0xffff);
         const attributeAddr:u32 = screenBaseAddr | (addressWord >> 16);
