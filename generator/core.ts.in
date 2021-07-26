@@ -144,6 +144,7 @@ let im:u8 = 0;
 let interruptible:bool = false;
 let opcodePrefix:u8 = 0;
 let framebufferIndex = 0;
+let borderColour:u8 = 0;
 
 function readMem(addr:u16):u8 {
     t += 3;
@@ -175,7 +176,10 @@ function readPort(addr:u16):u8 {
 }
 
 function writePort(addr:u16, val:u8):void {
-    if (!(addr & 0x8002)) {
+    if (!(addr & 0x0001)) {
+        /* border colour / speaker */
+        borderColour = val & 0x07;
+    } else if (!(addr & 0x8002)) {
         /* 128/+2 paging */
         if (pagingLocked) return;
 
@@ -196,7 +200,7 @@ function updateFramebuffer():void {
     while (screenEvents[screenEventPointer] <= t) {
         const addressWord:u32 = screenEvents[screenEventPointer + 1];
         if (addressWord == 0xffffffff) {
-            frameBuffer[framebufferIndex++] = 4;
+            frameBuffer[framebufferIndex++] = borderColour;
         } else {
             const screenAddr:u32 = screenBaseAddr | (addressWord & 0xffff);
             const attributeAddr:u32 = screenBaseAddr | (addressWord >> 16);

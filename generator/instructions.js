@@ -509,7 +509,7 @@ export default {
         t++;
         const lo:u16 = u16(readMem(pc++));
         const a:u8 = A;
-        writePort(lo | (a << 8), a);
+        writePort(lo | (u16(a) << 8), a);
         t += 3;
     `,
     'OUT (C),r': (r) => `
