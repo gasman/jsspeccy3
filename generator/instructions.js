@@ -480,11 +480,16 @@ export default {
     `,
     'NOP': () => '',
     'OUT (n),A': () => `
-        readMem(pc++);
-        t += 4;
+        t++;
+        const lo:u16 = u16(readMem(pc++));
+        const a:u8 = A;
+        writePort(lo | (a << 8), a);
+        t += 3;
     `,
     'OUT (C),r': (r) => `
-        t += 4;
+        t++;
+        writePort(BC, ${r});
+        t += 3;
     `,
     'OR A': () => `
         F = sz53pTable[A];
