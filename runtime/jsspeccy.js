@@ -58,7 +58,7 @@ class CanvasRenderer {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = this.canvas.getContext('2d');
-        this.imageData = this.ctx.getImageData(32, 24, 256, 192);
+        this.imageData = this.ctx.getImageData(0, 24, 320, 192);
         this.pixels = new Uint32Array(this.imageData.data.buffer);
         this.flashPhase = 0;
 
@@ -103,24 +103,39 @@ class CanvasRenderer {
         const frameBytes = new Uint8Array(frameBuffer);
         let pixelPtr = 0;
         let bufferPtr = 0;
-        while (bufferPtr < FRAME_BUFFER_SIZE) {
-            let bitmap = frameBytes[bufferPtr++];
-            const attr = frameBytes[bufferPtr++];
-            let ink, paper;
-            if ((attr & 0x80) && (this.flashPhase & 0x10)) {
-                // reverse ink and paper
-                paper = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
-                ink = this.palette[(attr & 0x78) >> 3];
-            } else {
-                ink = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
-                paper = this.palette[(attr & 0x78) >> 3];
+        for (let y = 0; y < 192; y++) {
+            /* left border */
+            for (let x = 0; x < 16; x++) {
+                let border = this.palette[frameBytes[bufferPtr++]]
+                this.pixels[pixelPtr++] = border;
+                this.pixels[pixelPtr++] = border;
             }
-            for (let i = 0; i < 8; i++) {
-                this.pixels[pixelPtr++] = (bitmap & 0x80) ? ink : paper;
-                bitmap <<= 1;
+            /* main screen */
+            for (let x = 0; x < 32; x++) {
+                let bitmap = frameBytes[bufferPtr++];
+                const attr = frameBytes[bufferPtr++];
+                let ink, paper;
+                if ((attr & 0x80) && (this.flashPhase & 0x10)) {
+                    // reverse ink and paper
+                    paper = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
+                    ink = this.palette[(attr & 0x78) >> 3];
+                } else {
+                    ink = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
+                    paper = this.palette[(attr & 0x78) >> 3];
+                }
+                for (let i = 0; i < 8; i++) {
+                    this.pixels[pixelPtr++] = (bitmap & 0x80) ? ink : paper;
+                    bitmap <<= 1;
+                }
+            }
+            /* right border */
+            for (let x = 0; x < 16; x++) {
+                let border = this.palette[frameBytes[bufferPtr++]]
+                this.pixels[pixelPtr++] = border;
+                this.pixels[pixelPtr++] = border;
             }
         }
-        this.ctx.putImageData(this.imageData, 32, 24);
+        this.ctx.putImageData(this.imageData, 0, 24);
         this.flashPhase = (this.flashPhase + 1) & 0x1f;
     }
 }

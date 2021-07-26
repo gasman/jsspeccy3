@@ -1,5 +1,5 @@
-#alloc frameBuffer[0x3000]: u8
-#const FRAME_BUFFER_SIZE 0x3000
+#alloc frameBuffer[0x4800]: u8
+#const FRAME_BUFFER_SIZE 0x4800
 
 // allocate memory for 8 RAM, 4 ROM pages
 #alloc machineMemory[0x30000]: u8
@@ -48,7 +48,7 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 #alloc parityTable[0x100]: u8
 #alloc sz53pTable[0x100]: u8
 
-#alloc screenEvents[18000]: u32
+#alloc screenEvents[36000]: u32
 
 #alloc keyStates[8]: u8
 
@@ -74,18 +74,33 @@ while (true) {
 /* build screen events table: a list of which screen bytes should be fetched on which
 t-states. A sequence of: two u32s per event:
 - tstate number or 0xffffffff for end marker
-- screen address offset | (attr address offset << 16)
+- screen address offset | (attr address offset << 16),
+  or 0xffffffff if this is a 'fetch border' event
 */
 let screenEventPointer:u32 = 0;
 for (let y:u32 = 0; y < 192; y++) {
     const rowTime:u32 = 14335 + 224 * y;
     const rowScreenOffset:u32 = ((y & 0xc0) << 5) | ((y & 0x07) << 8) | ((y & 0x38) << 2);
     const rowAttrOffset:u32 = 0x1800 | ((y & 0xf8) << 2);
+
+    /* left border */
+    for (let x:u32 = 0; x < 16; x++) {
+        screenEvents[screenEventPointer++] = rowTime - 16 + (x & 0xfc);
+        screenEvents[screenEventPointer++] = 0xffffffff;
+    }
+
+    /* main screen */
     for (let x:u32 = 0; x < 16; x++) {
         screenEvents[screenEventPointer++] = rowTime + 8 * x;
         const screenOffset:u32 = rowScreenOffset | (x << 1);
         const attrOffset:u32 = rowAttrOffset | (x << 1);
         screenEvents[screenEventPointer++] = screenOffset | (attrOffset << 16);
+    }
+
+    /* right border */
+    for (let x:u32 = 0; x < 16; x++) {
+        screenEvents[screenEventPointer++] = rowTime + 128 + (x & 0xfc);
+        screenEvents[screenEventPointer++] = 0xffffffff;
     }
 }
 // add end marker
@@ -157,12 +172,16 @@ function updateFramebuffer():void {
     // end marker is 0xffffffff, which will always be greater than t
     while (screenEvents[screenEventPointer] <= t) {
         const addressWord:u32 = screenEvents[screenEventPointer + 1];
-        const screenAddr:u32 = screenBaseAddr | (addressWord & 0xffff);
-        const attributeAddr:u32 = screenBaseAddr | (addressWord >> 16);
-        frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
-        frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
-        frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
-        frameBuffer[framebufferIndex++] = machineMemory[attributeAddr + 1];
+        if (addressWord == 0xffffffff) {
+            frameBuffer[framebufferIndex++] = 4;
+        } else {
+            const screenAddr:u32 = screenBaseAddr | (addressWord & 0xffff);
+            const attributeAddr:u32 = screenBaseAddr | (addressWord >> 16);
+            frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
+            frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
+            frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
+            frameBuffer[framebufferIndex++] = machineMemory[attributeAddr + 1];
+        }
         screenEventPointer += 2;
     }
 }
