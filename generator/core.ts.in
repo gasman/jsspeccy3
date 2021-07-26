@@ -6,8 +6,6 @@
 
 #alloc memoryPageMap[4]: u8
 
-export const FRAME_CYCLE_COUNT:u32 = 69888;
-
 #regpair AF A F
 #regpair BC B C
 #regpair DE D E
@@ -127,27 +125,9 @@ function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32):vo
     screenEvents[screenEventPointer] = 0xffffffff;
 }
 
+let frameCycleCount:u32 = 69888;
 let screenPageIndex:u32 = 5;
 let pagingLocked:bool = 0;
-
-export function setMachineType(type:u32):void {
-    if (type == 48) {
-        memoryPageMap = [10, 5, 2, 0];
-        buildScreenEventsTable(14335, 224);
-        pagingLocked = 1;
-    } else {  // 128
-        memoryPageMap = [8, 5, 2, 0];
-        buildScreenEventsTable(14361, 228);
-        pagingLocked = 0;
-    }
-    screenPageIndex = 5;
-}
-setMachineType(48);
-
-for (let i=0; i < 8; i++) {
-    keyStates[i] = 0xff;
-}
-
 let t:u32 = 0;
 let pc:u16 = 0;
 let iff1:bool = 0;
@@ -157,6 +137,42 @@ let interruptible:bool = false;
 let opcodePrefix:u8 = 0;
 let framebufferIndex = 0;
 let borderColour:u8 = 0;
+
+
+let machineType:u32 = 48;
+export function setMachineType(type:u32):void {
+    machineType = type;
+    if (type == 48) {
+        frameCycleCount = 69888;
+        buildScreenEventsTable(14335, 224);
+    } else {  // 128
+        frameCycleCount = 70908;
+        buildScreenEventsTable(14361, 228);
+    }
+    reset();
+}
+export function reset():void {
+    if (machineType == 48) {
+        memoryPageMap = [10, 5, 2, 0];
+        pagingLocked = 1;
+    } else {  // 128
+        memoryPageMap = [8, 5, 2, 0];
+        pagingLocked = 0;
+    }
+    screenPageIndex = 5;
+    t = 0;
+    pc = 0;
+    iff1 = iff2 = 0;
+    im = 0;
+    interruptible = false;
+    opcodePrefix = 0;
+    framebufferIndex = 0;
+}
+setMachineType(48);
+
+for (let i=0; i < 8; i++) {
+    keyStates[i] = 0xff;
+}
 
 function readMem(addr:u16):u8 {
     t += 3;
@@ -248,11 +264,22 @@ function pollKeyboard(addr:u8):u8 {
 export function runFrame():i16 {
     screenEventPointer = 0;
     framebufferIndex = 0;
+    const result = runUntil(frameCycleCount);
+    if (result != -1) {
+        t = frameCycleCount;
+        updateFramebuffer();
+        return result;
+    }
 
-    while (t < FRAME_CYCLE_COUNT) {
+    updateFramebuffer();
+    t -= frameCycleCount;
+
+    return -1;
+}
+
+export function runUntil(maxT:u32):i16 {
+    while (t < maxT) {
         //if (pc == 0x10af && machineMemory[0x5c3b] != 0x00) {
-        //    t = FRAME_CYCLE_COUNT;
-        //    updateFramebuffer();
         //    return machineMemory[0x5c3b];
         //}
 
@@ -1066,8 +1093,6 @@ export function runFrame():i16 {
             }
         }
     }
-    updateFramebuffer();
-    t -= FRAME_CYCLE_COUNT;
 
     return -1;
 }
