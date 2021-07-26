@@ -5,8 +5,6 @@
 #alloc machineMemory[0x30000]: u8
 
 #alloc memoryPageMap[4]: u8
-// memory PageMap = [10, 5, 2, 0];  // for 48K
-memoryPageMap = [8, 5, 2, 0];  // for 128K
 
 export const FRAME_CYCLE_COUNT:u32 = 69888;
 
@@ -71,70 +69,84 @@ while (true) {
     if (i == 0) break;
 }
 
-/* build screen events table: a list of which screen bytes should be fetched on which
-t-states. A sequence of: two u32s per event:
-- tstate number or 0xffffffff for end marker
-- screen address offset | (attr address offset << 16),
-  or 0xffffffff if this is a 'fetch border' event
-*/
-let screenEventPointer:u32 = 0;
 
-const MAIN_SCREEN_START_TSTATE = 14335;
-const TSTATES_PER_ROW:u32 = 224;
+function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32):void {
+    /* build screen events table: a list of which screen bytes should be fetched on which
+    t-states. A sequence of: two u32s per event:
+    - tstate number or 0xffffffff for end marker
+    - screen address offset | (attr address offset << 16),
+    or 0xffffffff if this is a 'fetch border' event
+    */
+    let screenEventPointer:u32 = 0;
 
-/* top border */
-for (let y:u32 = 0; y < 24; y++) {
-    const rowTime:u32 = MAIN_SCREEN_START_TSTATE - (24 - y) * TSTATES_PER_ROW - 16;
-    for (let x:u32 = 0; x < 160; x++) {
-        screenEvents[screenEventPointer++] = rowTime + (x & 0xfc);
-        screenEvents[screenEventPointer++] = 0xffffffff;
-    }
-}
-
-for (let y:u32 = 0; y < 192; y++) {
-    const rowTime:u32 = MAIN_SCREEN_START_TSTATE + TSTATES_PER_ROW * y;
-    const rowScreenOffset:u32 = ((y & 0xc0) << 5) | ((y & 0x07) << 8) | ((y & 0x38) << 2);
-    const rowAttrOffset:u32 = 0x1800 | ((y & 0xf8) << 2);
-
-    /* left border */
-    for (let x:u32 = 0; x < 16; x++) {
-        screenEvents[screenEventPointer++] = rowTime - 16 + (x & 0xfc);
-        screenEvents[screenEventPointer++] = 0xffffffff;
+    /* top border */
+    for (let y:u32 = 0; y < 24; y++) {
+        const rowTime:u32 = mainScreenStartTstate - (24 - y) * tstatesPerRow - 16;
+        for (let x:u32 = 0; x < 160; x++) {
+            screenEvents[screenEventPointer++] = rowTime + (x & 0xfc);
+            screenEvents[screenEventPointer++] = 0xffffffff;
+        }
     }
 
-    /* main screen */
-    for (let x:u32 = 0; x < 16; x++) {
-        screenEvents[screenEventPointer++] = rowTime + 8 * x;
-        const screenOffset:u32 = rowScreenOffset | (x << 1);
-        const attrOffset:u32 = rowAttrOffset | (x << 1);
-        screenEvents[screenEventPointer++] = screenOffset | (attrOffset << 16);
+    for (let y:u32 = 0; y < 192; y++) {
+        const rowTime:u32 = mainScreenStartTstate + tstatesPerRow * y;
+        const rowScreenOffset:u32 = ((y & 0xc0) << 5) | ((y & 0x07) << 8) | ((y & 0x38) << 2);
+        const rowAttrOffset:u32 = 0x1800 | ((y & 0xf8) << 2);
+
+        /* left border */
+        for (let x:u32 = 0; x < 16; x++) {
+            screenEvents[screenEventPointer++] = rowTime - 16 + (x & 0xfc);
+            screenEvents[screenEventPointer++] = 0xffffffff;
+        }
+
+        /* main screen */
+        for (let x:u32 = 0; x < 16; x++) {
+            screenEvents[screenEventPointer++] = rowTime + 8 * x;
+            const screenOffset:u32 = rowScreenOffset | (x << 1);
+            const attrOffset:u32 = rowAttrOffset | (x << 1);
+            screenEvents[screenEventPointer++] = screenOffset | (attrOffset << 16);
+        }
+
+        /* right border */
+        for (let x:u32 = 0; x < 16; x++) {
+            screenEvents[screenEventPointer++] = rowTime + 128 + (x & 0xfc);
+            screenEvents[screenEventPointer++] = 0xffffffff;
+        }
     }
 
-    /* right border */
-    for (let x:u32 = 0; x < 16; x++) {
-        screenEvents[screenEventPointer++] = rowTime + 128 + (x & 0xfc);
-        screenEvents[screenEventPointer++] = 0xffffffff;
+    /* bottom border */
+    for (let y:u32 = 0; y < 24; y++) {
+        const rowTime:u32 = mainScreenStartTstate + (192 + y) * tstatesPerRow - 16;
+        for (let x:u32 = 0; x < 160; x++) {
+            screenEvents[screenEventPointer++] = rowTime + (x & 0xfc);
+            screenEvents[screenEventPointer++] = 0xffffffff;
+        }
     }
-}
 
-/* bottom border */
-for (let y:u32 = 0; y < 24; y++) {
-    const rowTime:u32 = MAIN_SCREEN_START_TSTATE + (192 + y) * TSTATES_PER_ROW - 16;
-    for (let x:u32 = 0; x < 160; x++) {
-        screenEvents[screenEventPointer++] = rowTime + (x & 0xfc);
-        screenEvents[screenEventPointer++] = 0xffffffff;
-    }
-}
-
-// add end marker
-screenEvents[screenEventPointer] = 0xffffffff;
-
-for (let i=0; i < 8; i++) {
-    keyStates[i] = 0xff;
+    // add end marker
+    screenEvents[screenEventPointer] = 0xffffffff;
 }
 
 let screenPageIndex:u32 = 5;
 let pagingLocked:bool = 0;
+
+export function setMachineType(type:u32):void {
+    if (type == 48) {
+        memoryPageMap = [10, 5, 2, 0];
+        buildScreenEventsTable(14335, 224);
+        pagingLocked = 1;
+    } else {  // 128
+        memoryPageMap = [8, 5, 2, 0];
+        buildScreenEventsTable(14361, 228);
+        pagingLocked = 0;
+    }
+    screenPageIndex = 5;
+}
+setMachineType(48);
+
+for (let i=0; i < 8; i++) {
+    keyStates[i] = 0xff;
+}
 
 let t:u32 = 0;
 let pc:u16 = 0;
@@ -191,6 +203,8 @@ function writePort(addr:u16, val:u8):void {
         pagingLocked = bool(val & 0x20);
     }
 }
+
+let screenEventPointer:u32 = 0;
 
 function updateFramebuffer():void {
     /* process all of the screen bytes that are due up to the current tstate */

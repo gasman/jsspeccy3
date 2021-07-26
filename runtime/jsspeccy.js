@@ -195,6 +195,10 @@ window.JSSpeccy = (container) => {
         switch(e.data.message) {
             case 'ready':
                 loadRoms().then(() => {
+                    worker.postMessage({
+                        message: 'setMachineType',
+                        type: 128,
+                    });
                     initKeyboard();
                     window.requestAnimationFrame(runAnimationFrame);
                 })
@@ -226,7 +230,7 @@ window.JSSpeccy = (container) => {
             message: 'loadMemory',
             data,
             page: page,
-        })
+        });
     }
 
     const loadRoms = async () => {

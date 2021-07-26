@@ -32,6 +32,9 @@ const run = (core) => {
             case 'keyUp':
                 core.keyUp(e.data.row, e.data.mask);
                 break;
+            case 'setMachineType':
+                core.setMachineType(e.data.type);
+                break;
             case 'loadMemory':
                 memoryData.set(e.data.data, MACHINE_MEMORY + e.data.page * 0x4000);
                 break;
