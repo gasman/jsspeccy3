@@ -174,6 +174,31 @@ for (let i=0; i < 8; i++) {
     keyStates[i] = 0xff;
 }
 
+export function setPC(val:u16):void {
+    pc = val;
+}
+export function getPC():u16 {
+    return pc;
+}
+export function setIFF1(val:bool):void {
+    iff1 = val;
+}
+export function getIFF1():bool {
+    return iff1;
+}
+export function setIFF2(val:bool):void {
+    iff2 = val;
+}
+export function getIFF2():bool {
+    return iff2;
+}
+export function setIM(val:u8):void {
+    im = val;
+}
+export function getIM():u8 {
+    return im;
+}
+
 function readMem(addr:u16):u8 {
     t += 3;
     const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
@@ -189,6 +214,15 @@ function writeMem(addr:u16, val:u8):void {
         const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
         machineMemory[pageOffset | (addr & 0x3fff)] = val;
     }
+}
+
+export function peek(addr:u16):u8 {
+    const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
+    return machineMemory[pageOffset | (addr & 0x3fff)];
+}
+export function poke(addr:u16, val:u8):void {
+    const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
+    machineMemory[pageOffset | (addr & 0x3fff)] = val;
 }
 
 function readPort(addr:u16):u8 {

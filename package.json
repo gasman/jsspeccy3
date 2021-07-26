@@ -5,7 +5,7 @@
   "main": "jsspeccy.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run build && node --experimental-wasm-modules test/test.js test/tests.in test/tests.expected",
     "build:core": "node generator/gencore.js generator/core.ts.in build/core.ts",
     "build:wasm:debug": "asc build/core.ts --target debug",
     "build:wasm:release": "asc build/core.ts --target release",
