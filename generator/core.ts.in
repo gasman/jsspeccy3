@@ -5,7 +5,7 @@
 #alloc machineMemory[0x30000]: u8
 
 #alloc memoryPageMap[4]: u8
-// memory Page Map = [10, 5, 2, 0];  // for 48K
+// memory PageMap = [10, 5, 2, 0];  // for 48K
 memoryPageMap = [8, 5, 2, 0];  // for 128K
 
 export const FRAME_CYCLE_COUNT:u32 = 69888;
@@ -50,7 +50,7 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 
 const SCREEN_EVENT_COUNT:u16 = 3072;
 const SCREEN_EVENTS_SIZE:u16 = SCREEN_EVENT_COUNT * 3;
-#alloc screenEvents[9216]: u16
+#alloc screenEvents[6144]: u32
 
 #alloc keyStates[8]: u8
 
@@ -74,12 +74,16 @@ while (true) {
 }
 
 /* build screen events table: a list of which screen bytes should be fetched on which
-t-states. A sequence of: tstate number, screen address offset, attr address offset */
+t-states. A sequence of: two u32s per event:
+- tstate number or 0xffff for end marker
+- screen address offset | (attr address offset << 16)
+*/
 let screenEventPointer:u32 = 0;
-for (let i:u16 = 0; i < SCREEN_EVENT_COUNT; i++) {
+for (let i:u32 = 0; i < SCREEN_EVENT_COUNT; i++) {
     screenEvents[screenEventPointer++] = 14335 + 224 * (i >> 4) + 8 * (i & 0x0f);
-    screenEvents[screenEventPointer++] = ((i & 0x0c0f) << 1) | ((i & 0x0070) << 4) | ((i & 0x0380) >> 2);
-    screenEvents[screenEventPointer++] = 0x1800 | ((i & 0x0f80) >> 2) | ((i & 0x000f) << 1);
+    const screenOffset:u32 = ((i & 0x0c0f) << 1) | ((i & 0x0070) << 4) | ((i & 0x0380) >> 2);
+    const attrOffset:u32 = 0x1800 | ((i & 0x0f80) >> 2) | ((i & 0x000f) << 1);
+    screenEvents[screenEventPointer++] = screenOffset | (attrOffset << 16);
 }
 
 for (let i=0; i < 8; i++) {
@@ -145,13 +149,14 @@ function updateFramebuffer():void {
     /* process all of the screen bytes that are due up to the current tstate */
     const screenBaseAddr:u32 = screenPageIndex << 14;
     while (screenEventPointer < SCREEN_EVENTS_SIZE && screenEvents[screenEventPointer] <= t) {
-        const screenAddr:u32 = screenBaseAddr | screenEvents[screenEventPointer + 1];
-        const attributeAddr:u32 = screenBaseAddr | screenEvents[screenEventPointer + 2];
+        const addressWord:u32 = screenEvents[screenEventPointer + 1];
+        const screenAddr:u32 = screenBaseAddr | (addressWord & 0xffff);
+        const attributeAddr:u32 = screenBaseAddr | (addressWord >> 16);
         frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
         frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
         frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
         frameBuffer[framebufferIndex++] = machineMemory[attributeAddr + 1];
-        screenEventPointer += 3;
+        screenEventPointer += 2;
     }
 }
 
@@ -890,6 +895,8 @@ export function runFrame():i16 {
                 #op 79 OUT (C),A
                 #op 7a ADD HL,SP
 
+                #op a0 LDI
+                #op a8 LDD
                 #op b0 LDIR
                 #op b8 LDDR
 

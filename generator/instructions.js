@@ -437,6 +437,19 @@ export default {
         I = A;
         t++;
     `,
+    'LDD': () => `
+        const hl:u16 = HL;
+        const de:u16 = DE;
+        let val:u8 = readMem(hl);
+        writeMem(de, val);
+        t += 2;
+        const bc = BC - 1;
+        BC = bc;
+        val += A;
+        F = (F & ( FLAG_C | FLAG_Z | FLAG_S )) | (bc ? FLAG_V : 0) | (val & FLAG_3) | ((val & 0x02) ? FLAG_5 : 0);
+        HL = hl - 1;
+        DE = de - 1;
+    `,
     'LDDR': () => `
         const hl:u16 = HL;
         const de:u16 = DE;
@@ -453,6 +466,19 @@ export default {
         }
         HL = hl - 1;
         DE = de - 1;
+    `,
+    'LDI': () => `
+        const hl:u16 = HL;
+        const de:u16 = DE;
+        let val:u8 = readMem(hl);
+        writeMem(de, val);
+        t += 2;
+        const bc = BC - 1;
+        BC = bc;
+        val += A;
+        F = (F & ( FLAG_C | FLAG_Z | FLAG_S )) | (bc ? FLAG_V : 0) | (val & FLAG_3) | ((val & 0x02) ? FLAG_5 : 0);
+        HL = hl + 1;
+        DE = de + 1;
     `,
     'LDIR': () => `
         const hl:u16 = HL;

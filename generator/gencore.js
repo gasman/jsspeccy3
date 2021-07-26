@@ -89,6 +89,7 @@ const TYPE_SIZES = {
     'bool': 1,
     'u8': 1,
     'u16': 2,
+    'u32': 4,
 }
 let mem = 0;
 const vars = {};
