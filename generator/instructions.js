@@ -483,6 +483,9 @@ export default {
         readMem(pc++);
         t += 4;
     `,
+    'OUT (C),r': (r) => `
+        t += 4;
+    `,
     'OR A': () => `
         F = sz53pTable[A];
     `,
@@ -615,6 +618,14 @@ export default {
         ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
         ${VALUE_GETTERS[v]}
         const result:u8 = val | ${1 << k};
+        ${VALUE_SETTERS[v]}
+    `,
+    'SLA v': (v) => `
+        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
+        ${VALUE_GETTERS[v]}
+        const f:u8 = val >> 7;
+        const result:u8 = val << 1;
+        F = f | sz53pTable[result];
         ${VALUE_SETTERS[v]}
     `,
     'SRA v': (v) => `

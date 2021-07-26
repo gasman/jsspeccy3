@@ -505,6 +505,14 @@ export function runFrame():i16 {
                 #op 1e RR (HL)
                 #op 1f RR A
 
+                #op 20 SLA B
+                #op 21 SLA C
+                #op 22 SLA D
+                #op 23 SLA E
+                #op 24 SLA H
+                #op 25 SLA L
+                #op 26 SLA (HL)
+                #op 27 SLA A
                 #op 28 SRA B
                 #op 29 SRA C
                 #op 2a SRA D
@@ -770,6 +778,7 @@ export function runFrame():i16 {
                 #op b6 OR (IX+n)
                 #op be CP (IX+n)
                 #op cb prefix ddcb
+                #op e1 POP IX
                 #op e3 EX (SP),IX
                 #op e5 PUSH IX
                 #op e9 JP (IX)
@@ -788,6 +797,7 @@ export function runFrame():i16 {
                 #op 16 RL (IX+n)
                 #op 1e RR (IX+n)
 
+                #op 26 SLA (IX+n)
                 #op 2e SRA (IX+n)
 
                 #op 3e SRL (IX+n)
@@ -828,32 +838,40 @@ export function runFrame():i16 {
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #op 40 IN B,(C)
+                #op 41 OUT (C),B
                 #op 42 SBC HL,BC
                 #op 43 LD (nn),BC
                 #op 44 NEG
                 #op 46 IM 0
                 #op 47 LD I,A
                 #op 48 IN C,(C)
+                #op 49 OUT (C),C
                 #op 4a ADD HL,BC
                 #op 4b LD BC,(nn)
 
                 #op 50 IN D,(C)
+                #op 51 OUT (C),D
                 #op 52 SBC HL,DE
                 #op 53 LD (nn),DE
                 #op 56 IM 1
                 #op 58 IN E,(C)
+                #op 59 OUT (C),E
                 #op 5a ADD HL,DE
                 #op 5b LD DE,(nn)
                 #op 5e IM 2
 
                 #op 60 IN H,(C)
+                #op 61 OUT (C),H
                 #op 62 SBC HL,HL
                 #op 68 IN L,(C)
+                #op 69 OUT (C),L
                 #op 6a ADD HL,HL
                 #op 6b LD HL,(nn)
+
                 #op 72 SBC HL,SP
                 #op 73 LD (nn),SP
                 #op 78 IN A,(C)
+                #op 79 OUT (C),A
                 #op 7a ADD HL,SP
 
                 #op b0 LDIR
@@ -902,6 +920,7 @@ export function runFrame():i16 {
                 #op b6 OR (IY+n)
                 #op be CP (IY+n)
                 #op cb prefix fdcb
+                #op e1 POP IY
                 #op e3 EX (SP),IY
                 #op e5 PUSH IY
                 #op e9 JP (IY)
@@ -920,6 +939,7 @@ export function runFrame():i16 {
                 #op 16 RL (IY+n)
                 #op 1e RR (IY+n)
 
+                #op 26 SLA (IY+n)
                 #op 2e SRA (IY+n)
 
                 #op 3e SRL (IY+n)
