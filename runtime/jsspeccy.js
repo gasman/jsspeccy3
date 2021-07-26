@@ -158,14 +158,145 @@ class CanvasRenderer {
 }
 
 
-window.JSSpeccy = (container) => {
-    let benchmarkRunCount = 0;
-    let benchmarkRenderCount = 0;
+class MenuBar {
+    constructor(container) {
+        this.elem = document.createElement('div');
+        this.elem.style.display = 'flow-root';
+        this.elem.style.backgroundColor = '#eee';
+        this.elem.style.fontFamily = 'Arial, Helvetica, sans-serif';
+        container.appendChild(this.elem);
+    }
+
+    addMenu(title) {
+        return new Menu(this.elem, title);
+    }
+}
+
+class Menu {
+    constructor(container, title) {
+        const elem = document.createElement('div');
+        elem.style.float = 'left';
+        elem.style.position = 'relative';
+        container.appendChild(elem);
+
+        const button = document.createElement('button');
+        button.style.margin = '2px';
+        button.innerText = title;
+        elem.appendChild(button);
+
+        this.list = document.createElement('ul');
+        this.list.style.position = 'absolute';
+        this.list.style.width = '150px';
+        this.list.style.backgroundColor = '#eee';
+        this.list.style.listStyleType = 'none';
+        this.list.style.margin = '0';
+        this.list.style.padding = '0';
+        this.list.style.border = '1px solid #888';
+        this.list.style.display = 'none';
+        elem.appendChild(this.list);
+
+        button.addEventListener('click', () => {
+            if (this.isOpen()) {
+                this.close();
+            } else {
+                this.open();
+            }
+        })
+        document.addEventListener('click', (e) => {
+            if (e.target != button && this.isOpen()) this.close();
+        })
+    }
+
+    isOpen() {
+        return this.list.style.display == 'block';
+    }
+
+    open() {
+        this.list.style.display = 'block';
+    }
+
+    close() {
+        this.list.style.display = 'none';
+    }
+
+    addItem(title, onClick) {
+        const li = document.createElement('li');
+        this.list.appendChild(li);
+        const button = document.createElement('button');
+        button.innerText = title;
+        button.style.width = '100%';
+        button.style.textAlign = 'left';
+        button.style.borderWidth = '0';
+        button.style.paddingTop = '4px';
+        button.style.paddingBottom = '4px';
+
+        // eww.
+        button.addEventListener('mouseover', () => {
+            button.style.backgroundColor = '#ddd';
+        });
+        button.addEventListener('mouseout', () => {
+            button.style.backgroundColor = 'inherit';
+        });
+        if (onClick) {
+            button.addEventListener('click', onClick);
+        }
+        li.appendChild(button);
+        return {
+            setCheckbox: () => {
+                button.innerText = String.fromCharCode(0x2022) + ' ' + title;
+            },
+            unsetCheckbox: () => {
+                button.innerText = title;
+            }
+        }
+    }
+}
+
+
+window.JSSpeccy = (container, opts) => {
+    // let benchmarkRunCount = 0;
+    // let benchmarkRenderCount = 0;
+    opts = opts || {};
 
     const canvas = document.createElement('canvas');
     canvas.width = 320;
     canvas.height = 240;
-    container.appendChild(canvas);
+
+    const worker = new Worker('jsspeccy-worker.js');
+
+    let onSetMachine = null;
+
+    if (opts.ui) {
+        const innerContainer = document.createElement('div');
+        container.appendChild(innerContainer);
+        innerContainer.style.width = '320px';
+
+        const menuBar = new MenuBar(innerContainer);
+        const fileMenu = menuBar.addMenu('File');
+        fileMenu.addItem('Open...');
+        const machineMenu = menuBar.addMenu('Machine');
+        const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
+            setMachine(48);
+        });
+        const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
+            setMachine(128);
+        });
+
+        onSetMachine = (type) => {
+            if (type == 48) {
+                machine48Item.setCheckbox();
+                machine128Item.unsetCheckbox();
+            } else {
+                machine48Item.unsetCheckbox();
+                machine128Item.setCheckbox();
+            }
+        }
+
+        innerContainer.appendChild(canvas);
+    } else {
+        container.appendChild(canvas);
+    }
+
     const renderer = new CanvasRenderer(canvas);
 
     const msPerFrame = 20;
@@ -181,8 +312,6 @@ window.JSSpeccy = (container) => {
     let isRunningFrame = false;
     let nextFrameTime = performance.now();
 
-    const worker = new Worker('jsspeccy-worker.js');
-
     const getBufferToLock = () => {
         for (let i = 0; i < 3; i++) {
             if (i !== bufferBeingShown && i !== bufferAwaitingShow) {
@@ -191,20 +320,26 @@ window.JSSpeccy = (container) => {
         }
     }
 
+    const setMachine = (type) => {
+        if (type != 128) type = 48;
+        worker.postMessage({
+            message: 'setMachineType',
+            type,
+        });
+        if (onSetMachine) onSetMachine(type);
+    }
+
     worker.onmessage = function(e) {
         switch(e.data.message) {
             case 'ready':
                 loadRoms().then(() => {
-                    worker.postMessage({
-                        message: 'setMachineType',
-                        type: 128,
-                    });
+                    setMachine(opts.machine || 128);
                     initKeyboard();
                     window.requestAnimationFrame(runAnimationFrame);
                 })
                 break;
             case 'frameCompleted':
-                benchmarkRunCount++;
+                // benchmarkRunCount++;
                 frameBuffers[lockedBuffer] = e.data.frameBuffer;
                 bufferAwaitingShow = lockedBuffer;
                 lockedBuffer = null;
@@ -289,7 +424,7 @@ window.JSSpeccy = (container) => {
             bufferAwaitingShow = null;
             renderer.showFrame(frameBuffers[bufferBeingShown]);
             bufferBeingShown = null;
-            benchmarkRenderCount++;
+            // benchmarkRenderCount++;
         }
         if (time > nextFrameTime && !isRunningFrame) {
             runFrame();
@@ -298,13 +433,15 @@ window.JSSpeccy = (container) => {
         window.requestAnimationFrame(runAnimationFrame);
     };
 
-    const benchmarkElement = document.getElementById('benchmark');
-    setInterval(() => {
-        benchmarkElement.innerText = (
-            "Running at " + benchmarkRunCount + "fps, rendering at "
-            + benchmarkRenderCount + "fps"
-        );
-        benchmarkRunCount = 0;
-        benchmarkRenderCount = 0;
-    }, 1000)
+    /*
+        const benchmarkElement = document.getElementById('benchmark');
+        setInterval(() => {
+            benchmarkElement.innerText = (
+                "Running at " + benchmarkRunCount + "fps, rendering at "
+                + benchmarkRenderCount + "fps"
+            );
+            benchmarkRunCount = 0;
+            benchmarkRenderCount = 0;
+        }, 1000)
+    */
 };
