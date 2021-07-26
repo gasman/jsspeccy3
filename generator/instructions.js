@@ -143,14 +143,14 @@ export default {
         F = (result & 0x100 ? FLAG_C : 0) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[u8(result)];
     `,
     'AND A': () => `
-        F = sz53pTable[A];
+        F = FLAG_H | sz53pTable[A];
     `,
     'AND v': (v) => `
         ${VALUE_INITTERS[v]}
         ${VALUE_GETTERS[v]}
         const result:u8 = A & val;
         A = result;
-        F = sz53pTable[result];
+        F = FLAG_H | sz53pTable[result];
     `,
     'BIT k,(HL)': (k) => `
         const val:u8 = readMem(HL);
@@ -328,6 +328,7 @@ export default {
             let hi = u16(readMem(pc++));
             pc = lo + (hi << 8);
         } else {
+            pc += 2;
             t += 6;
         }
     `,

@@ -312,7 +312,7 @@ export function runFrame():i16 {
 }
 
 export function runUntil(maxT:u32):i16 {
-    while (t < maxT) {
+    while (t < maxT || !interruptible) {
         //if (pc == 0x10af && machineMemory[0x5c3b] != 0x00) {
         //    return machineMemory[0x5c3b];
         //}
@@ -995,7 +995,7 @@ export function runUntil(maxT:u32):i16 {
                 #op 47 LD I,A
                 #op 48 IN C,(C)
                 #op 49 OUT (C),C
-                #op 4a ADD HL,BC
+                #op 4a ADC HL,BC
                 #op 4b LD BC,(nn)
 
                 #op 50 IN D,(C)
@@ -1005,7 +1005,7 @@ export function runUntil(maxT:u32):i16 {
                 #op 56 IM 1
                 #op 58 IN E,(C)
                 #op 59 OUT (C),E
-                #op 5a ADD HL,DE
+                #op 5a ADC HL,DE
                 #op 5b LD DE,(nn)
                 #op 5e IM 2
 
@@ -1014,14 +1014,14 @@ export function runUntil(maxT:u32):i16 {
                 #op 62 SBC HL,HL
                 #op 68 IN L,(C)
                 #op 69 OUT (C),L
-                #op 6a ADD HL,HL
+                #op 6a ADC HL,HL
                 #op 6b LD HL,(nn)
 
                 #op 72 SBC HL,SP
                 #op 73 LD (nn),SP
                 #op 78 IN A,(C)
                 #op 79 OUT (C),A
-                #op 7a ADD HL,SP
+                #op 7a ADC HL,SP
 
                 #op a0 LDI
                 #op a8 LDD

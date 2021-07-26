@@ -57,7 +57,10 @@ while (true) {
     const mainRegistersLine = await getLine();
     const [af, bc, de, hl, af_, bc_, de_, hl_, ix, iy, sp, pc] = mainRegistersLine.split(/\s+/).map(x => parseInt(x, 16));
     const auxRegistersLine = await getLine();
-    const [i, r, iff1, iff2, im, halted, tstates] = auxRegistersLine.split(/\s+/).map(x => parseInt(x, 16));
+    const auxRegistersStrings = auxRegistersLine.split(/\s+/)
+    // tstates is in decimal, just to keep us on our toes
+    const tstates = parseInt(auxRegistersStrings.pop(), 10);
+    const [i, r, iff1, iff2, im, halted] = auxRegistersLine.split(/\s+/).map(x => parseInt(x, 16));
     while (true) {
         const memState = await getLine();
         if (memState == '-1') break;
@@ -109,7 +112,9 @@ while (true) {
     const mainRegistersOutLine = resultLine;
     const [newaf, newbc, newde, newhl, newaf_, newbc_, newde_, newhl_, newix, newiy, newsp, newpc] = mainRegistersOutLine.split(/\s+/).map(x => parseInt(x, 16));
     const auxRegistersOutLine = await getResultLine()
-    const [newi, newr, newiff1, newiff2, newim, newhalted, newtstates] = auxRegistersOutLine.split(/\s+/).map(x => parseInt(x, 16));
+    const auxRegistersOutStrings = auxRegistersOutLine.split(/\s+/);
+    const newtstates = parseInt(auxRegistersOutStrings.pop(), 10);
+    const [newi, newr, newiff1, newiff2, newim, newhalted] = auxRegistersOutStrings.map(x => parseInt(x, 16));
 
     // skip memory lines for now
     while (await getResultLine()) {
