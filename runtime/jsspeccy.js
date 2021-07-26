@@ -58,7 +58,7 @@ class CanvasRenderer {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = this.canvas.getContext('2d');
-        this.imageData = this.ctx.getImageData(0, 24, 320, 192);
+        this.imageData = this.ctx.getImageData(0, 0, 320, 240);
         this.pixels = new Uint32Array(this.imageData.data.buffer);
         this.flashPhase = 0;
 
@@ -103,6 +103,15 @@ class CanvasRenderer {
         const frameBytes = new Uint8Array(frameBuffer);
         let pixelPtr = 0;
         let bufferPtr = 0;
+        /* top border */
+        for (let y = 0; y < 24; y++) {
+            for (let x = 0; x < 160; x++) {
+                let border = this.palette[frameBytes[bufferPtr++]]
+                this.pixels[pixelPtr++] = border;
+                this.pixels[pixelPtr++] = border;
+            }
+        }
+
         for (let y = 0; y < 192; y++) {
             /* left border */
             for (let x = 0; x < 16; x++) {
@@ -135,7 +144,15 @@ class CanvasRenderer {
                 this.pixels[pixelPtr++] = border;
             }
         }
-        this.ctx.putImageData(this.imageData, 0, 24);
+        /* bottom border */
+        for (let y = 0; y < 24; y++) {
+            for (let x = 0; x < 160; x++) {
+                let border = this.palette[frameBytes[bufferPtr++]]
+                this.pixels[pixelPtr++] = border;
+                this.pixels[pixelPtr++] = border;
+            }
+        }
+        this.ctx.putImageData(this.imageData, 0, 0);
         this.flashPhase = (this.flashPhase + 1) & 0x1f;
     }
 }

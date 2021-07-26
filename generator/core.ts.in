@@ -1,5 +1,5 @@
-#alloc frameBuffer[0x4800]: u8
-#const FRAME_BUFFER_SIZE 0x4800
+#alloc frameBuffer[0x6600]: u8
+#const FRAME_BUFFER_SIZE 0x6600
 
 // allocate memory for 8 RAM, 4 ROM pages
 #alloc machineMemory[0x30000]: u8
@@ -78,8 +78,21 @@ t-states. A sequence of: two u32s per event:
   or 0xffffffff if this is a 'fetch border' event
 */
 let screenEventPointer:u32 = 0;
+
+const MAIN_SCREEN_START_TSTATE = 14335;
+const TSTATES_PER_ROW:u32 = 224;
+
+/* top border */
+for (let y:u32 = 0; y < 24; y++) {
+    const rowTime:u32 = MAIN_SCREEN_START_TSTATE - (24 - y) * TSTATES_PER_ROW - 16;
+    for (let x:u32 = 0; x < 160; x++) {
+        screenEvents[screenEventPointer++] = rowTime + (x & 0xfc);
+        screenEvents[screenEventPointer++] = 0xffffffff;
+    }
+}
+
 for (let y:u32 = 0; y < 192; y++) {
-    const rowTime:u32 = 14335 + 224 * y;
+    const rowTime:u32 = MAIN_SCREEN_START_TSTATE + TSTATES_PER_ROW * y;
     const rowScreenOffset:u32 = ((y & 0xc0) << 5) | ((y & 0x07) << 8) | ((y & 0x38) << 2);
     const rowAttrOffset:u32 = 0x1800 | ((y & 0xf8) << 2);
 
@@ -103,6 +116,16 @@ for (let y:u32 = 0; y < 192; y++) {
         screenEvents[screenEventPointer++] = 0xffffffff;
     }
 }
+
+/* bottom border */
+for (let y:u32 = 0; y < 24; y++) {
+    const rowTime:u32 = MAIN_SCREEN_START_TSTATE + (192 + y) * TSTATES_PER_ROW - 16;
+    for (let x:u32 = 0; x < 160; x++) {
+        screenEvents[screenEventPointer++] = rowTime + (x & 0xfc);
+        screenEvents[screenEventPointer++] = 0xffffffff;
+    }
+}
+
 // add end marker
 screenEvents[screenEventPointer] = 0xffffffff;
 
