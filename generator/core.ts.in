@@ -134,6 +134,7 @@ let iff1:bool = 0;
 let iff2:bool = 0;
 let im:u8 = 0;
 let interruptible:bool = false;
+let halted:bool = false;
 let opcodePrefix:u8 = 0;
 let framebufferIndex = 0;
 let borderColour:u8 = 0;
@@ -165,6 +166,7 @@ export function reset():void {
     iff1 = iff2 = 0;
     im = 0;
     interruptible = false;
+    halted = false;
     opcodePrefix = 0;
     framebufferIndex = 0;
 }
@@ -320,6 +322,12 @@ export function runUntil(maxT:u32):i16 {
         if (t < 36 && iff1 && interruptible) {
             /* process interrupt */
 
+            if (halted) {
+                // move PC on from the HALT opcode
+                pc++;
+                halted = 0;
+            }
+
             iff1 = iff2 = 0;
 
             /* push current PC in readiness for call to interrupt handler */
@@ -474,6 +482,7 @@ export function runUntil(maxT:u32):i16 {
                 #op 73 LD (HL),E
                 #op 74 LD (HL),H
                 #op 75 LD (HL),L
+                #op 76 HALT
                 #op 77 LD (HL),A
                 #op 78 LD A,B
                 #op 79 LD A,C

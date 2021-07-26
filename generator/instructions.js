@@ -297,6 +297,10 @@ export default {
         HL = HL_;
         HL_ = tmp;
     `,
+    'HALT': () => `
+        halted = 1;
+        pc--;
+    `,
     'IM k': (k) => `
         im = ${k};
     `,
