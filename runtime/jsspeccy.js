@@ -162,7 +162,7 @@ window.JSSpeccy = (container) => {
     worker.onmessage = function(e) {
         switch(e.data.message) {
             case 'ready':
-                loadRom('48.rom').then(() => {
+                loadRoms().then(() => {
                     initKeyboard();
                     window.requestAnimationFrame(runAnimationFrame);
                 })
@@ -187,14 +187,20 @@ window.JSSpeccy = (container) => {
         }
     }
 
-    const loadRom = async (url) => {
+    const loadRom = async (url, page) => {
         const response = await fetch(url);
         const data = new Uint8Array(await response.arrayBuffer());
         worker.postMessage({
             message: 'loadMemory',
             data,
-            offset: 0,
+            page: page,
         })
+    }
+
+    const loadRoms = async () => {
+        await loadRom('128-0.rom', 8);
+        await loadRom('128-1.rom', 9);
+        await loadRom('48.rom', 10);
     }
 
     const initKeyboard = () => {

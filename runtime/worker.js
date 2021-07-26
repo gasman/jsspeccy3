@@ -33,7 +33,7 @@ const run = (core) => {
                 core.keyUp(e.data.row, e.data.mask);
                 break;
             case 'loadMemory':
-                memoryData.set(e.data.data, MACHINE_MEMORY + e.data.offset);
+                memoryData.set(e.data.data, MACHINE_MEMORY + e.data.page * 0x4000);
                 break;
             default:
                 console.log('message received by worker:', e.data);

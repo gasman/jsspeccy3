@@ -1,6 +1,12 @@
 #alloc frameBuffer[0x3000]: u8
 #const FRAME_BUFFER_SIZE 0x3000
-#alloc machineMemory[0x10000]: u8
+
+// allocate memory for 8 RAM, 4 ROM pages
+#alloc machineMemory[0x30000]: u8
+
+#alloc memoryPageMap[4]: u8
+// memory Page Map = [10, 5, 2, 0];  // for 48K
+memoryPageMap = [8, 5, 2, 0];  // for 128K
 
 export const FRAME_CYCLE_COUNT:u32 = 69888;
 
@@ -80,6 +86,7 @@ for (let i=0; i < 8; i++) {
     keyStates[i] = 0xff;
 }
 
+let screenPageIndex:u32 = 5;
 let t:u32 = 0;
 let pc:u16 = 0;
 let iff1:bool = 0;
@@ -91,7 +98,8 @@ let framebufferIndex = 0;
 
 function readMem(addr:u16):u8 {
     t += 3;
-    return machineMemory[addr];
+    const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
+    return machineMemory[pageOffset | (addr & 0x3fff)];
 }
 
 function writeMem(addr:u16, val:u8):void {
@@ -100,7 +108,8 @@ function writeMem(addr:u16, val:u8):void {
         updateFramebuffer();
     }
     if (addr & 0xc000) {
-        machineMemory[addr] = val;
+        const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
+        machineMemory[pageOffset | (addr & 0x3fff)] = val;
     }
 }
 
@@ -118,9 +127,10 @@ function readPort(addr:u16):u8 {
 
 function updateFramebuffer():void {
     /* process all of the screen bytes that are due up to the current tstate */
+    const screenBaseAddr:u32 = screenPageIndex << 14;
     while (screenEventPointer < SCREEN_EVENTS_SIZE && screenEvents[screenEventPointer] <= t) {
-        const screenAddr:u16 = 0x4000 | screenEvents[screenEventPointer + 1];
-        const attributeAddr:u16 = 0x4000 | screenEvents[screenEventPointer + 2];
+        const screenAddr:u32 = screenBaseAddr | screenEvents[screenEventPointer + 1];
+        const attributeAddr:u32 = screenBaseAddr | screenEvents[screenEventPointer + 2];
         frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
         frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
         frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
