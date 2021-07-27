@@ -1,0 +1,271 @@
+00 NOP
+01 LD BC,nn
+02 LD (BC),A
+03 INC BC
+04 INC B
+05 DEC B
+06 LD B,n
+07 RLCA
+08 EX AF,AF'
+09 ADD HL,BC
+0a LD A,(BC)
+0b DEC BC
+0c INC C
+0d DEC C
+0e LD C,n
+0f RRCA
+
+10 DJNZ n
+11 LD DE,nn
+12 LD (DE),A
+13 INC DE
+14 INC D
+15 DEC D
+16 LD D,n
+17 RLA
+18 JR n
+19 ADD HL,DE
+1a LD A,(DE)
+1b DEC DE
+1c INC E
+1d DEC E
+1e LD E,n
+1f RRA
+
+20 JR NZ,n
+21 LD HL,nn
+22 LD (nn),HL
+23 INC HL
+24 INC H
+25 DEC H
+26 LD H,n
+27 DAA
+28 JR Z,n
+29 ADD HL,HL
+2a LD HL,(nn)
+2b DEC HL
+2c INC L
+2d DEC L
+2e LD L,n
+2f CPL
+
+30 JR NC,n
+31 LD SP,nn
+32 LD (nn),A
+33 INC SP
+34 INC (HL)
+35 DEC (HL)
+36 LD (HL),n
+37 SCF
+38 JR C,n
+39 ADD HL,SP
+3a LD A,(nn)
+3b DEC SP
+3c INC A
+3d DEC A
+3e LD A,n
+3f CCF
+
+40 LD B,B
+41 LD B,C
+42 LD B,D
+43 LD B,E
+44 LD B,H
+45 LD B,L
+46 LD B,(HL)
+47 LD B,A
+48 LD C,B
+49 LD C,C
+4a LD C,D
+4b LD C,E
+4c LD C,H
+4d LD C,L
+4e LD C,(HL)
+4f LD C,A
+
+50 LD D,B
+51 LD D,C
+52 LD D,D
+53 LD D,E
+54 LD D,H
+55 LD D,L
+56 LD D,(HL)
+57 LD D,A
+58 LD E,B
+59 LD E,C
+5a LD E,D
+5b LD E,E
+5c LD E,H
+5d LD E,L
+5e LD E,(HL)
+5f LD E,A
+
+60 LD H,B
+61 LD H,C
+62 LD H,D
+63 LD H,E
+64 LD H,H
+65 LD H,L
+66 LD H,(HL)
+67 LD H,A
+68 LD L,B
+69 LD L,C
+6a LD L,D
+6b LD L,E
+6c LD L,H
+6d LD L,L
+6e LD L,(HL)
+6f LD L,A
+
+70 LD (HL),B
+71 LD (HL),C
+72 LD (HL),D
+73 LD (HL),E
+74 LD (HL),H
+75 LD (HL),L
+76 HALT
+77 LD (HL),A
+78 LD A,B
+79 LD A,C
+7a LD A,D
+7b LD A,E
+7c LD A,H
+7d LD A,L
+7e LD A,(HL)
+7f LD A,A
+
+80 ADD A,B
+81 ADD A,C
+82 ADD A,D
+83 ADD A,E
+84 ADD A,H
+85 ADD A,L
+86 ADD A,(HL)
+87 ADD A,A
+88 ADC A,B
+89 ADC A,C
+8a ADC A,D
+8b ADC A,E
+8c ADC A,H
+8d ADC A,L
+8e ADC A,(HL)
+8f ADC A,A
+
+90 SUB B
+91 SUB C
+92 SUB D
+93 SUB E
+94 SUB H
+95 SUB L
+96 SUB (HL)
+97 SUB A
+98 SBC A,B
+99 SBC A,C
+9a SBC A,D
+9b SBC A,E
+9c SBC A,H
+9d SBC A,L
+9e SBC A,(HL)
+9f SBC A,A
+
+a0 AND B
+a1 AND C
+a2 AND D
+a3 AND E
+a4 AND H
+a5 AND L
+a6 AND (HL)
+a7 AND A
+a8 XOR B
+a9 XOR C
+aa XOR D
+ab XOR E
+ac XOR H
+ad XOR L
+ae XOR (HL)
+af XOR A
+
+b0 OR B
+b1 OR C
+b2 OR D
+b3 OR E
+b4 OR H
+b5 OR L
+b6 OR (HL)
+b7 OR A
+b8 CP B
+b9 CP C
+ba CP D
+bb CP E
+bc CP H
+bd CP L
+be CP (HL)
+bf CP A
+
+c0 RET NZ
+c1 POP BC
+c2 JP NZ,nn
+c3 JP nn
+c4 CALL NZ,nn
+c5 PUSH BC
+c6 ADD A,n
+c7 RST 0x00
+c8 RET Z
+c9 RET
+ca JP Z,nn
+cb prefix cb
+cc CALL Z,nn
+cd CALL nn
+ce ADC A,n
+cf RST 0x08
+
+d0 RET NC
+d1 POP DE
+d2 JP NC,nn
+d3 OUT (n),A
+d4 CALL NC,nn
+d5 PUSH DE
+d6 SUB n
+d7 RST 0x10
+d8 RET C
+d9 EXX
+da JP C,nn
+db IN A,(n)
+dc CALL C,nn
+dd prefix dd
+de SBC A,n
+df RST 0x18
+
+e0 RET PO
+e1 POP HL
+e2 JP PO,nn
+e3 EX (SP),HL
+e4 CALL PO,nn
+e5 PUSH HL
+e6 AND n
+e7 RST 0x20
+e8 RET PE
+e9 JP (HL)
+ea JP PE,nn
+eb EX DE,HL
+ec CALL PE,nn
+ed prefix ed
+ee XOR n
+ef RST 0x28
+
+f0 RET P
+f1 POP AF
+f2 JP P,nn
+f3 DI
+f4 CALL P,nn
+f5 PUSH AF
+f6 OR n
+f7 RST 0x30
+f8 RET M
+f9 LD SP,HL
+fa JP M,nn
+fb EI
+fc CALL M,nn
+fd prefix fd
+fe CP n
+ff RST 0x38

@@ -11,6 +11,22 @@ if (argv.length != 4) {
 const inputFilename = argv[2];
 const outputFilename = argv[3];
 
+const baseOpcodes = {};
+for (let line of fs.readFileSync('generator/opcodes_base.txt').toString().split("\n")) {
+    let match = line.match(/^(\w+)\s+(.*)$/);
+    if (match) {
+        baseOpcodes[parseInt(match[1], 16)] = match[2];
+    }
+}
+
+const cbOpcodes = {};
+for (let line of fs.readFileSync('generator/opcodes_cb.txt').toString().split("\n")) {
+    let match = line.match(/^(\w+)\s+(.*)$/);
+    if (match) {
+        cbOpcodes[parseInt(match[1], 16)] = match[2];
+    }
+}
+
 class Variable {
     getter() {
         throw "getter not implemented";
@@ -199,6 +215,20 @@ const generateOpcode = (code, instruction, outFile) => {
     `)
 }
 
+const generateOpcodeTable = (prefix, outFile) => {
+    if (prefix == 'base') {
+        for (let i = 0; i < 0x100; i++) {
+            generateOpcode(i, baseOpcodes[i], outFile);
+        }
+    } else if (prefix == 'cb') {
+        for (let i = 0; i < 0x100; i++) {
+            generateOpcode(i, cbOpcodes[i], outFile);
+        }
+    } else {
+        throw("unknown opcode table prefix: " + prefix);
+    }
+}
+
 const inFile = fs.createReadStream(inputFilename);
 const outFile = fs.createWriteStream(outputFilename);
 
@@ -237,6 +267,14 @@ const processLine = (line) => {
         throw "Unrecognised directive: " + line;
     } else {
         let match;
+
+        /* opcode table */
+        match = line.match(/^\s*#optable\s+(\w+)$/);
+        if (match) {
+            let prefix = match[1];
+            generateOpcodeTable(prefix, outFile);
+            return;
+        }
 
         /* opcode case */
         match = line.match(/^\s*#op\s+(\w+)\s+(.*)$/);
