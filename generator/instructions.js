@@ -240,6 +240,34 @@ export default {
         let lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
         F = ( cptemp & 0x100 ? FLAG_C : ( cptemp ? 0 : FLAG_Z ) ) | FLAG_N | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | ( val & ( FLAG_3 | FLAG_5 ) ) | ( cptemp & FLAG_S );
     `,
+    'CPD': () => `
+        const hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        const a:u8 = A;
+        let result:u8 = a - val;
+        const lookup:u8 = ((a & 0x08) >> 3) | ((val & 0x08) >> 2) | ((result & 0x08) >> 1);
+        t += 5;
+        HL = hl - 1;
+        const bc:u16 = BC - 1;
+        BC = bc;
+        const f:u8 = (F & FLAG_C) | (bc ? (FLAG_V | FLAG_N) : FLAG_N) | halfcarrySubTable[lookup] | (result ? 0 : FLAG_Z) | (result & FLAG_S);
+        if (f & FLAG_H) result--;
+        F = f | (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
+    `,
+    'CPI': () => `
+        const hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        const a:u8 = A;
+        let result:u8 = a - val;
+        const lookup:u8 = ((a & 0x08) >> 3) | ((val & 0x08) >> 2) | ((result & 0x08) >> 1);
+        t += 5;
+        HL = hl + 1;
+        const bc:u16 = BC - 1;
+        BC = bc;
+        const f:u8 = (F & FLAG_C) | (bc ? (FLAG_V | FLAG_N) : FLAG_N) | halfcarrySubTable[lookup] | (result ? 0 : FLAG_Z) | (result & FLAG_S);
+        if (f & FLAG_H) result--;
+        F = f | (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
+    `,
     'CPL': () => `
         const result:u8 = A ^ 0xff;
         A = result;

@@ -63,6 +63,8 @@
 7e IM 2
 
 a0 LDI
+a1 CPI
 a8 LDD
+a9 CPD
 b0 LDIR
 b8 LDDR
