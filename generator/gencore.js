@@ -23,6 +23,7 @@ const loadOpcodeTable = (filename, table, altTable) => {
                     instruction.replaceAll(/\bIX\b/g, 'IY')
                     .replaceAll(/\bIXH\b/g, 'IYH')
                     .replaceAll(/\bIXL\b/g, 'IYL')
+                    .replaceAll(/prefix ddcb/g, 'prefix fdcb')
                 );
                 altTable[code] = altInstruction;
             }
