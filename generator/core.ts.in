@@ -342,7 +342,7 @@ export function runFrame():i16 {
 }
 
 export function runUntil(maxT:u32):i16 {
-    while (t < maxT || !interruptible) {
+    while (t < maxT || opcodePrefix) {
         //if (pc == 0x10af && machineMemory[0x5c3b] != 0x00) {
         //    return machineMemory[0x5c3b];
         //}
