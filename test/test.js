@@ -86,6 +86,7 @@ while (true) {
     core.setIFF1(iff1);
     core.setIFF2(iff2);
     core.setIM(im);
+    core.setHalted(halted);
 
     const status = core.runUntil(tstates);
 
@@ -139,6 +140,8 @@ while (true) {
         assertEqual(core.getIFF1(), newiff1, testName, 'IFF1');
         assertEqual(core.getIFF2(), newiff2, testName, 'IFF2');
         assertEqual(core.getIM(), newim, testName, 'IM');
+        assertEqual(core.getHalted(), newhalted, testName, 'halted');
+        assertEqual(core.getTStates(), newtstates, testName, 'tstates');
     }
 }
 

@@ -218,6 +218,16 @@ export function getIM():u8 {
 export function setTStates(val:u32):void {
     t = val;
 }
+export function getTStates():u32 {
+    return t;
+}
+export function setHalted(val:bool):void {
+    halted = val;
+}
+export function getHalted():bool {
+    return halted;
+}
+
 
 function readMem(addr:u16):u8 {
     t += 3;
