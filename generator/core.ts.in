@@ -417,6 +417,7 @@ export function runUntil(maxT:u32):i16 {
                 #op 24 INC H
                 #op 25 DEC H
                 #op 26 LD H,n
+                #op 27 DAA
                 #op 28 JR Z,n
                 #op 29 ADD HL,HL
                 #op 2a LD HL,(nn)

@@ -231,6 +231,28 @@ export default {
         A = result;
         F = (F & (FLAG_C | FLAG_P | FLAG_Z | FLAG_S)) | (result & (FLAG_3 | FLAG_5)) | FLAG_N | FLAG_H;
     `,
+    'DAA': () => `
+        let add:u32 = 0;
+        let a:u32 = u32(A);
+        let f:u8 = F;
+        let carry:u8 = f & FLAG_C;
+        if ((f & FLAG_H) || ((a & 0x0f) > 9)) add = 6;
+        if (carry || (a > 0x99)) add |= 0x60;
+        if (a > 0x99) carry = FLAG_C;
+        let result:u32;
+        if (f & FLAG_N) {
+            result = a - add;
+            const lookup:u32 = ((a & 0x88) >> 3) | ((add & 0x88) >> 2) | ((result & 0x88) >> 1);
+            A = result;
+            f = (result & 0x100 ? FLAG_C : 0) | FLAG_N | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[u8(result)];
+        } else {
+            result = a + add;
+            const lookup:u32 = ((a & 0x88) >> 3) | ((add & 0x88) >> 2) | ((result & 0x88) >> 1);
+            A = result;
+            f = (result & 0x100 ? FLAG_C : 0) | halfcarryAddTable[lookup & 0x07] | overflowAddTable[lookup >> 4] | sz53Table[u8(result)];
+        }
+        F = (f & ~(FLAG_C | FLAG_P)) | carry | parityTable[u8(result)];
+    `,
     'DEC rr': (rr) => `
         ${rr} = ${rr} - 1;
         t += 2;
