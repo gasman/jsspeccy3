@@ -38,6 +38,9 @@ loadOpcodeTable('generator/opcodes_cb.txt', cbOpcodes);
 const ddOpcodes = {};
 const fdOpcodes = {};
 loadOpcodeTable('generator/opcodes_dd.txt', ddOpcodes, fdOpcodes);
+const ddcbOpcodes = {};
+const fdcbOpcodes = {};
+loadOpcodeTable('generator/opcodes_ddcb.txt', ddcbOpcodes, fdcbOpcodes);
 const edOpcodes = {};
 loadOpcodeTable('generator/opcodes_ed.txt', edOpcodes);
 
@@ -246,6 +249,12 @@ const generateOpcodeTable = (prefix, outFile) => {
                 generateOpcode(i, baseOpcodes[i], outFile);
             }
         }
+    } else if (prefix == 'ddcb') {
+        for (let i = 0; i < 0x100; i++) {
+            if (i in ddcbOpcodes) {
+                generateOpcode(i, ddcbOpcodes[i], outFile);
+            }
+        }
     } else if (prefix == 'ed') {
         for (let i = 0; i < 0x100; i++) {
             if (i in edOpcodes) {
@@ -258,6 +267,12 @@ const generateOpcodeTable = (prefix, outFile) => {
                 generateOpcode(i, fdOpcodes[i], outFile);
             } else {
                 generateOpcode(i, baseOpcodes[i], outFile);
+            }
+        }
+    } else if (prefix == 'fdcb') {
+        for (let i = 0; i < 0x100; i++) {
+            if (i in fdcbOpcodes) {
+                generateOpcode(i, fdcbOpcodes[i], outFile);
             }
         }
     } else {

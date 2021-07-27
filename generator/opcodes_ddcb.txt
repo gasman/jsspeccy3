@@ -1,0 +1,38 @@
+06 RLC (IX+n)
+0e RRC (IX+n)
+
+16 RL (IX+n)
+1e RR (IX+n)
+
+26 SLA (IX+n)
+2e SRA (IX+n)
+
+36 SLL (IX+n)
+3e SRL (IX+n)
+
+46 BIT 0,(IX+n)
+4e BIT 1,(IX+n)
+56 BIT 2,(IX+n)
+5e BIT 3,(IX+n)
+66 BIT 4,(IX+n)
+6e BIT 5,(IX+n)
+76 BIT 6,(IX+n)
+7e BIT 7,(IX+n)
+
+86 RES 0,(IX+n)
+8e RES 1,(IX+n)
+96 RES 2,(IX+n)
+9e RES 3,(IX+n)
+a6 RES 4,(IX+n)
+ae RES 5,(IX+n)
+b6 RES 6,(IX+n)
+be RES 7,(IX+n)
+
+c6 SET 0,(IX+n)
+ce SET 1,(IX+n)
+d6 SET 2,(IX+n)
+de SET 3,(IX+n)
+e6 SET 4,(IX+n)
+ee SET 5,(IX+n)
+f6 SET 6,(IX+n)
+fe SET 7,(IX+n)

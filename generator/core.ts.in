@@ -418,44 +418,7 @@ export function runUntil(maxT:u32):i16 {
             const indexOffset:i8 = i8(readMem(pc++));
             let op:u8 = readMem(pc++);
             switch (op) {
-                #op 06 RLC (IX+n)
-                #op 0e RRC (IX+n)
-
-                #op 16 RL (IX+n)
-                #op 1e RR (IX+n)
-
-                #op 26 SLA (IX+n)
-                #op 2e SRA (IX+n)
-
-                #op 36 SLL (IX+n)
-                #op 3e SRL (IX+n)
-
-                #op 46 BIT 0,(IX+n)
-                #op 4e BIT 1,(IX+n)
-                #op 56 BIT 2,(IX+n)
-                #op 5e BIT 3,(IX+n)
-                #op 66 BIT 4,(IX+n)
-                #op 6e BIT 5,(IX+n)
-                #op 76 BIT 6,(IX+n)
-                #op 7e BIT 7,(IX+n)
-
-                #op 86 RES 0,(IX+n)
-                #op 8e RES 1,(IX+n)
-                #op 96 RES 2,(IX+n)
-                #op 9e RES 3,(IX+n)
-                #op a6 RES 4,(IX+n)
-                #op ae RES 5,(IX+n)
-                #op b6 RES 6,(IX+n)
-                #op be RES 7,(IX+n)
-
-                #op c6 SET 0,(IX+n)
-                #op ce SET 1,(IX+n)
-                #op d6 SET 2,(IX+n)
-                #op de SET 3,(IX+n)
-                #op e6 SET 4,(IX+n)
-                #op ee SET 5,(IX+n)
-                #op f6 SET 6,(IX+n)
-                #op fe SET 7,(IX+n)
+                #optable ddcb
 
                 default:
                     return i16(0x2c00) | i16(op);
@@ -493,44 +456,7 @@ export function runUntil(maxT:u32):i16 {
             const indexOffset:i8 = i8(readMem(pc++));
             let op:u8 = readMem(pc++);
             switch (op) {
-                #op 06 RLC (IY+n)
-                #op 0e RRC (IY+n)
-
-                #op 16 RL (IY+n)
-                #op 1e RR (IY+n)
-
-                #op 26 SLA (IY+n)
-                #op 2e SRA (IY+n)
-
-                #op 36 SLL (IY+n)
-                #op 3e SRL (IY+n)
-
-                #op 46 BIT 0,(IY+n)
-                #op 4e BIT 1,(IY+n)
-                #op 56 BIT 2,(IY+n)
-                #op 5e BIT 3,(IY+n)
-                #op 66 BIT 4,(IY+n)
-                #op 6e BIT 5,(IY+n)
-                #op 76 BIT 6,(IY+n)
-                #op 7e BIT 7,(IY+n)
-
-                #op 86 RES 0,(IY+n)
-                #op 8e RES 1,(IY+n)
-                #op 96 RES 2,(IY+n)
-                #op 9e RES 3,(IY+n)
-                #op a6 RES 4,(IY+n)
-                #op ae RES 5,(IY+n)
-                #op b6 RES 6,(IY+n)
-                #op be RES 7,(IY+n)
-
-                #op c6 SET 0,(IY+n)
-                #op ce SET 1,(IY+n)
-                #op d6 SET 2,(IY+n)
-                #op de SET 3,(IY+n)
-                #op e6 SET 4,(IY+n)
-                #op ee SET 5,(IY+n)
-                #op f6 SET 6,(IY+n)
-                #op fe SET 7,(IY+n)
+                #optable fdcb
 
                 default:
                     return i16(0x4c00) | i16(op);
