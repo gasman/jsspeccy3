@@ -17,20 +17,37 @@
   },
   "watch": {
     "build:core": {
-      "patterns": ["generator/*.js", "generator/*.ts.in"],
-      "extensions": ["js", "in"]
+      "patterns": [
+        "generator/*.js",
+        "generator/*.ts.in"
+      ],
+      "extensions": [
+        "js",
+        "in"
+      ]
     },
     "build:wasm:debug": {
-      "patterns": ["build/core.ts"],
+      "patterns": [
+        "build/core.ts"
+      ],
       "extensions": "ts"
     },
     "build:js": {
-      "patterns": ["runtime/*.js", "build/*.js"],
+      "patterns": [
+        "runtime/*.js",
+        "build/*.js"
+      ],
       "extensions": "js"
     },
     "build:static": {
-      "patterns": ["static/*.html", "static/*.rom"],
-      "extensions": ["html", "rom"]
+      "patterns": [
+        "static/*.html",
+        "static/*.rom"
+      ],
+      "extensions": [
+        "html",
+        "rom"
+      ]
     }
   },
   "author": "Matt Westcott",
@@ -40,5 +57,8 @@
     "npm-watch": "^0.10.0",
     "webpack": "^5.44.0",
     "webpack-cli": "^4.7.2"
+  },
+  "dependencies": {
+    "file-dialog": "^0.0.8"
   }
 }

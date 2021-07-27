@@ -176,6 +176,21 @@ for (let i=0; i < 8; i++) {
     keyStates[i] = 0xff;
 }
 
+export function setRegisters(af:u16, bc:u16, de:u16, hl:u16, af_:u16, bc_:u16, de_:u16, hl_:u16, ix:u16, iy:u16, sp:u16, ir:u16):void {
+    AF = af;
+    BC = bc;
+    DE = de;
+    HL = hl;
+    AF_ = af_;
+    BC_ = bc_;
+    DE_ = de_;
+    HL_ = hl_;
+    IX = ix;
+    IY = iy;
+    SP = sp;
+    IR = ir;
+}
+
 export function setPC(val:u16):void {
     pc = val;
 }
@@ -199,6 +214,9 @@ export function setIM(val:u8):void {
 }
 export function getIM():u8 {
     return im;
+}
+export function setTStates(val:u32):void {
+    t = val;
 }
 
 function readMem(addr:u16):u8 {
@@ -227,7 +245,7 @@ export function poke(addr:u16, val:u8):void {
     machineMemory[pageOffset | (addr & 0x3fff)] = val;
 }
 
-function readPort(addr:u16):u8 {
+export function readPort(addr:u16):u8 {
     if (!(addr & 0x0001)) {
         /* poll keyboard */
         return pollKeyboard(u8(addr >> 8));
@@ -239,7 +257,7 @@ function readPort(addr:u16):u8 {
     }
 }
 
-function writePort(addr:u16, val:u8):void {
+export function writePort(addr:u16, val:u8):void {
     if (!(addr & 0x0001)) {
         /* border colour / speaker */
         borderColour = val & 0x07;
