@@ -3,37 +3,62 @@
 42 SBC HL,BC
 43 LD (nn),BC
 44 NEG
+45 RETN
 46 IM 0
 47 LD I,A
 48 IN C,(C)
 49 OUT (C),C
 4a ADC HL,BC
 4b LD BC,(nn)
+4c NEG
+4d RETN
+4e IM 0
+4f LD R,A
 
 50 IN D,(C)
 51 OUT (C),D
 52 SBC HL,DE
 53 LD (nn),DE
+54 NEG
+55 RETN
 56 IM 1
+57 LD A,I
 58 IN E,(C)
 59 OUT (C),E
 5a ADC HL,DE
 5b LD DE,(nn)
+5c NEG
+5d RETN
 5e IM 2
+5f LD A,R
 
 60 IN H,(C)
 61 OUT (C),H
 62 SBC HL,HL
+63 LD (nn),HL
+64 NEG
+65 RETN
+66 IM 0
 68 IN L,(C)
 69 OUT (C),L
 6a ADC HL,HL
 6b LD HL,(nn)
+6c NEG
+6d RETN
+6e IM 0
 
 72 SBC HL,SP
 73 LD (nn),SP
+74 NEG
+75 RETN
+76 IM 1
 78 IN A,(C)
 79 OUT (C),A
 7a ADC HL,SP
+7b LD SP,(nn)
+7c NEG
+7d RETN
+7e IM 2
 
 a0 LDI
 a8 LDD

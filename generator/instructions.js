@@ -476,8 +476,24 @@ export default {
     'LD A,(HL)': () => `
         A = readMem(HL);
     `,
+    'LD A,I': () => `
+        t++;
+        const val = I;
+        A = val;
+        F = (F & FLAG_C) | sz53Table[val] | (iff2 ? FLAG_V : 0);
+    `,
+    'LD A,R': () => `
+        t++;
+        const val = R;
+        A = val;
+        F = (F & FLAG_C) | sz53Table[val] | (iff2 ? FLAG_V : 0);
+    `,
     'LD I,A': () => `
         I = A;
+        t++;
+    `,
+    'LD R,A': () => `
+        R = A;
         t++;
     `,
     'LDD': () => `
@@ -609,6 +625,14 @@ export default {
             SP = sp;
             pc = lo | (hi << 8);
         }
+    `,
+    'RETN': () => `
+        iff1 = iff2;
+        let sp = SP;
+        const lo = u16(readMem(sp++));
+        const hi = u16(readMem(sp++));
+        SP = sp;
+        pc = lo | (hi << 8);
     `,
     'RL v': (v) => `
         ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
