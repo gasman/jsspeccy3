@@ -664,6 +664,14 @@ export function runUntil(maxT:u32):i16 {
                 #op 05 RLC L
                 #op 06 RLC (HL)
                 #op 07 RLC A
+                #op 08 RRC B
+                #op 09 RRC C
+                #op 0a RRC D
+                #op 0b RRC E
+                #op 0c RRC H
+                #op 0d RRC L
+                #op 0e RRC (HL)
+                #op 0f RRC A
 
                 #op 10 RL B
                 #op 11 RL C
@@ -699,6 +707,14 @@ export function runUntil(maxT:u32):i16 {
                 #op 2e SRA (HL)
                 #op 2f SRA A
 
+                #op 30 SLL B
+                #op 31 SLL C
+                #op 32 SLL D
+                #op 33 SLL E
+                #op 34 SLL H
+                #op 35 SLL L
+                #op 36 SLL (HL)
+                #op 37 SLL A
                 #op 38 SRL B
                 #op 39 SRL C
                 #op 3a SRL D
@@ -970,6 +986,7 @@ export function runUntil(maxT:u32):i16 {
             let op:u8 = readMem(pc++);
             switch (op) {
                 #op 06 RLC (IX+n)
+                #op 0e RRC (IX+n)
 
                 #op 16 RL (IX+n)
                 #op 1e RR (IX+n)
@@ -977,6 +994,7 @@ export function runUntil(maxT:u32):i16 {
                 #op 26 SLA (IX+n)
                 #op 2e SRA (IX+n)
 
+                #op 36 SLL (IX+n)
                 #op 3e SRL (IX+n)
 
                 #op 46 BIT 0,(IX+n)
@@ -1114,6 +1132,7 @@ export function runUntil(maxT:u32):i16 {
             let op:u8 = readMem(pc++);
             switch (op) {
                 #op 06 RLC (IY+n)
+                #op 0e RRC (IY+n)
 
                 #op 16 RL (IY+n)
                 #op 1e RR (IY+n)
@@ -1121,6 +1140,7 @@ export function runUntil(maxT:u32):i16 {
                 #op 26 SLA (IY+n)
                 #op 2e SRA (IY+n)
 
+                #op 36 SLL (IY+n)
                 #op 3e SRL (IY+n)
 
                 #op 46 BIT 0,(IY+n)
