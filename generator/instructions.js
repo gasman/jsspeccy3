@@ -254,6 +254,25 @@ export default {
         if (f & FLAG_H) result--;
         F = f | (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
     `,
+    'CPDR': () => `
+        const hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        const a:u8 = A;
+        let result:u8 = a - val;
+        const lookup:u8 = ((a & 0x08) >> 3) | ((val & 0x08) >> 2) | ((result & 0x08) >> 1);
+        t += 5;
+        HL = hl - 1;
+        const bc:u16 = BC - 1;
+        BC = bc;
+        let f:u8 = (F & FLAG_C) | (bc ? (FLAG_V | FLAG_N) : FLAG_N) | halfcarrySubTable[lookup] | (result ? 0 : FLAG_Z) | (result & FLAG_S);
+        if (f & FLAG_H) result--;
+        f |= (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
+        F = f;
+        if ((f & (FLAG_V | FLAG_Z)) == FLAG_V) {
+            pc -= 2;
+            t += 5;
+        }
+    `,
     'CPI': () => `
         const hl:u16 = HL;
         const val:u8 = readMem(hl);
@@ -267,6 +286,25 @@ export default {
         const f:u8 = (F & FLAG_C) | (bc ? (FLAG_V | FLAG_N) : FLAG_N) | halfcarrySubTable[lookup] | (result ? 0 : FLAG_Z) | (result & FLAG_S);
         if (f & FLAG_H) result--;
         F = f | (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
+    `,
+    'CPIR': () => `
+        const hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        const a:u8 = A;
+        let result:u8 = a - val;
+        const lookup:u8 = ((a & 0x08) >> 3) | ((val & 0x08) >> 2) | ((result & 0x08) >> 1);
+        t += 5;
+        HL = hl + 1;
+        const bc:u16 = BC - 1;
+        BC = bc;
+        let f:u8 = (F & FLAG_C) | (bc ? (FLAG_V | FLAG_N) : FLAG_N) | halfcarrySubTable[lookup] | (result ? 0 : FLAG_Z) | (result & FLAG_S);
+        if (f & FLAG_H) result--;
+        f |= (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
+        F = f;
+        if ((f & (FLAG_V | FLAG_Z)) == FLAG_V) {
+            pc -= 2;
+            t += 5;
+        }
     `,
     'CPL': () => `
         const result:u8 = A ^ 0xff;

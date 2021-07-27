@@ -67,4 +67,6 @@ a1 CPI
 a8 LDD
 a9 CPD
 b0 LDIR
+b1 CPIR
 b8 LDDR
+b9 CPDR
