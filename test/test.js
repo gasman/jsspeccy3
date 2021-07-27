@@ -134,7 +134,7 @@ while (true) {
         assertEqual(registers[8], newix, testName, 'IX');
         assertEqual(registers[9], newiy, testName, 'IY');
         assertEqual(registers[10], newsp, testName, 'SP');
-        // assertEqual(registers[11], (newi << 8) | newr, testName, 'IR');
+        assertEqual(registers[11], (newi << 8) | newr, testName, 'IR');
         assertEqual(core.getPC(), newpc, testName, 'PC');
         assertEqual(core.getIFF1(), newiff1, testName, 'IFF1');
         assertEqual(core.getIFF2(), newiff2, testName, 'IFF2');

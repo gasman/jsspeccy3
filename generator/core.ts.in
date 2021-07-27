@@ -374,6 +374,10 @@ export function runUntil(maxT:u32):i16 {
         interruptible = true; // unless overridden by opcode
         if (opcodePrefix == 0) {
             let op:u8 = readMem(pc++);
+
+            const r = R;
+            R = (r & 0x80) | ((r + 1) & 0x7f);
+
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable base
@@ -384,6 +388,10 @@ export function runUntil(maxT:u32):i16 {
         } else if (opcodePrefix == 0xcb) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             let op:u8 = readMem(pc++);
+
+            const r = R;
+            R = (r & 0x80) | ((r + 1) & 0x7f);
+
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable cb
@@ -394,6 +402,10 @@ export function runUntil(maxT:u32):i16 {
         } else if (opcodePrefix == 0xdd) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             let op:u8 = readMem(pc++);
+
+            const r = R;
+            R = (r & 0x80) | ((r + 1) & 0x7f);
+
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable dd
@@ -451,6 +463,10 @@ export function runUntil(maxT:u32):i16 {
         } else if (opcodePrefix == 0xed) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             let op:u8 = readMem(pc++);
+
+            const r = R;
+            R = (r & 0x80) | ((r + 1) & 0x7f);
+
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable ed
@@ -461,6 +477,10 @@ export function runUntil(maxT:u32):i16 {
         } else if (opcodePrefix == 0xfd) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
             let op:u8 = readMem(pc++);
+
+            const r = R;
+            R = (r & 0x80) | ((r + 1) & 0x7f);
+
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable fd
