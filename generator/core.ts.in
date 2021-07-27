@@ -939,9 +939,9 @@ export function runUntil(maxT:u32):i16 {
                 #op 09 ADD IX,BC
                 #op 19 ADD IX,DE
                 #op 21 LD IX,nn
-                #op 29 ADD IX,IX
                 #op 22 LD (nn),IX
                 #op 23 INC IX
+                #op 29 ADD IX,IX
                 #op 2a LD IX,(nn)
                 #op 2b DEC IX
                 #op 34 INC (IX+n)

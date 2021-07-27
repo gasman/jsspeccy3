@@ -127,6 +127,78 @@ const parseExpression = (expr) => {
     return expr;
 }
 
+const generateOpcode = (code, instruction, outFile) => {
+    let exactMatchFunc = null;
+    let fuzzyMatchFunc = null;
+    let fuzzyMatchArgs = null;
+
+    /* check every instruction in the table for a match */
+    for (let [candidate, func] of Object.entries(instructionTable)) {
+        if (candidate == instruction) {
+            exactMatchFunc = func;
+            break;
+        } else {
+            /*
+            look for a fuzzy match - e.g. ADD A,r for ADD A,B.
+            Split candidate and target instruction into tokens by word break;
+            a fuzzy match succeeds if both are the same length, and each token either:
+            - matches exactly, or
+            - is a placeholder that's valid for the target instruction
+              ('r' is valid for any of ABCDEHL; 'rr' is valid for BC, DE, HL, SP),
+              in which case the token in the target is stored to be passed as a parameter.
+            */
+            const instructionTokens = instruction.split(/[\s,]/);
+            const candidateTokens = candidate.split(/[\s,]/);
+            let fuzzyMatchOk = true;
+            let args = [];
+            if (instructionTokens.length != candidateTokens.length) {
+                fuzzyMatchOk = false;
+            } else {
+                for (let i = 0; i < instructionTokens.length; i++) {
+                    const instructionToken = instructionTokens[i];
+                    const candidateToken = candidateTokens[i];
+                    if (candidateToken == 'r' && instructionToken.match(/^[ABCDEHL]$/)) {
+                        args.push(instructionToken);
+                    } else if (candidateToken == 'rr' && instructionToken.match(/^(AF|BC|DE|HL|IX|IY|SP)$/)) {
+                        args.push(instructionToken);
+                    } else if (candidateToken == 'c' && instructionToken.match(/^(C|NC|Z|NZ|PO|PE|P|M)$/)) {
+                        args.push(instructionToken);
+                    } else if (candidateToken == 'v' && instructionToken.match(/^([ABCDEHL]|\(HL\)|\(IX\+n\)|\(IY\+n\)|n)$/)) {
+                        args.push(instructionToken);
+                    } else if (candidateToken == 'k' && instructionToken.match(/^[0123456789abcdefx]+$/)) {
+                        args.push(parseInt(instructionToken));
+                    } else if (candidateToken != instructionToken) {
+                        fuzzyMatchOk = false;
+                        break;
+                    }
+                }
+            }
+            if (fuzzyMatchOk) {
+                fuzzyMatchFunc = func;
+                fuzzyMatchArgs = args;
+            }
+        }
+    }
+    let impl;
+    if (exactMatchFunc) {
+        impl = exactMatchFunc();
+    } else if (fuzzyMatchFunc) {
+        impl = fuzzyMatchFunc(...fuzzyMatchArgs);
+    } else {
+        throw("Unmatched instruction: " + instruction);
+    }
+
+    outFile.write(`
+        case 0x${code.toString(16)}:  /* ${instruction} */
+    `)
+    for (const implLine of impl.split(/\n/)) {
+        processLine(implLine);
+    }
+    outFile.write(`
+            break;
+    `)
+}
+
 const inFile = fs.createReadStream(inputFilename);
 const outFile = fs.createWriteStream(outputFilename);
 
@@ -172,76 +244,7 @@ const processLine = (line) => {
             let code = parseInt(match[1], 16);
             let instruction = match[2].trim();
 
-            let exactMatchFunc = null;
-            let fuzzyMatchFunc = null;
-            let fuzzyMatchArgs = null;
-
-            /* check every instruction in the table for a match */
-            for (let [candidate, func] of Object.entries(instructionTable)) {
-                if (candidate == instruction) {
-                    exactMatchFunc = func;
-                    break;
-                } else {
-                    /*
-                    look for a fuzzy match - e.g. ADD A,r for ADD A,B.
-                    Split candidate and target instruction into tokens by word break;
-                    a fuzzy match succeeds if both are the same length, and each token either:
-                    - matches exactly, or
-                    - is a placeholder that's valid for the target instruction
-                      ('r' is valid for any of ABCDEHL; 'rr' is valid for BC, DE, HL, SP),
-                      in which case the token in the target is stored to be passed as a parameter.
-                    */
-                    const instructionTokens = instruction.split(/[\s,]/);
-                    const candidateTokens = candidate.split(/[\s,]/);
-                    let fuzzyMatchOk = true;
-                    let args = [];
-                    if (instructionTokens.length != candidateTokens.length) {
-                        fuzzyMatchOk = false;
-                    } else {
-                        for (let i = 0; i < instructionTokens.length; i++) {
-                            const instructionToken = instructionTokens[i];
-                            const candidateToken = candidateTokens[i];
-                            if (candidateToken == 'r' && instructionToken.match(/^[ABCDEHL]$/)) {
-                                args.push(instructionToken);
-                            } else if (candidateToken == 'rr' && instructionToken.match(/^(AF|BC|DE|HL|IX|IY|SP)$/)) {
-                                args.push(instructionToken);
-                            } else if (candidateToken == 'c' && instructionToken.match(/^(C|NC|Z|NZ|PO|PE|P|M)$/)) {
-                                args.push(instructionToken);
-                            } else if (candidateToken == 'v' && instructionToken.match(/^([ABCDEHL]|\(HL\)|\(IX\+n\)|\(IY\+n\)|n)$/)) {
-                                args.push(instructionToken);
-                            } else if (candidateToken == 'k' && instructionToken.match(/^[0123456789abcdefx]+$/)) {
-                                args.push(parseInt(instructionToken));
-                            } else if (candidateToken != instructionToken) {
-                                fuzzyMatchOk = false;
-                                break;
-                            }
-                        }
-                    }
-                    if (fuzzyMatchOk) {
-                        fuzzyMatchFunc = func;
-                        fuzzyMatchArgs = args;
-                    }
-                }
-            }
-            let impl;
-            if (exactMatchFunc) {
-                impl = exactMatchFunc();
-            } else if (fuzzyMatchFunc) {
-                impl = fuzzyMatchFunc(...fuzzyMatchArgs);
-            } else {
-                throw("Unmatched instruction: " + instruction);
-            }
-
-            outFile.write(`
-                case 0x${code.toString(16)}:  /* ${instruction} */
-            `)
-            for (const implLine of impl.split(/\n/)) {
-                processLine(implLine);
-            }
-            outFile.write(`
-                    break;
-            `)
-
+            generateOpcode(code, instruction, outFile);
             return;
         }
 
