@@ -9,94 +9,79 @@ const CONDITIONS = {
     'P': '!(F & FLAG_S)',
 };
 
-const VALUE_INITTERS = {
-    'A': '',
-    'B': '',
-    'C': '',
-    'D': '',
-    'E': '',
-    'H': '',
-    'L': '',
-    '(HL)': 'const hl:u16 = HL;',
-    '(IX+n)': `
-        const ixAddr:u16 = IX + i8(readMem(pc++));
-        t += 5;
-    `,
-    '(IY+n)': `
-        const iyAddr:u16 = IY + i8(readMem(pc++));
-        t += 5;
-    `,
-    'IXH': '',
-    'IXL': '',
-    'IYH': '',
-    'IYL': '',
-    'n': '',
+const valueInitter = (expr, hasPreviousIndexOffset) => {
+    if (expr.match(/^([ABCDEHLn]|I[XY][HL])$/)) {
+        return '';
+    } else if (expr == '(HL)') {
+        return 'const hl:u16 = HL;';
+    } else if (expr == '(IX+n)') {
+        if (hasPreviousIndexOffset) {
+            return `
+                const ixAddr:u16 = IX + indexOffset;
+                t += 2;
+            `;
+        } else {
+            return `
+                const ixAddr:u16 = IX + i8(readMem(pc++));
+                t += 5;
+            `;
+        }
+    } else if (expr == '(IY+n)') {
+        if (hasPreviousIndexOffset) {
+            return `
+                const iyAddr:u16 = IY + indexOffset;
+                t += 2;
+            `;
+        } else {
+            return `
+                const iyAddr:u16 = IY + i8(readMem(pc++));
+                t += 5;
+            `;
+        }
+    } else {
+        throw("Unrecognised expression for value initter: " + expr);
+    }
 };
-const VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET = {
-    'A': '',
-    'B': '',
-    'C': '',
-    'D': '',
-    'E': '',
-    'H': '',
-    'L': '',
-    '(HL)': 'const hl:u16 = HL;',
-    '(IX+n)': `
-        const ixAddr:u16 = IX + indexOffset;
-        t += 2;
-    `,
-    '(IY+n)': `
-        const iyAddr:u16 = IY + indexOffset;
-        t += 2;
-    `,
-    'IXH': '',
-    'IXL': '',
-    'IYH': '',
-    'IYL': '',
-    'n': '',
+
+const valueGetter = (expr) => {
+    if (expr.match(/^([ABCDEHL]|I[XY][HL])$/)) {
+        return `const val = ${expr};`;
+    } else if (expr == 'n') {
+        return 'const val = readMem(pc++);';
+    } else if (expr == '(HL)') {
+        return 'const val = readMem(hl);';
+    } else if (expr == '(IX+n)') {
+        return 'const val = readMem(ixAddr);';
+    } else if (expr == '(IY+n)') {
+        return 'const val = readMem(iyAddr);';
+    } else {
+        throw("Unrecognised expression for value getter: " + expr);
+    }
 };
-const VALUE_GETTERS = {
-    'A': 'const val = A;',
-    'B': 'const val = B;',
-    'C': 'const val = C;',
-    'D': 'const val = D;',
-    'E': 'const val = E;',
-    'H': 'const val = H;',
-    'L': 'const val = L;',
-    '(HL)': 'const val = readMem(hl);',
-    '(IX+n)': 'const val = readMem(ixAddr);',
-    '(IY+n)': 'const val = readMem(iyAddr);',
-    'IXH': 'const val = IXH;',
-    'IXL': 'const val = IXL;',
-    'IYH': 'const val = IYH;',
-    'IYL': 'const val = IYL;',
-    'n': 'const val = readMem(pc++);',
+
+const valueSetter = (expr) => {
+    if (expr.match(/^([ABCDEHL]|I[XY][HL])$/)) {
+        return `${expr} = result;`;
+    } else if (expr == '(HL)') {
+        return `
+            t++;
+            writeMem(hl, result);
+        `;
+    } else if (expr == '(IX+n)') {
+        return `
+            t++;
+            writeMem(ixAddr, result);
+        `;
+    } else if (expr == '(IY+n)') {
+        return `
+            t++;
+            writeMem(iyAddr, result);
+        `;
+    } else {
+        throw("Unrecognised expression for value getter: " + expr);
+    }
 };
-const VALUE_SETTERS = {
-    'A': 'A = result;',
-    'B': 'B = result;',
-    'C': 'C = result;',
-    'D': 'D = result;',
-    'E': 'E = result;',
-    'H': 'H = result;',
-    'L': 'L = result;',
-    '(HL)': `
-        t++;
-        writeMem(hl, result);
-    `,
-    '(IX+n)': `
-        t++;
-        writeMem(ixAddr, result);
-    `,
-    '(IY+n)': `
-        t++;
-        writeMem(iyAddr, result);
-    `,
-    'IXH': 'IXH = result;',
-    'IXL': 'IXL = result;',
-    'IYH': 'IYH = result;',
-    'IYL': 'IYL = result;',
-};
+
 
 export default {
     'prefix cb': () => `
@@ -124,8 +109,8 @@ export default {
         interruptible = false;
     `,
     'ADC A,v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         let a:u32 = u32(A);
         const result:u32 = a + val + (F & FLAG_C);
         const lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (result & 0x88) >> 1 );
@@ -150,8 +135,8 @@ export default {
         F = (F & ( FLAG_V | FLAG_Z | FLAG_S )) | (add16temp & 0x10000 ? FLAG_C : 0) | ((add16temp >> 8) & ( FLAG_3 | FLAG_5 )) | halfcarryAddTable[lookup];
     `,
     'ADD A,v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         let a:u32 = u32(A);
         const result:u32 = a + u32(val);
         const lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (result & 0x88) >> 1 );
@@ -162,8 +147,8 @@ export default {
         F = FLAG_H | sz53pTable[A];
     `,
     'AND v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         const result:u8 = A & val;
         A = result;
         F = FLAG_H | sz53pTable[result];
@@ -177,8 +162,8 @@ export default {
         t++;
     `,
     'BIT k,(IX+n)': (k) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET['(IX+n)']}
-        ${VALUE_GETTERS['(IX+n)']}
+        ${valueInitter('(IX+n)', true)}
+        ${valueGetter('(IX+n)')}
         let f:u8 = ( F & FLAG_C ) | FLAG_H | ( u8(ixAddr >> 8) & ( FLAG_3 | FLAG_5 ) );
         if( !(val & ${1 << k}) ) f |= FLAG_P | FLAG_Z;
         ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
@@ -186,8 +171,8 @@ export default {
         t++;
     `,
     'BIT k,(IY+n)': (k) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET['(IY+n)']}
-        ${VALUE_GETTERS['(IY+n)']}
+        ${valueInitter('(IY+n)', true)}
+        ${valueGetter('(IY+n)')}
         let f:u8 = ( F & FLAG_C ) | FLAG_H | ( u8(iyAddr >> 8) & ( FLAG_3 | FLAG_5 ) );
         if( !(val & ${1 << k}) ) f |= FLAG_P | FLAG_Z;
         ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
@@ -235,8 +220,8 @@ export default {
         F = ( f & ( FLAG_P | FLAG_Z | FLAG_S ) ) | ( ( f & FLAG_C ) ? FLAG_H : FLAG_C ) | ( A & ( FLAG_3 | FLAG_5 ) );
     `,
     'CP v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         let a:u32 = u32(A);
         let cptemp:u32 = a - u32(val);
         let lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (cptemp & 0x88) >> 1 );
@@ -274,11 +259,11 @@ export default {
         t += 2;
     `,
     'DEC v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         const tempF:u8 = (F & FLAG_C) | (val & 0x0f ? 0 : FLAG_H) | FLAG_N;
         const result:u8 = val - 1;
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
         F = tempF | (result == 0x7f ? FLAG_V : 0) | sz53Table[result];
     `,
     'DI': () => `
@@ -354,10 +339,10 @@ export default {
         t += 3;
     `,
     'INC v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         const result:u8 = val + 1;
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
         F = (F & FLAG_C) | (result == 0x80 ? FLAG_V : 0) | (result & 0x0f ? 0 : FLAG_H) | sz53Table[result];
     `,
     'INC rr': (rr) => `
@@ -418,8 +403,8 @@ export default {
     `,
     'LD r,v': (r, v) => (
         r == v ? '' : `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         ${r} = val;
         `
     ),
@@ -451,16 +436,16 @@ export default {
         writeMem(HL, ${r});
     `,
     'LD (IX+n),v': (v) => `
-        ${VALUE_INITTERS['(IX+n)']}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter('(IX+n)')}
+        ${valueGetter(v)}
         const result = val;
-        ${VALUE_SETTERS['(IX+n)']}
+        ${valueSetter('(IX+n)')}
     `,
     'LD (IY+n),v': (v) => `
-        ${VALUE_INITTERS['(IY+n)']}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter('(IY+n)')}
+        ${valueGetter(v)}
         const result = val;
-        ${VALUE_SETTERS['(IY+n)']}
+        ${valueSetter('(IY+n)')}
     `,
     'LD A,(nn)': () => `
         const lo = u16(readMem(pc++));
@@ -580,8 +565,8 @@ export default {
         F = sz53pTable[A];
     `,
     'OR v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         const result:u8 = A | val;
         A = result;
         F = sz53pTable[result];
@@ -604,10 +589,10 @@ export default {
         SP = sp;
     `,
     'RES k,v': (k, v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const result:u8 = val & ${0xff ^ (1 << k)};
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'RET': () => `
         let sp = SP;
@@ -635,11 +620,11 @@ export default {
         pc = lo | (hi << 8);
     `,
     'RL v': (v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const result:u8 = (val << 1) | (F & FLAG_C);
         F = (val >> 7) | sz53pTable[result];
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'RLA': () => `
         const val:u8 = A;
@@ -649,11 +634,11 @@ export default {
         F = (f & (FLAG_P | FLAG_Z | FLAG_S)) | (result & (FLAG_3 | FLAG_5)) | (result >> 7);
     `,
     'RLC v': (v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const result:u8 = ((val << 1) | (val >> 7));
         F = (result & FLAG_C) | sz53pTable[result];
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'RLCA': () => `
         let a:u8 = A;
@@ -662,11 +647,11 @@ export default {
         F = (F & (FLAG_P | FLAG_Z | FLAG_S)) | (a & (FLAG_C | FLAG_3 | FLAG_5));
     `,
     'RR v': (v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const result:u8 = (val >> 1) | (F << 7);
         F = (val & FLAG_C) | sz53pTable[result];
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'RRA': () => `
         const val:u8 = A;
@@ -676,12 +661,12 @@ export default {
         F = (f & (FLAG_P | FLAG_Z | FLAG_S)) | (result & (FLAG_3 | FLAG_5)) | (val & FLAG_C);
     `,
     'RRC v': (v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const f:u8 = val & FLAG_C;
         const result:u8 = ((val >> 1) | (val << 7));
         F = f | sz53pTable[result];
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'RRCA': () => `
         let a:u8 = A;
@@ -701,8 +686,8 @@ export default {
         pc = ${k};
     `,
     'SBC A,v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         let a:u32 = u32(A);
         const result:u32 = a - u32(val) - u32(F & FLAG_C);
         const lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (result & 0x88) >> 1 );
@@ -721,46 +706,46 @@ export default {
         F = (F & (FLAG_P | FLAG_Z | FLAG_S)) | (A & (FLAG_3 | FLAG_5)) | FLAG_C;
     `,
     'SET k,v': (k, v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const result:u8 = val | ${1 << k};
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'SLA v': (v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const f:u8 = val >> 7;
         const result:u8 = val << 1;
         F = f | sz53pTable[result];
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'SLL v': (v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const f:u8 = val >> 7;
         const result:u8 = (val << 1) | 0x01;
         F = f | sz53pTable[result];
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'SRA v': (v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const f:u8 = val & FLAG_C;
         const result:u8 = (val & 0x80) | (val >> 1);
         F = f | sz53pTable[result];
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'SRL v': (v) => `
-        ${VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v, true)}
+        ${valueGetter(v)}
         const f:u8 = val & FLAG_C;
         const result:u8 = val >> 1;
         F = f | sz53pTable[result];
-        ${VALUE_SETTERS[v]}
+        ${valueSetter(v)}
     `,
     'SUB v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         let a:u32 = u32(A);
         const result:u32 = a - u32(val);
         const lookup:u32 = ( (a & 0x88) >> 3 ) | ( (val & 0x88) >> 2 ) | ( (result & 0x88) >> 1 );
@@ -772,8 +757,8 @@ export default {
         F = sz53pTable[0];
     `,
     'XOR v': (v) => `
-        ${VALUE_INITTERS[v]}
-        ${VALUE_GETTERS[v]}
+        ${valueInitter(v)}
+        ${valueGetter(v)}
         const result:u8 = A ^ val;
         A = result;
         F = sz53pTable[result];
