@@ -12,7 +12,7 @@ if (argv.length != 4) {
 const inputFilename = argv[2];
 const resultsFilename = argv[3];
 
-const REGISTERS_ADDR = 222724;
+const REGISTERS_ADDR = 222728;
 const registers = new Uint16Array(core.memory.buffer, REGISTERS_ADDR, 12);
 
 core.setMachineType(1212);

@@ -6,7 +6,10 @@
 #alloc machineMemory[0x30000]: u8
 
 #alloc memoryPageReadMap[4]: u8
+#alloc memoryPageWriteMap[4]: u8
 
+// NOTE: test/test.js hardcodes the memory offset of the registers.
+// If you change anything above, update REGISTERS_ADDR in that file. kthx
 #regpair AF A F
 #regpair BC B C
 #regpair DE D E
@@ -29,8 +32,6 @@
 #const FLAG_5 0x20
 #const FLAG_Z 0x40
 #const FLAG_S 0x80
-
-#alloc memoryPageWriteMap[4]: u8
 
 #alloc halfcarryAddTable[8]: u8
 halfcarryAddTable = [0, FLAG_H, FLAG_H, FLAG_H, 0, 0, 0, FLAG_H];
