@@ -49,6 +49,8 @@
 6e IM 0
 6f RLD
 
+70 IN F,(C)
+71 OUT (C),0
 72 SBC HL,SP
 73 LD (nn),SP
 74 NEG
@@ -64,8 +66,12 @@
 
 a0 LDI
 a1 CPI
+a2 INI
+a3 OUTI
 a8 LDD
 a9 CPD
+aa IND
+ab OUTD
 b0 LDIR
 b1 CPIR
 b8 LDDR

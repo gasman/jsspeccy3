@@ -406,6 +406,12 @@ export default {
         A = readPort(port);
         t += 3;
     `,
+    'IN F,(C)': () => `
+        t++;
+        const result:u8 = readPort(BC);
+        t += 3;
+        F = (F & FLAG_C) | sz53pTable[result];
+    `,
     'INC v': (v) => `
         ${valueGetter(v)}
         const result:u8 = val + 1;
@@ -415,6 +421,38 @@ export default {
     'INC rr': (rr) => `
         ${rr} = ${rr} + 1;
         t += 2;
+    `,
+    'IND': () => `
+        t++;
+        const bc:u16 = BC;
+        t++;
+        const result:u8 = readPort(bc);
+        t += 3;
+        const hl:u16 = HL;
+        writeMem(hl, result);
+        const b:u8 = u8(bc >> 8) - 1;
+        B = b;
+        HL = hl - 1;
+
+        const initemp2:u8 = (result + u8(bc & 0xff) - 1);
+
+        F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
+    `,
+    'INI': () => `
+        t++;
+        const bc:u16 = BC;
+        t++;
+        const result:u8 = readPort(bc);
+        t += 3;
+        const hl:u16 = HL;
+        writeMem(hl, result);
+        const b:u8 = u8(bc >> 8) - 1;
+        B = b;
+        HL = hl + 1;
+
+        const initemp2:u8 = (result + u8(bc & 0xff) + 1);
+
+        F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
     `,
     'JP c,nn': (cond) => `
         if (${CONDITIONS[cond]}) {
@@ -625,18 +663,6 @@ export default {
         F = (result & 0x100 ? FLAG_C : 0) | FLAG_N | halfcarrySubTable[lookup & 0x07] | overflowSubTable[lookup >> 4] | sz53Table[u8(result)];
     `,
     'NOP': () => '',
-    'OUT (n),A': () => `
-        t++;
-        const lo:u16 = u16(readMem(pc++));
-        const a:u8 = A;
-        writePort(lo | (u16(a) << 8), a);
-        t += 3;
-    `,
-    'OUT (C),r': (r) => `
-        t++;
-        writePort(BC, ${r});
-        t += 3;
-    `,
     'OR A': () => `
         F = sz53pTable[A];
     `,
@@ -645,6 +671,53 @@ export default {
         const result:u8 = A | val;
         A = result;
         F = sz53pTable[result];
+    `,
+    'OUT (n),A': () => `
+        t++;
+        const lo:u16 = u16(readMem(pc++));
+        const a:u8 = A;
+        writePort(lo | (u16(a) << 8), a);
+        t += 3;
+    `,
+    'OUT (C),0': () => `
+        t++;
+        writePort(BC, 0);
+        t += 3;
+    `,
+    'OUT (C),r': (r) => `
+        t++;
+        writePort(BC, ${r});
+        t += 3;
+    `,
+    'OUTD': () => `
+        t++;
+        let hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
+        const b:u8 = u8(bc >> 8);
+        B = b;
+        t++;
+        writePort(bc, val);
+        t += 3;
+        hl--;
+        HL = hl;
+        const outitemp2:u8 = val + u8(hl & 0xff);
+        F = (val & 0x80 ? FLAG_N : 0) | ((outitemp2 < val) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(outitemp2 & 0x07) ^ b ] ? FLAG_P : 0 ) | sz53Table[b];
+    `,
+    'OUTI': () => `
+        t++;
+        let hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
+        const b:u8 = u8(bc >> 8);
+        B = b;
+        t++;
+        writePort(bc, val);
+        t += 3;
+        hl++;
+        HL = hl;
+        const outitemp2:u8 = val + u8(hl & 0xff);
+        F = (val & 0x80 ? FLAG_N : 0) | ((outitemp2 < val) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(outitemp2 & 0x07) ^ b ] ? FLAG_P : 0 ) | sz53Table[b];
     `,
     'POP rr': (rr) => `
         let sp = SP;
