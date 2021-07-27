@@ -264,6 +264,14 @@ export function poke(addr:u16, val:u8):void {
 }
 
 export function readPort(addr:u16):u8 {
+    if (machineType == 1212) {
+        /*
+        on port reads, the test machine just responds with the high byte of the port address.
+        That's a thing now, I decided. (Well, Phil Kendall decided it to be exact.)
+        */
+        return u8(addr >> 8);
+    }
+
     if (!(addr & 0x0001)) {
         /* poll keyboard */
         return pollKeyboard(u8(addr >> 8));
