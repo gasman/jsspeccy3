@@ -438,6 +438,26 @@ export default {
 
         F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
     `,
+    'INDR': () => `
+        t++;
+        const bc:u16 = BC;
+        t++;
+        const result:u8 = readPort(bc);
+        t += 3;
+        const hl:u16 = HL;
+        writeMem(hl, result);
+        const b:u8 = u8(bc >> 8) - 1;
+        B = b;
+        HL = hl - 1;
+
+        const initemp2:u8 = (result + u8(bc & 0xff) - 1);
+
+        F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
+        if (b) {
+            t += 5;
+            pc -= 2;
+        }
+    `,
     'INI': () => `
         t++;
         const bc:u16 = BC;
@@ -453,6 +473,26 @@ export default {
         const initemp2:u8 = (result + u8(bc & 0xff) + 1);
 
         F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
+    `,
+    'INIR': () => `
+        t++;
+        const bc:u16 = BC;
+        t++;
+        const result:u8 = readPort(bc);
+        t += 3;
+        const hl:u16 = HL;
+        writeMem(hl, result);
+        const b:u8 = u8(bc >> 8) - 1;
+        B = b;
+        HL = hl + 1;
+
+        const initemp2:u8 = (result + u8(bc & 0xff) + 1);
+
+        F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
+        if (b) {
+            t += 5;
+            pc -= 2;
+        }
     `,
     'JP c,nn': (cond) => `
         if (${CONDITIONS[cond]}) {
@@ -671,6 +711,44 @@ export default {
         const result:u8 = A | val;
         A = result;
         F = sz53pTable[result];
+    `,
+    'OTDR': () => `
+        t++;
+        let hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
+        const b:u8 = u8(bc >> 8);
+        B = b;
+        t++;
+        writePort(bc, val);
+        t += 3;
+        hl--;
+        HL = hl;
+        const outitemp2:u8 = val + u8(hl & 0xff);
+        F = (val & 0x80 ? FLAG_N : 0) | ((outitemp2 < val) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(outitemp2 & 0x07) ^ b ] ? FLAG_P : 0 ) | sz53Table[b];
+        if (b) {
+            pc -= 2;
+            t += 5;
+        }
+    `,
+    'OTIR': () => `
+        t++;
+        let hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
+        const b:u8 = u8(bc >> 8);
+        B = b;
+        t++;
+        writePort(bc, val);
+        t += 3;
+        hl++;
+        HL = hl;
+        const outitemp2:u8 = val + u8(hl & 0xff);
+        F = (val & 0x80 ? FLAG_N : 0) | ((outitemp2 < val) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(outitemp2 & 0x07) ^ b ] ? FLAG_P : 0 ) | sz53Table[b];
+        if (b) {
+            pc -= 2;
+            t += 5;
+        }
     `,
     'OUT (n),A': () => `
         t++;
