@@ -659,6 +659,17 @@ export default {
         A = a;
         F = (F & (FLAG_P | FLAG_Z | FLAG_S)) | (a & (FLAG_C | FLAG_3 | FLAG_5));
     `,
+    'RLD': () => `
+        const hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        t += 4;
+        const a:u8 = A;
+        const result:u8 = (val << 4) | (a & 0x0f);
+        writeMem(hl, result);
+        const finalA:u8 = (a & 0xf0) | (val >> 4);
+        A = finalA;
+        F = (F & FLAG_C) | sz53pTable[finalA];
+    `,
     'RR v': (v) => `
         ${valueInitter(v, true)}
         ${valueGetter(v)}
@@ -687,6 +698,17 @@ export default {
         a = (a >> 1) | (a << 7);
         A = a;
         F = f | (a & (FLAG_3 | FLAG_5));
+    `,
+    'RRD': () => `
+        const hl:u16 = HL;
+        const val:u8 = readMem(hl);
+        t += 4;
+        const a:u8 = A;
+        const result:u8 = (a << 4) | (val >> 4);
+        writeMem(hl, result);
+        const finalA:u8 = (a & 0xf0) | (val & 0x0f);
+        A = finalA;
+        F = (F & FLAG_C) | sz53pTable[finalA];
     `,
     'RST k': (k) => `
         t++;

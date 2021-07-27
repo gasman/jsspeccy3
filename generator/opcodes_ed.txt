@@ -39,6 +39,7 @@
 64 NEG
 65 RETN
 66 IM 0
+67 RRD
 68 IN L,(C)
 69 OUT (C),L
 6a ADC HL,HL
@@ -46,6 +47,7 @@
 6c NEG
 6d RETN
 6e IM 0
+6f RLD
 
 72 SBC HL,SP
 73 LD (nn),SP
