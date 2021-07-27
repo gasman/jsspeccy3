@@ -15,7 +15,7 @@ const resultsFilename = argv[3];
 const REGISTERS_ADDR = 222724;
 const registers = new Uint16Array(core.memory.buffer, REGISTERS_ADDR, 12);
 
-core.setMachineType(48);
+core.setMachineType(1212);
 
 
 const inFile = fs.createReadStream(inputFilename);
@@ -117,13 +117,26 @@ while (true) {
     const newtstates = parseInt(auxRegistersOutStrings.pop(), 10);
     const [newi, newr, newiff1, newiff2, newim, newhalted] = auxRegistersOutStrings.map(x => parseInt(x, 16));
 
-    // skip memory lines for now
-    while (await getResultLine()) {
-    };
-
     if (status != -1) {
         console.log(testName, 'failed with unknown opcode', status.toString(16));
+
+        while (await getResultLine()) {
+            // discard memory lines
+        }
     } else {
+        while (resultLine = await getResultLine()) {
+            // check memory span
+            let [addr, ...vals] = resultLine.split(/\s+/).map(x => parseInt(x, 16));
+            for (const val of vals) {
+                if (val == -1) break;
+                const actual = core.peek(addr)
+                if (actual != val) {
+                    console.log(testName, 'mem', addr.toString(16), '- expected', val.toString(16), 'but got', actual.toString(16));
+                }
+                addr++;
+            }
+        };
+
         assertEqual(registers[0], newaf, testName, 'AF');
         assertEqual(registers[1], newbc, testName, 'BC');
         assertEqual(registers[2], newde, testName, 'DE');

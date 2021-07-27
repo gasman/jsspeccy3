@@ -2,9 +2,10 @@
 #const FRAME_BUFFER_SIZE 0x6600
 
 // allocate memory for 8 RAM, 4 ROM pages
+// 0..7 - 128K RAM pages; 8 = 128 rom 0, 9 = 128 rom 1, 10 = 48 rom, 11 = scratch area for ROM writes
 #alloc machineMemory[0x30000]: u8
 
-#alloc memoryPageMap[4]: u8
+#alloc memoryPageReadMap[4]: u8
 
 #regpair AF A F
 #regpair BC B C
@@ -28,6 +29,8 @@
 #const FLAG_5 0x20
 #const FLAG_Z 0x40
 #const FLAG_S 0x80
+
+#alloc memoryPageWriteMap[4]: u8
 
 #alloc halfcarryAddTable[8]: u8
 halfcarryAddTable = [0, FLAG_H, FLAG_H, FLAG_H, 0, 0, 0, FLAG_H];
@@ -143,7 +146,7 @@ let borderColour:u8 = 0;
 let machineType:u32 = 48;
 export function setMachineType(type:u32):void {
     machineType = type;
-    if (type == 48) {
+    if (type == 48 || type == 1212) {
         frameCycleCount = 69888;
         buildScreenEventsTable(14335, 224);
     } else {  // 128
@@ -154,10 +157,17 @@ export function setMachineType(type:u32):void {
 }
 export function reset():void {
     if (machineType == 48) {
-        memoryPageMap = [10, 5, 2, 0];
+        memoryPageReadMap = [10, 5, 2, 0];
+        memoryPageWriteMap = [11, 5, 2, 0];
+        pagingLocked = 1;
+    } else if (machineType == 1212) {
+        // 1212 = test machine type with writeable ROM
+        memoryPageReadMap = [10, 5, 2, 0];
+        memoryPageWriteMap = [10, 5, 2, 0];
         pagingLocked = 1;
     } else {  // 128
-        memoryPageMap = [8, 5, 2, 0];
+        memoryPageReadMap = [8, 5, 2, 0];
+        memoryPageWriteMap = [11, 5, 2, 0];
         pagingLocked = 0;
     }
     screenPageIndex = 5;
@@ -231,7 +241,7 @@ export function getHalted():bool {
 
 function readMem(addr:u16):u8 {
     t += 3;
-    const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
+    const pageOffset:u32 = u32(memoryPageReadMap[addr >> 14]) << 14;
     return machineMemory[pageOffset | (addr & 0x3fff)];
 }
 
@@ -240,18 +250,16 @@ function writeMem(addr:u16, val:u8):void {
     if (addr >= 0x4000 && addr < 0x5b00) {
         updateFramebuffer();
     }
-    if (addr & 0xc000) {
-        const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
-        machineMemory[pageOffset | (addr & 0x3fff)] = val;
-    }
+    const pageOffset:u32 = u32(memoryPageWriteMap[addr >> 14]) << 14;
+    machineMemory[pageOffset | (addr & 0x3fff)] = val;
 }
 
 export function peek(addr:u16):u8 {
-    const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
+    const pageOffset:u32 = u32(memoryPageReadMap[addr >> 14]) << 14;
     return machineMemory[pageOffset | (addr & 0x3fff)];
 }
 export function poke(addr:u16, val:u8):void {
-    const pageOffset:u32 = u32(memoryPageMap[addr >> 14]) << 14;
+    const pageOffset:u32 = u32(memoryPageWriteMap[addr >> 14]) << 14;
     machineMemory[pageOffset | (addr & 0x3fff)] = val;
 }
 
@@ -277,9 +285,10 @@ export function writePort(addr:u16, val:u8):void {
 
         updateFramebuffer();  // so that screen switching happens at the right position
 
-        memoryPageMap[3] = val & 0x07;
+        memoryPageReadMap[3] = val & 0x07;
+        memoryPageWriteMap[3] = val & 0x07;
         screenPageIndex = (val & 0x08) ? 7 : 5;
-        memoryPageMap[0] = (val & 0x10) ? 9 : 8;
+        memoryPageReadMap[0] = (val & 0x10) ? 9 : 8;
         pagingLocked = bool(val & 0x20);
     }
 }
