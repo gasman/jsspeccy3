@@ -251,14 +251,14 @@ const generateOpcodeTable = (prefix, outFile) => {
         }
     } else if (prefix == 'ddcb') {
         for (let i = 0; i < 0x100; i++) {
-            if (i in ddcbOpcodes) {
-                generateOpcode(i, ddcbOpcodes[i], outFile);
-            }
+            generateOpcode(i, ddcbOpcodes[i], outFile);
         }
     } else if (prefix == 'ed') {
         for (let i = 0; i < 0x100; i++) {
             if (i in edOpcodes) {
                 generateOpcode(i, edOpcodes[i], outFile);
+            } else {
+                generateOpcode(i, 'NOP', outFile);
             }
         }
     } else if (prefix == 'fd') {
@@ -271,9 +271,7 @@ const generateOpcodeTable = (prefix, outFile) => {
         }
     } else if (prefix == 'fdcb') {
         for (let i = 0; i < 0x100; i++) {
-            if (i in fdcbOpcodes) {
-                generateOpcode(i, fdcbOpcodes[i], outFile);
-            }
+            generateOpcode(i, fdcbOpcodes[i], outFile);
         }
     } else {
         throw("unknown opcode table prefix: " + prefix);
