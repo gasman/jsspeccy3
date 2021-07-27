@@ -3,7 +3,7 @@ import fileDialog from 'file-dialog';
 import { FRAME_BUFFER_SIZE } from './constants.js';
 import { CanvasRenderer } from './render.js';
 import { MenuBar } from './ui.js';
-import { parseZ80File } from './snapshot.js';
+import { parseSNAFile, parseZ80File } from './snapshot.js';
 
 const KEY_CODES = {
     49: {row: 3, mask: 0x01}, /* 1 */
@@ -86,6 +86,11 @@ window.JSSpeccy = (container, opts) => {
                     file.arrayBuffer().then(arrayBuffer => {
                         const z80file = parseZ80File(arrayBuffer);
                         loadSnapshot(z80file);
+                    });
+                } else if (file.name.toLowerCase().endsWith('.sna')) {
+                    file.arrayBuffer().then(arrayBuffer => {
+                        const snafile = parseSNAFile(arrayBuffer);
+                        loadSnapshot(snafile);
                     });
                 } else {
                     alert('Unrecognised file type: ' + file.name);
