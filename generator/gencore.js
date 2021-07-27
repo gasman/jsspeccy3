@@ -190,13 +190,13 @@ const generateOpcode = (code, instruction, outFile) => {
                 for (let i = 0; i < instructionTokens.length; i++) {
                     const instructionToken = instructionTokens[i];
                     const candidateToken = candidateTokens[i];
-                    if (candidateToken == 'r' && instructionToken.match(/^([ABCDEHL]|IXH|IXL|IYH|IYL)$/)) {
+                    if (candidateToken == 'r' && instructionToken.match(/^([ABCDEHL]|I[XY][HL])$/)) {
                         args.push(instructionToken);
                     } else if (candidateToken == 'rr' && instructionToken.match(/^(AF|BC|DE|HL|IX|IY|SP)$/)) {
                         args.push(instructionToken);
                     } else if (candidateToken == 'c' && instructionToken.match(/^(C|NC|Z|NZ|PO|PE|P|M)$/)) {
                         args.push(instructionToken);
-                    } else if (candidateToken == 'v' && instructionToken.match(/^([ABCDEHL]|IXH|IXL|IYH|IYL|\(HL\)|\(IX\+n\)|\(IY\+n\)|n)$/)) {
+                    } else if (candidateToken == 'v' && instructionToken.match(/^([ABCDEHL]|I[XY][HL]|\(HL\)|\(I[XY]\+n\)|\(I[XY]\+n\>[ABCDEHL]\)|n)$/)) {
                         args.push(instructionToken);
                     } else if (candidateToken == 'k' && instructionToken.match(/^[0123456789abcdefx]+$/)) {
                         args.push(parseInt(instructionToken));

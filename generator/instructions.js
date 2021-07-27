@@ -14,7 +14,7 @@ const valueInitter = (expr, hasPreviousIndexOffset) => {
         return '';
     } else if (expr == '(HL)') {
         return 'const hl:u16 = HL;';
-    } else if (expr == '(IX+n)') {
+    } else if (expr.match(/^(\(IX\+n\)|\(IX\+n\>[ABCDEHL]\))$/)) {
         if (hasPreviousIndexOffset) {
             return `
                 const ixAddr:u16 = IX + indexOffset;
@@ -26,7 +26,7 @@ const valueInitter = (expr, hasPreviousIndexOffset) => {
                 t += 5;
             `;
         }
-    } else if (expr == '(IY+n)') {
+    } else if (expr.match(/^(\(IY\+n\)|\(IY\+n\>[ABCDEHL]\))$/)) {
         if (hasPreviousIndexOffset) {
             return `
                 const iyAddr:u16 = IY + indexOffset;
@@ -50,9 +50,9 @@ const valueGetter = (expr) => {
         return 'const val = readMem(pc++);';
     } else if (expr == '(HL)') {
         return 'const val = readMem(hl);';
-    } else if (expr == '(IX+n)') {
+    } else if (expr.match(/^(\(IX\+n\)|\(IX\+n\>[ABCDEHL]\))$/)) {
         return 'const val = readMem(ixAddr);';
-    } else if (expr == '(IY+n)') {
+    } else if (expr.match(/^(\(IY\+n\)|\(IY\+n\>[ABCDEHL]\))$/)) {
         return 'const val = readMem(iyAddr);';
     } else {
         throw("Unrecognised expression for value getter: " + expr);
@@ -60,6 +60,7 @@ const valueGetter = (expr) => {
 };
 
 const valueSetter = (expr) => {
+    let match;
     if (expr.match(/^([ABCDEHL]|I[XY][HL])$/)) {
         return `${expr} = result;`;
     } else if (expr == '(HL)') {
@@ -72,13 +73,25 @@ const valueSetter = (expr) => {
             t++;
             writeMem(ixAddr, result);
         `;
+    } else if (match = expr.match(/^\(IX\+n\>([ABCDEHL])\)$/)) {
+        return `
+            t++;
+            writeMem(ixAddr, result);
+            ${match[1]} = result;
+        `;
     } else if (expr == '(IY+n)') {
         return `
             t++;
             writeMem(iyAddr, result);
         `;
+    } else if (match = expr.match(/^\(IY\+n\>([ABCDEHL])\)$/)) {
+        return `
+            t++;
+            writeMem(iyAddr, result);
+            ${match[1]} = result;
+        `;
     } else {
-        throw("Unrecognised expression for value getter: " + expr);
+        throw("Unrecognised expression for value setter: " + expr);
     }
 };
 
