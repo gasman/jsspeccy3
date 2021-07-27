@@ -395,8 +395,10 @@ export default {
     `,
     'IN r,(C)': (r) => `
         t++;
-        ${r} = readPort(BC);
+        const result:u8 = readPort(BC);
+        ${r} = result;
         t += 3;
+        F = (F & FLAG_C) | sz53pTable[result];
     `,
     'IN A,(n)': () => `
         t++;
