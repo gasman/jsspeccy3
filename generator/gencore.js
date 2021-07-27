@@ -242,6 +242,8 @@ const generateOpcodeTable = (prefix, outFile) => {
         for (let i = 0; i < 0x100; i++) {
             if (i in ddOpcodes) {
                 generateOpcode(i, ddOpcodes[i], outFile);
+            } else {
+                generateOpcode(i, baseOpcodes[i], outFile);
             }
         }
     } else if (prefix == 'ed') {
@@ -254,6 +256,8 @@ const generateOpcodeTable = (prefix, outFile) => {
         for (let i = 0; i < 0x100; i++) {
             if (i in fdOpcodes) {
                 generateOpcode(i, fdOpcodes[i], outFile);
+            } else {
+                generateOpcode(i, baseOpcodes[i], outFile);
             }
         }
     } else {
