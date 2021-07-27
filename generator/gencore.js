@@ -11,21 +11,34 @@ if (argv.length != 4) {
 const inputFilename = argv[2];
 const outputFilename = argv[3];
 
-const baseOpcodes = {};
-for (let line of fs.readFileSync('generator/opcodes_base.txt').toString().split("\n")) {
-    let match = line.match(/^(\w+)\s+(.*)$/);
-    if (match) {
-        baseOpcodes[parseInt(match[1], 16)] = match[2];
+const loadOpcodeTable = (filename, table, altTable) => {
+    for (let line of fs.readFileSync(filename).toString().split("\n")) {
+        let match = line.match(/^(\w+)\s+(.*)$/);
+        if (match) {
+            const code = parseInt(match[1], 16);
+            const instruction = match[2];
+            table[code] = instruction;
+            if (altTable) {
+                const altInstruction = (
+                    instruction.replaceAll(/\bIX\b/g, 'IY')
+                    .replaceAll(/\bIXH\b/g, 'IYH')
+                    .replaceAll(/\bIXL\b/g, 'IYL')
+                );
+                altTable[code] = altInstruction;
+            }
+        }
     }
 }
 
+const baseOpcodes = {};
+loadOpcodeTable('generator/opcodes_base.txt', baseOpcodes);
 const cbOpcodes = {};
-for (let line of fs.readFileSync('generator/opcodes_cb.txt').toString().split("\n")) {
-    let match = line.match(/^(\w+)\s+(.*)$/);
-    if (match) {
-        cbOpcodes[parseInt(match[1], 16)] = match[2];
-    }
-}
+loadOpcodeTable('generator/opcodes_cb.txt', cbOpcodes);
+const ddOpcodes = {};
+const fdOpcodes = {};
+loadOpcodeTable('generator/opcodes_dd.txt', ddOpcodes, fdOpcodes);
+const edOpcodes = {};
+loadOpcodeTable('generator/opcodes_ed.txt', edOpcodes);
 
 class Variable {
     getter() {
@@ -173,13 +186,13 @@ const generateOpcode = (code, instruction, outFile) => {
                 for (let i = 0; i < instructionTokens.length; i++) {
                     const instructionToken = instructionTokens[i];
                     const candidateToken = candidateTokens[i];
-                    if (candidateToken == 'r' && instructionToken.match(/^[ABCDEHL]$/)) {
+                    if (candidateToken == 'r' && instructionToken.match(/^([ABCDEHL]|IXH|IXL|IYH|IYL)$/)) {
                         args.push(instructionToken);
                     } else if (candidateToken == 'rr' && instructionToken.match(/^(AF|BC|DE|HL|IX|IY|SP)$/)) {
                         args.push(instructionToken);
                     } else if (candidateToken == 'c' && instructionToken.match(/^(C|NC|Z|NZ|PO|PE|P|M)$/)) {
                         args.push(instructionToken);
-                    } else if (candidateToken == 'v' && instructionToken.match(/^([ABCDEHL]|\(HL\)|\(IX\+n\)|\(IY\+n\)|n)$/)) {
+                    } else if (candidateToken == 'v' && instructionToken.match(/^([ABCDEHL]|IXH|IXL|IYH|IYL|\(HL\)|\(IX\+n\)|\(IY\+n\)|n)$/)) {
                         args.push(instructionToken);
                     } else if (candidateToken == 'k' && instructionToken.match(/^[0123456789abcdefx]+$/)) {
                         args.push(parseInt(instructionToken));
@@ -223,6 +236,24 @@ const generateOpcodeTable = (prefix, outFile) => {
     } else if (prefix == 'cb') {
         for (let i = 0; i < 0x100; i++) {
             generateOpcode(i, cbOpcodes[i], outFile);
+        }
+    } else if (prefix == 'dd') {
+        for (let i = 0; i < 0x100; i++) {
+            if (i in ddOpcodes) {
+                generateOpcode(i, ddOpcodes[i], outFile);
+            }
+        }
+    } else if (prefix == 'ed') {
+        for (let i = 0; i < 0x100; i++) {
+            if (i in edOpcodes) {
+                generateOpcode(i, edOpcodes[i], outFile);
+            }
+        }
+    } else if (prefix == 'fd') {
+        for (let i = 0; i < 0x100; i++) {
+            if (i in fdOpcodes) {
+                generateOpcode(i, fdOpcodes[i], outFile);
+            }
         }
     } else {
         throw("unknown opcode table prefix: " + prefix);

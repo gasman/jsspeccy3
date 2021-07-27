@@ -26,6 +26,10 @@ const VALUE_INITTERS = {
         const iyAddr:u16 = IY + i8(readMem(pc++));
         t += 5;
     `,
+    'IXH': '',
+    'IXL': '',
+    'IYH': '',
+    'IYL': '',
     'n': '',
 };
 const VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET = {
@@ -45,6 +49,10 @@ const VALUE_INITTERS_WITH_PREVIOUS_INDEX_OFFSET = {
         const iyAddr:u16 = IY + indexOffset;
         t += 2;
     `,
+    'IXH': '',
+    'IXL': '',
+    'IYH': '',
+    'IYL': '',
     'n': '',
 };
 const VALUE_GETTERS = {
@@ -58,6 +66,10 @@ const VALUE_GETTERS = {
     '(HL)': 'const val = readMem(hl);',
     '(IX+n)': 'const val = readMem(ixAddr);',
     '(IY+n)': 'const val = readMem(iyAddr);',
+    'IXH': 'const val = IXH;',
+    'IXL': 'const val = IXL;',
+    'IYH': 'const val = IYH;',
+    'IYL': 'const val = IYL;',
     'n': 'const val = readMem(pc++);',
 };
 const VALUE_SETTERS = {
@@ -80,6 +92,10 @@ const VALUE_SETTERS = {
         t++;
         writeMem(iyAddr, result);
     `,
+    'IXH': 'IXH = result;',
+    'IXL': 'IXL = result;',
+    'IYH': 'IYH = result;',
+    'IYL': 'IYL = result;',
 };
 
 export default {

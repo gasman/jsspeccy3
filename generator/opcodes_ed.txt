@@ -1,0 +1,41 @@
+40 IN B,(C)
+41 OUT (C),B
+42 SBC HL,BC
+43 LD (nn),BC
+44 NEG
+46 IM 0
+47 LD I,A
+48 IN C,(C)
+49 OUT (C),C
+4a ADC HL,BC
+4b LD BC,(nn)
+
+50 IN D,(C)
+51 OUT (C),D
+52 SBC HL,DE
+53 LD (nn),DE
+56 IM 1
+58 IN E,(C)
+59 OUT (C),E
+5a ADC HL,DE
+5b LD DE,(nn)
+5e IM 2
+
+60 IN H,(C)
+61 OUT (C),H
+62 SBC HL,HL
+68 IN L,(C)
+69 OUT (C),L
+6a ADC HL,HL
+6b LD HL,(nn)
+
+72 SBC HL,SP
+73 LD (nn),SP
+78 IN A,(C)
+79 OUT (C),A
+7a ADC HL,SP
+
+a0 LDI
+a8 LDD
+b0 LDIR
+b8 LDDR

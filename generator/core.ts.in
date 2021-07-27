@@ -396,46 +396,7 @@ export function runUntil(maxT:u32):i16 {
             let op:u8 = readMem(pc++);
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
-                #op 09 ADD IX,BC
-                #op 19 ADD IX,DE
-                #op 21 LD IX,nn
-                #op 22 LD (nn),IX
-                #op 23 INC IX
-                #op 29 ADD IX,IX
-                #op 2a LD IX,(nn)
-                #op 2b DEC IX
-                #op 34 INC (IX+n)
-                #op 35 DEC (IX+n)
-                #op 36 LD (IX+n),n
-                #op 39 ADD IX,SP
-                #op 46 LD B,(IX+n)
-                #op 4e LD C,(IX+n)
-                #op 56 LD D,(IX+n)
-                #op 5e LD E,(IX+n)
-                #op 66 LD H,(IX+n)
-                #op 6e LD L,(IX+n)
-                #op 70 LD (IX+n),B
-                #op 71 LD (IX+n),C
-                #op 72 LD (IX+n),D
-                #op 73 LD (IX+n),E
-                #op 74 LD (IX+n),H
-                #op 75 LD (IX+n),L
-                #op 77 LD (IX+n),A
-                #op 7e LD A,(IX+n)
-                #op 86 ADD A,(IX+n)
-                #op 8e ADC A,(IX+n)
-                #op 96 SUB (IX+n)
-                #op 9e SBC A,(IX+n)
-                #op a6 AND (IX+n)
-                #op ae XOR (IX+n)
-                #op b6 OR (IX+n)
-                #op be CP (IX+n)
-                #op cb prefix ddcb
-                #op e1 POP IX
-                #op e3 EX (SP),IX
-                #op e5 PUSH IX
-                #op e9 JP (IX)
-                #op f9 LD SP,IX
+                #optable dd
 
                 default:
                     return i16(0xd00) | i16(op);
@@ -492,47 +453,7 @@ export function runUntil(maxT:u32):i16 {
             let op:u8 = readMem(pc++);
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
-                #op 40 IN B,(C)
-                #op 41 OUT (C),B
-                #op 42 SBC HL,BC
-                #op 43 LD (nn),BC
-                #op 44 NEG
-                #op 46 IM 0
-                #op 47 LD I,A
-                #op 48 IN C,(C)
-                #op 49 OUT (C),C
-                #op 4a ADC HL,BC
-                #op 4b LD BC,(nn)
-
-                #op 50 IN D,(C)
-                #op 51 OUT (C),D
-                #op 52 SBC HL,DE
-                #op 53 LD (nn),DE
-                #op 56 IM 1
-                #op 58 IN E,(C)
-                #op 59 OUT (C),E
-                #op 5a ADC HL,DE
-                #op 5b LD DE,(nn)
-                #op 5e IM 2
-
-                #op 60 IN H,(C)
-                #op 61 OUT (C),H
-                #op 62 SBC HL,HL
-                #op 68 IN L,(C)
-                #op 69 OUT (C),L
-                #op 6a ADC HL,HL
-                #op 6b LD HL,(nn)
-
-                #op 72 SBC HL,SP
-                #op 73 LD (nn),SP
-                #op 78 IN A,(C)
-                #op 79 OUT (C),A
-                #op 7a ADC HL,SP
-
-                #op a0 LDI
-                #op a8 LDD
-                #op b0 LDIR
-                #op b8 LDDR
+                #optable ed
 
                 default:
                     return i16(0xe00) | i16(op);
@@ -542,46 +463,7 @@ export function runUntil(maxT:u32):i16 {
             let op:u8 = readMem(pc++);
             t++;  // 1T to decode in addition to the memory read
             switch (op) {
-                #op 09 ADD IY,BC
-                #op 19 ADD IY,DE
-                #op 21 LD IY,nn
-                #op 22 LD (nn),IY
-                #op 23 INC IY
-                #op 29 ADD IY,IY
-                #op 2a LD IY,(nn)
-                #op 2b DEC IY
-                #op 34 INC (IY+n)
-                #op 35 DEC (IY+n)
-                #op 36 LD (IY+n),n
-                #op 39 ADD IY,SP
-                #op 46 LD B,(IY+n)
-                #op 4e LD C,(IY+n)
-                #op 56 LD D,(IY+n)
-                #op 5e LD E,(IY+n)
-                #op 66 LD H,(IY+n)
-                #op 6e LD L,(IY+n)
-                #op 70 LD (IY+n),B
-                #op 71 LD (IY+n),C
-                #op 72 LD (IY+n),D
-                #op 73 LD (IY+n),E
-                #op 74 LD (IY+n),H
-                #op 75 LD (IY+n),L
-                #op 77 LD (IY+n),A
-                #op 7e LD A,(IY+n)
-                #op 86 ADD A,(IY+n)
-                #op 8e ADC A,(IY+n)
-                #op 96 SUB (IY+n)
-                #op 9e SBC A,(IY+n)
-                #op a6 AND (IY+n)
-                #op ae XOR (IY+n)
-                #op b6 OR (IY+n)
-                #op be CP (IY+n)
-                #op cb prefix fdcb
-                #op e1 POP IY
-                #op e3 EX (SP),IY
-                #op e5 PUSH IY
-                #op e9 JP (IY)
-                #op f9 LD SP,IY
+                #optable fd
 
                 default:
                     return i16(0xf00) | i16(op);
