@@ -1,15 +1,16 @@
-import { FRAME_BUFFER_SIZE, MACHINE_MEMORY } from './constants.js';
+import { FRAME_BUFFER_SIZE } from './constants.js';
 
 const run = (core) => {
     const memory = core.memory;
     const memoryData = new Uint8Array(memory.buffer);
-    const workerFrameData = memoryData.subarray(0, FRAME_BUFFER_SIZE);
+    const workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
+    const registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
 
     let stopped = false;
     let tape = null;
 
     const loadMemoryPage = (page, data) => {
-        memoryData.set(data, MACHINE_MEMORY + page * 0x4000);
+        memoryData.set(data, core.MACHINE_MEMORY + page * 0x4000);
     };
 
     const loadSnapshot = (snapshot) => {
@@ -17,21 +18,22 @@ const run = (core) => {
         for (let page in snapshot.memoryPages) {
             loadMemoryPage(page, snapshot.memoryPages[page]);
         }
-        const r = snapshot.registers;
-        core.setRegisters(
-            r.AF, r.BC, r.DE, r.HL, r.AF_, r.BC_, r.DE_, r.HL_, r.IX, r.IY, r.SP, r.IR
-        );
-        core.setPC(r.PC);
-        core.setIFF1(r.iff1);
-        core.setIFF2(r.iff2);
-        core.setIM(r.im);
+        ['AF', 'BC', 'DE', 'HL', 'AF_', 'BC_', 'DE_', 'HL_', 'IX', 'IY', 'SP', 'IR'].forEach(
+            (r, i) => {
+                registerPairs[i] = snapshot.registers[r];
+            }
+        )
+        core.setPC(snapshot.registers.PC);
+        core.setIFF1(snapshot.registers.iff1);
+        core.setIFF2(snapshot.registers.iff2);
+        core.setIM(snapshot.registers.im);
 
         core.writePort(0x00fe, snapshot.ulaState.borderColour);
         if (snapshot.model != 48) {
             core.writePort(0x7ffd, snapshot.ulaState.pagingFlags);
         }
 
-        core.setTStates(r.tstates);
+        core.setTStates(snapshot.tstates);
     };
 
     onmessage = (e) => {

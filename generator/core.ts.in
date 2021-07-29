@@ -1,16 +1,18 @@
 #alloc frameBuffer[0x6600]: u8
-#const FRAME_BUFFER_SIZE 0x6600
+export const FRAME_BUFFER:usize = (&frameBuffer);
 
 // allocate memory for 8 RAM, 4 ROM pages
 // 0..7 - 128K RAM pages; 8 = 128 rom 0, 9 = 128 rom 1, 10 = 48 rom, 11 = scratch area for ROM writes
 #alloc machineMemory[0x30000]: u8
+export const MACHINE_MEMORY:usize = (&machineMemory);
 
 #alloc memoryPageReadMap[4]: u8
 #alloc memoryPageWriteMap[4]: u8
+export const MEMORY_PAGE_READ_MAP:usize = (&memoryPageReadMap);
+export const MEMORY_PAGE_WRITE_MAP:usize = (&memoryPageWriteMap);
 
-// NOTE: test/test.js hardcodes the memory offset of the registers.
-// If you change anything above, update REGISTERS_ADDR in that file. kthx
 #regpair AF A F
+export const REGISTERS:usize = (&AF);
 #regpair BC B C
 #regpair DE D E
 #regpair HL H L

@@ -12,8 +12,7 @@ if (argv.length != 4) {
 const inputFilename = argv[2];
 const resultsFilename = argv[3];
 
-const REGISTERS_ADDR = 222728;
-const registers = new Uint16Array(core.memory.buffer, REGISTERS_ADDR, 12);
+const registers = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
 
 core.setMachineType(1212);
 
@@ -117,8 +116,8 @@ while (true) {
     const newtstates = parseInt(auxRegistersOutStrings.pop(), 10);
     const [newi, newr, newiff1, newiff2, newim, newhalted] = auxRegistersOutStrings.map(x => parseInt(x, 16));
 
-    if (status != -1) {
-        console.log(testName, 'failed with unknown opcode', status.toString(16));
+    if (status) {
+        console.log(testName, 'failed with status', status.toString(16));
 
         while (await getResultLine()) {
             // discard memory lines

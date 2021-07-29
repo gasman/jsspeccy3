@@ -143,6 +143,7 @@ const defineConstant = (varName, val) => {
 }
 
 const parseExpression = (expr) => {
+    /* array accesses: foo[x] */
     expr = expr.replaceAll(
         /(\w+)\s*\[([^\]]+)\]/g,
         (str, varName, index) => {
@@ -153,6 +154,14 @@ const parseExpression = (expr) => {
             }
         }
     );
+
+    /* address getting: (&foo) - note that parentheses are required */
+    expr = expr.replaceAll(
+        /\(\&(\w+)\)/g,
+        (str, varName) => varName in vars ? vars[varName].address : varName
+    );
+
+    /* plain variable accesses: foo */
     expr = expr.replaceAll(
         /\w+/g,
         varName => varName in vars ? vars[varName].getter() : varName

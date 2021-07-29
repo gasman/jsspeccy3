@@ -1,4 +1,1 @@
-export const FRAME_BUFFER = 0x0000;
 export const FRAME_BUFFER_SIZE = 0x6600;
-
-export const MACHINE_MEMORY = FRAME_BUFFER + FRAME_BUFFER_SIZE;
