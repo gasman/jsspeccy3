@@ -343,28 +343,29 @@ function pollKeyboard(addr:u8):u8 {
     return result;
 }
 
+/* status codes returned from runFrame / resumeFrame:
+0 = OK (end of frame)
+1 = unrecognised opcode (should never happen...)
+*/
+
 export function runFrame():i16 {
     screenEventPointer = 0;
     framebufferIndex = 0;
+    return resumeFrame();
+}
+
+export function resumeFrame():i16 {
     const result = runUntil(frameCycleCount);
-    if (result != -1) {
-        t = frameCycleCount;
-        updateFramebuffer();
-        return result;
-    }
+    if (result) return result;
 
     updateFramebuffer();
     t -= frameCycleCount;
 
-    return -1;
+    return 0;
 }
 
 export function runUntil(maxT:u32):i16 {
     while (t < maxT || opcodePrefix) {
-        //if (pc == 0x10af && machineMemory[0x5c3b] != 0x00) {
-        //    return machineMemory[0x5c3b];
-        //}
-
         if (t < 36 && iff1 && interruptible) {
             /* process interrupt */
 
@@ -411,7 +412,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable base
 
                 default:
-                    return op;
+                    return 1;  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xcb) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -425,7 +426,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable cb
 
                 default:
-                    return i16(0xc00) | i16(op);
+                    return 1;  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xdd) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -439,7 +440,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable dd
 
                 default:
-                    return i16(0xd00) | i16(op);
+                    return 1;  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xdc) {  // ddcb
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -449,7 +450,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable ddcb
 
                 default:
-                    return i16(0x2c00) | i16(op);
+                    return 1;  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xed) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -463,7 +464,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable ed
 
                 default:
-                    return i16(0xe00) | i16(op);
+                    return 1;  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xfd) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -477,7 +478,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable fd
 
                 default:
-                    return i16(0xf00) | i16(op);
+                    return 1;  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xfc) {  // fdcb
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -487,10 +488,10 @@ export function runUntil(maxT:u32):i16 {
                 #optable fdcb
 
                 default:
-                    return i16(0x4c00) | i16(op);
+                    return 1;  /* unrecognised opcode */
             }
         }
     }
 
-    return -1;
+    return 0;
 }

@@ -40,17 +40,26 @@ const run = (core) => {
                 const frameBuffer = e.data.frameBuffer;
                 const frameData = new Uint8Array(frameBuffer);
 
-                const result = core.runFrame();
+                let status = core.runFrame();
+                while (status) {
+                    switch (status) {
+                        case 1:
+                            stopped = true;
+                            throw("Unrecognised opcode!");
+                        default:
+                            stopped = true;
+                            throw("runFrame returned unexpected result: " + result);
+                    }
+
+                    status = core.resumeFrame();
+                }
+
                 frameData.set(workerFrameData);
                 postMessage({
                     'message': 'frameCompleted',
                     'frameBuffer': frameBuffer,
                 }, [frameBuffer]);
 
-                if (result != -1) {
-                    stopped = true;
-                    throw "Unhandled opcode: " + result.toString(16);
-                }
                 break;
             case 'keyDown':
                 core.keyDown(e.data.row, e.data.mask);
