@@ -19,7 +19,7 @@ export class TAPFile {
         const block = this.blocks[this.nextBlockIndex];
         this.nextBlockIndex = (this.nextBlockIndex + 1) % this.blocks.length;
         return block;
-    };
+    }
 
     static isValid(data) {
         /* test whether the given ArrayBuffer is a valid TAP file, i.e. EOF is consistent with the

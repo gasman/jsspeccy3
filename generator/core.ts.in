@@ -145,6 +145,9 @@ let opcodePrefix:u8 = 0;
 let framebufferIndex = 0;
 let borderColour:u8 = 0;
 
+// whether a trap on the next instruction will be honoured
+let willTrap:bool = true;
+
 
 let machineType:u32 = 48;
 export function setMachineType(type:u32):void {
@@ -357,8 +360,16 @@ export function runFrame():i16 {
 }
 
 export function resumeFrame():i16 {
-    const result = runUntil(frameCycleCount);
-    if (result) return result;
+    const status = runUntil(frameCycleCount);
+    if (status) {
+        // a non-zero status indicates we've broken out of the frame prematurely
+        // and will need to resume it with resumeFrame.
+        // When we do, a trap on the next instruction back will not be honoured
+        // (so that it's possible for the trap to leave pc unchanged without putting us
+        // in an infinite loop).
+        willTrap = false;
+        return status;
+    }
 
     updateFramebuffer();
     t -= frameCycleCount;
@@ -401,6 +412,16 @@ export function runUntil(maxT:u32):i16 {
                 t += 6;
             }
         }
+
+        if (
+            (pc == 0x056b || pc == 0x0111)
+            && (memoryPageReadMap[0] == 9 || memoryPageReadMap[0] == 10)
+            && willTrap
+        ) {
+            // tape loading trap
+            return 2;
+        }
+        willTrap = true;
 
         interruptible = true; // unless overridden by opcode
         if (opcodePrefix == 0) {

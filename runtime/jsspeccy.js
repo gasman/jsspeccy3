@@ -99,8 +99,7 @@ window.JSSpeccy = (container, opts) => {
                         if (!TAPFile.isValid(arrayBuffer)) {
                             alert('Invalid TAP file');
                         } else {
-                            const tapeFile = new TAPFile(arrayBuffer);
-                            loadTape(tapeFile);
+                            openTAPFile(arrayBuffer);
                         }
                     });
                 } else {
@@ -171,10 +170,10 @@ window.JSSpeccy = (container, opts) => {
         if (onSetMachine) onSetMachine(snapshot.model);
     }
 
-    const loadTape = (tape) => {
+    const openTAPFile = (data) => {
         worker.postMessage({
-            message: 'insertTape',
-            tape,
+            message: 'openTAPFile',
+            data,
         })
     }
 
