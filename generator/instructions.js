@@ -855,7 +855,7 @@ export default {
         const f:u8 = F;
         const result:u8 = (val << 1) | (f & FLAG_C);
         A = result;
-        F = (f & (FLAG_P | FLAG_Z | FLAG_S)) | (result & (FLAG_3 | FLAG_5)) | (result >> 7);
+        F = (f & (FLAG_P | FLAG_Z | FLAG_S)) | (result & (FLAG_3 | FLAG_5)) | (val >> 7);
     `,
     'RLC v': (v) => `
         ${valueGetter(v, true)}
