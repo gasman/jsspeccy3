@@ -4,6 +4,7 @@ import { FRAME_BUFFER_SIZE } from './constants.js';
 import { CanvasRenderer } from './render.js';
 import { MenuBar } from './ui.js';
 import { parseSNAFile, parseZ80File } from './snapshot.js';
+import { TAPFile } from './tape.js';
 
 const KEY_CODES = {
     49: {row: 3, mask: 0x01}, /* 1 */
@@ -82,15 +83,25 @@ window.JSSpeccy = (container, opts) => {
         fileMenu.addItem('Open...', () => {
             fileDialog().then(files => {
                 const file = files[0];
-                if (file.name.toLowerCase().endsWith('.z80')) {
+                const cleanName = file.name.toLowerCase();
+                if (cleanName.endsWith('.z80')) {
                     file.arrayBuffer().then(arrayBuffer => {
                         const z80file = parseZ80File(arrayBuffer);
                         loadSnapshot(z80file);
                     });
-                } else if (file.name.toLowerCase().endsWith('.sna')) {
+                } else if (cleanName.endsWith('.sna')) {
                     file.arrayBuffer().then(arrayBuffer => {
                         const snafile = parseSNAFile(arrayBuffer);
                         loadSnapshot(snafile);
+                    });
+                } else if (cleanName.endsWith('.tap')) {
+                    file.arrayBuffer().then(arrayBuffer => {
+                        if (!TAPFile.isValid(arrayBuffer)) {
+                            alert('Invalid TAP file');
+                        } else {
+                            const tapeFile = new TAPFile(arrayBuffer);
+                            loadTape(tapeFile);
+                        }
                     });
                 } else {
                     alert('Unrecognised file type: ' + file.name);
@@ -158,6 +169,13 @@ window.JSSpeccy = (container, opts) => {
             snapshot,
         })
         if (onSetMachine) onSetMachine(snapshot.model);
+    }
+
+    const loadTape = (tape) => {
+        worker.postMessage({
+            message: 'insertTape',
+            tape,
+        })
     }
 
     worker.onmessage = function(e) {

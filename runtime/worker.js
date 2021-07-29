@@ -6,6 +6,7 @@ const run = (core) => {
     const workerFrameData = memoryData.subarray(0, FRAME_BUFFER_SIZE);
 
     let stopped = false;
+    let tape = null;
 
     const loadMemoryPage = (page, data) => {
         memoryData.set(data, MACHINE_MEMORY + page * 0x4000);
@@ -75,6 +76,9 @@ const run = (core) => {
                 break;
             case 'loadSnapshot':
                 loadSnapshot(e.data.snapshot);
+                break;
+            case 'insertTape':
+                tape = e.data.tape;
                 break;
             default:
                 console.log('message received by worker:', e.data);
