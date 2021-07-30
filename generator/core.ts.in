@@ -293,6 +293,7 @@ export function writePort(addr:u16, val:u8):void {
     if (!(addr & 0x0001)) {
         /* border colour / speaker */
         borderColour = val & 0x07;
+        updateFramebuffer();
     } else if (!(addr & 0x8002)) {
         /* 128/+2 paging */
         if (pagingLocked) return;
