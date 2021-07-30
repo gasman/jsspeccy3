@@ -11,6 +11,9 @@ export const MACHINE_MEMORY:usize = (&machineMemory);
 export const MEMORY_PAGE_READ_MAP:usize = (&memoryPageReadMap);
 export const MEMORY_PAGE_WRITE_MAP:usize = (&memoryPageWriteMap);
 
+#alloc pageIsContended[12]: u8
+pageIsContended = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0];
+
 #regpair AF A F
 export const REGISTERS:usize = (&AF);
 #regpair BC B C
@@ -49,6 +52,8 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 #alloc sz53Table[0x100]: u8
 #alloc parityTable[0x100]: u8
 #alloc sz53pTable[0x100]: u8
+
+#alloc contentionTable[72000]: u8
 
 #alloc screenEvents[36000]: u32
 
@@ -131,6 +136,26 @@ function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32):vo
     screenEvents[screenEventPointer] = 0xffffffff;
 }
 
+function buildContentionTable(mainScreenStartTstate:u32, tstatesPerRow:u32, frameCycleCount:u32):void {
+    let pos:u32 = 0;
+    while (pos < mainScreenStartTstate) {
+        contentionTable[pos++] = 0;
+    }
+    for (let y:u32 = 0; y < 192; y++) {
+        for (let x:u32 = 0; x < tstatesPerRow; x++) {
+            if (x < 128) {
+                const seq:u32 = x & 0x07;
+                contentionTable[pos++] = u8((seq == 7) ? 0 : (6 - seq));
+            } else {
+                contentionTable[pos++] = 0;
+            }
+        }
+    }
+    while (pos < frameCycleCount) {
+        contentionTable[pos++] = 0;
+    }
+}
+
 let frameCycleCount:u32 = 69888;
 let screenPageIndex:u32 = 5;
 let pagingLocked:bool = 0;
@@ -155,9 +180,11 @@ export function setMachineType(type:u32):void {
     if (type == 48 || type == 1212) {
         frameCycleCount = 69888;
         buildScreenEventsTable(14335, 224);
+        buildContentionTable(14335, 224, frameCycleCount);
     } else {  // 128
         frameCycleCount = 70908;
         buildScreenEventsTable(14361, 228);
+        buildContentionTable(14361, 228, frameCycleCount);
     }
     reset();
 }
@@ -246,17 +273,21 @@ export function getHalted():bool {
 
 
 function readMem(addr:u16):u8 {
+    const page:u8 = memoryPageReadMap[addr >> 14];
+    const pageOffset:u32 = u32(page) << 14;
+    if (pageIsContended[page]) t += contentionTable[t];
     t += 3;
-    const pageOffset:u32 = u32(memoryPageReadMap[addr >> 14]) << 14;
     return machineMemory[pageOffset | (addr & 0x3fff)];
 }
 
 function writeMem(addr:u16, val:u8):void {
+    const page:u8 = memoryPageWriteMap[addr >> 14];
+    const pageOffset:u32 = u32(page) << 14;
+    if (pageIsContended[page]) t += contentionTable[t];
     t += 3;
     if (addr >= 0x4000 && addr < 0x5b00) {
         updateFramebuffer();
     }
-    const pageOffset:u32 = u32(memoryPageWriteMap[addr >> 14]) << 14;
     machineMemory[pageOffset | (addr & 0x3fff)] = val;
 }
 
