@@ -4,7 +4,7 @@ import { FRAME_BUFFER_SIZE } from './constants.js';
 import { CanvasRenderer } from './render.js';
 import { MenuBar } from './ui.js';
 import { parseSNAFile, parseZ80File } from './snapshot.js';
-import { TAPFile } from './tape.js';
+import { TAPFile, TZXFile } from './tape.js';
 
 const KEY_CODES = {
     49: {row: 3, mask: 0x01}, /* 1 */
@@ -102,6 +102,14 @@ window.JSSpeccy = (container, opts) => {
                             openTAPFile(arrayBuffer);
                         }
                     });
+                } else if (cleanName.endsWith('.tzx')) {
+                    file.arrayBuffer().then(arrayBuffer => {
+                        if (!TZXFile.isValid(arrayBuffer)) {
+                            alert('Invalid TZX file');
+                        } else {
+                            openTZXFile(arrayBuffer);
+                        }
+                    });
                 } else {
                     alert('Unrecognised file type: ' + file.name);
                 }
@@ -173,6 +181,13 @@ window.JSSpeccy = (container, opts) => {
     const openTAPFile = (data) => {
         worker.postMessage({
             message: 'openTAPFile',
+            data,
+        })
+    }
+
+    const openTZXFile = (data) => {
+        worker.postMessage({
+            message: 'openTZXFile',
             data,
         })
     }

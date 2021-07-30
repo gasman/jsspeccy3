@@ -1,5 +1,5 @@
 import { FRAME_BUFFER_SIZE } from './constants.js';
-import { TAPFile } from './tape.js';
+import { TAPFile, TZXFile } from './tape.js';
 
 const run = (core) => {
     const memory = core.memory;
@@ -141,6 +141,9 @@ const run = (core) => {
                 break;
             case 'openTAPFile':
                 tape = new TAPFile(e.data.data);
+                break;
+            case 'openTZXFile':
+                tape = new TZXFile(e.data.data);
                 break;
             default:
                 console.log('message received by worker:', e.data);
