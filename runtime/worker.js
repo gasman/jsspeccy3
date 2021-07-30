@@ -111,7 +111,7 @@ const run = (core) => {
                             break;
                         default:
                             stopped = true;
-                            throw("runFrame returned unexpected result: " + result);
+                            throw("runFrame returned unexpected result: " + status);
                     }
 
                     status = core.resumeFrame();

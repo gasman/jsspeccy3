@@ -403,8 +403,8 @@ export function runUntil(maxT:u32):i16 {
                 t += 7;
             } else if (im == 2) {
                 const intVector:u16 = (u16(I) << 8) | 0xff;
-                const lo = readMem(intVector);
-                const hi = readMem(intVector + 1);
+                const lo:u16 = u16(readMem(intVector));
+                const hi:u16 = u16(readMem(intVector + 1));
                 pc = (lo | (hi << 8));
                 t += 7;
             } else { /* im == 0 */
