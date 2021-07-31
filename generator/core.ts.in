@@ -326,11 +326,11 @@ function writeMem(addr:u16, val:u8):void {
     const pageOffset:u32 = u32(page) << 14;
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
-    t += 3;
-    if (addr >= 0x4000 && addr < 0x5b00) {
+    if (addr >= 0x4000 && addr < 0x5b00) {  // FIXME: correct for when second screen is active
         updateFramebuffer();
     }
     machineMemory[pageOffset | (addr & 0x3fff)] = val;
+    t += 3;
     if (loggingEnabled) {
         log(t, 2, addr, val);
     }
