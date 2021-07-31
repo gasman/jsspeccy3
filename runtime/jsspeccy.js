@@ -290,6 +290,8 @@ window.JSSpeccy = (container, opts) => {
     let displayWidth;
     let displayHeight;
     let onSetZoom;
+    let menuBar = null;
+    let toolbar = null;
 
     const setZoom = (factor) => {
         zoom = factor;
@@ -317,8 +319,12 @@ window.JSSpeccy = (container, opts) => {
         if (document.fullscreenElement) {
             canvas.style.width = '100%';
             canvas.style.height = '100%';
+            if (menuBar) menuBar.enterFullscreen();
+            if (toolbar) toolbar.enterFullscreen();
             if (onSetZoom) onSetZoom('fullscreen');
         } else {
+            if (menuBar) menuBar.exitFullscreen();
+            if (toolbar) toolbar.exitFullscreen();
             setZoom(zoom);
         }
     })
@@ -326,7 +332,7 @@ window.JSSpeccy = (container, opts) => {
     const emu = new Emulator(canvas, opts.machine || 128);
 
     if (opts.ui) {
-        const menuBar = new MenuBar(appContainer);
+        menuBar = new MenuBar(appContainer);
         const fileMenu = menuBar.addMenu('File');
         fileMenu.addItem('Open...', () => {
             openFileDialog();
@@ -381,7 +387,7 @@ window.JSSpeccy = (container, opts) => {
     canvas.style.display = 'block';
 
     if (opts.ui) {
-        const toolbar = new Toolbar(appContainer);
+        toolbar = new Toolbar(appContainer);
         toolbar.addButton(openIcon, 'Open file', () => {
             openFileDialog();
         });

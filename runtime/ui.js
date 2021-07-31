@@ -4,11 +4,20 @@ export class MenuBar {
         this.elem.style.display = 'flow-root';
         this.elem.style.backgroundColor = '#eee';
         this.elem.style.fontFamily = 'Arial, Helvetica, sans-serif';
+        this.elem.style.top = '0';
+        this.elem.style.width = '100%';
         container.appendChild(this.elem);
     }
 
     addMenu(title) {
         return new Menu(this.elem, title);
+    }
+
+    enterFullscreen() {
+        this.elem.style.position = 'absolute';
+    }
+    exitFullscreen() {
+        this.elem.style.position = 'static';
     }
 }
 
@@ -96,6 +105,8 @@ export class Toolbar {
     constructor(container) {
         this.elem = document.createElement('div');
         this.elem.style.backgroundColor = '#ccc';
+        this.elem.style.bottom = '0';
+        this.elem.style.width = '100%';
         container.appendChild(this.elem);
     }
     addButton(icon, label, onClick) {
@@ -106,5 +117,11 @@ export class Toolbar {
         button.title = label;
         this.elem.appendChild(button);
         button.addEventListener('click', onClick);
+    }
+    enterFullscreen() {
+        this.elem.style.position = 'absolute';
+    }
+    exitFullscreen() {
+        this.elem.style.position = 'static';
     }
 }
