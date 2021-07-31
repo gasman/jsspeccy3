@@ -1,3 +1,4 @@
+import EventEmitter from 'events';
 import fileDialog from 'file-dialog';
 
 import { FRAME_BUFFER_SIZE } from './constants.js';
@@ -64,220 +65,118 @@ const KEY_CODES = {
     40: {row: 4, mask: 0x10, caps: true}, /* down arrow => caps + 6 */
 };
 
-window.JSSpeccy = (container, opts) => {
-    // let benchmarkRunCount = 0;
-    // let benchmarkRenderCount = 0;
-    opts = opts || {};
+class Emulator extends EventEmitter {
+    constructor(canvas, machineType) {
+        super();
+        this.canvas = canvas;
+        this.worker = new Worker('jsspeccy-worker.js');
 
-    const canvas = document.createElement('canvas');
-    canvas.width = 320;
-    canvas.height = 240;
+        this.renderer = new CanvasRenderer(canvas);
 
-    const zoom = opts.zoom || 1;
-    const displayWidth = 320 * zoom;
-    const displayHeight = 240 * zoom;
+        this.msPerFrame = 20;
+        this.frameBuffers = [
+            new ArrayBuffer(FRAME_BUFFER_SIZE),
+            new ArrayBuffer(FRAME_BUFFER_SIZE),
+            new ArrayBuffer(FRAME_BUFFER_SIZE),
+        ];
+        this.bufferBeingShown = null;
+        this.bufferAwaitingShow = null;
+        this.lockedBuffer = null;
 
-    canvas.style.width = '' + displayWidth + 'px';
-    canvas.style.height = '' + displayHeight + 'px';
+        this.isRunningFrame = false;
+        this.nextFrameTime = performance.now();
 
-    const worker = new Worker('jsspeccy-worker.js');
-
-    let onSetMachine = null;
-
-    if (opts.ui) {
-        const innerContainer = document.createElement('div');
-        container.appendChild(innerContainer);
-        innerContainer.style.width = '' + displayWidth + 'px';
-
-        const menuBar = new MenuBar(innerContainer);
-        const fileMenu = menuBar.addMenu('File');
-        fileMenu.addItem('Open...', () => {
-            openFileDialog();
-        });
-        const machineMenu = menuBar.addMenu('Machine');
-        const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
-            setMachine(48);
-        });
-        const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
-            setMachine(128);
-        });
-        const displayMenu = menuBar.addMenu('Display');
-        displayMenu.addItem('Fullscreen', () => {
-            canvas.requestFullscreen();
-        })
-
-        onSetMachine = (type) => {
-            if (type == 48) {
-                machine48Item.setCheckbox();
-                machine128Item.unsetCheckbox();
-            } else {
-                machine48Item.unsetCheckbox();
-                machine128Item.setCheckbox();
-            }
-        }
-
-        innerContainer.appendChild(canvas);
-        canvas.style.display = 'block';
-
-        const toolbar = new Toolbar(innerContainer);
-        toolbar.addButton(openIcon, 'Open file', () => {
-            openFileDialog();
-        });
-        toolbar.addButton(resetIcon, 'Reset', () => {
-            reset();
-        });
-    } else {
-        container.appendChild(canvas);
-    }
-
-    const renderer = new CanvasRenderer(canvas);
-
-    const msPerFrame = 20;
-    const frameBuffers = [
-        new ArrayBuffer(FRAME_BUFFER_SIZE),
-        new ArrayBuffer(FRAME_BUFFER_SIZE),
-        new ArrayBuffer(FRAME_BUFFER_SIZE),
-    ];
-    let bufferBeingShown = null;
-    let bufferAwaitingShow = null;
-    let lockedBuffer = null;
-
-    let isRunningFrame = false;
-    let nextFrameTime = performance.now();
-
-    const getBufferToLock = () => {
-        for (let i = 0; i < 3; i++) {
-            if (i !== bufferBeingShown && i !== bufferAwaitingShow) {
-                return i;
-            }
-        }
-    }
-
-    const openFileDialog = () => {
-        fileDialog().then(files => {
-            const file = files[0];
-            const cleanName = file.name.toLowerCase();
-            if (cleanName.endsWith('.z80')) {
-                file.arrayBuffer().then(arrayBuffer => {
-                    const z80file = parseZ80File(arrayBuffer);
-                    loadSnapshot(z80file);
-                });
-            } else if (cleanName.endsWith('.sna')) {
-                file.arrayBuffer().then(arrayBuffer => {
-                    const snafile = parseSNAFile(arrayBuffer);
-                    loadSnapshot(snafile);
-                });
-            } else if (cleanName.endsWith('.tap')) {
-                file.arrayBuffer().then(arrayBuffer => {
-                    if (!TAPFile.isValid(arrayBuffer)) {
-                        alert('Invalid TAP file');
+        this.worker.onmessage = (e) => {
+            switch(e.data.message) {
+                case 'ready':
+                    this.loadRoms().then(() => {
+                        this.setMachine(machineType);
+                        this.initKeyboard();
+                        window.requestAnimationFrame((t) => {
+                            this.runAnimationFrame(t);
+                        });
+                    })
+                    break;
+                case 'frameCompleted':
+                    // benchmarkRunCount++;
+                    this.frameBuffers[this.lockedBuffer] = e.data.frameBuffer;
+                    this.bufferAwaitingShow = this.lockedBuffer;
+                    this.lockedBuffer = null;
+                    const time = performance.now();
+                    if (time > this.nextFrameTime) {
+                        /* running at full blast - start next frame but adjust time base
+                        to give it the full time allocation */
+                        this.runFrame();
+                        this.nextFrameTime = time + this.msPerFrame;
                     } else {
-                        openTAPFile(arrayBuffer);
+                        this.isRunningFrame = false;
                     }
-                });
-            } else if (cleanName.endsWith('.tzx')) {
-                file.arrayBuffer().then(arrayBuffer => {
-                    if (!TZXFile.isValid(arrayBuffer)) {
-                        alert('Invalid TZX file');
-                    } else {
-                        openTZXFile(arrayBuffer);
-                    }
-                });
-            } else {
-                alert('Unrecognised file type: ' + file.name);
+                    break;
+                default:
+                    console.log('message received by host:', e.data);
             }
-        });
-    }
-
-    const setMachine = (type) => {
-        if (type != 128) type = 48;
-        worker.postMessage({
-            message: 'setMachineType',
-            type,
-        });
-        if (onSetMachine) onSetMachine(type);
-    }
-
-    const loadSnapshot = (snapshot) => {
-        worker.postMessage({
-            message: 'loadSnapshot',
-            snapshot,
-        })
-        if (onSetMachine) onSetMachine(snapshot.model);
-    }
-
-    const reset = () => {
-        worker.postMessage({message: 'reset'});
-    }
-
-    const openTAPFile = (data) => {
-        worker.postMessage({
-            message: 'openTAPFile',
-            data,
-        })
-    }
-
-    const openTZXFile = (data) => {
-        worker.postMessage({
-            message: 'openTZXFile',
-            data,
-        })
-    }
-
-    worker.onmessage = function(e) {
-        switch(e.data.message) {
-            case 'ready':
-                loadRoms().then(() => {
-                    setMachine(opts.machine || 128);
-                    initKeyboard();
-                    window.requestAnimationFrame(runAnimationFrame);
-                })
-                break;
-            case 'frameCompleted':
-                // benchmarkRunCount++;
-                frameBuffers[lockedBuffer] = e.data.frameBuffer;
-                bufferAwaitingShow = lockedBuffer;
-                lockedBuffer = null;
-                const time = performance.now();
-                if (time > nextFrameTime) {
-                    /* running at full blast - start next frame but adjust time base
-                    to give it the full time allocation */
-                    runFrame();
-                    nextFrameTime = time + msPerFrame;
-                } else {
-                    isRunningFrame = false;
-                }
-                break;
-            default:
-                console.log('message received by host:', e.data);
         }
     }
 
-    const loadRom = async (url, page) => {
+    async loadRom(url, page) {
         const response = await fetch(url);
         const data = new Uint8Array(await response.arrayBuffer());
-        worker.postMessage({
+        this.worker.postMessage({
             message: 'loadMemory',
             data,
             page: page,
         });
     }
 
-    const loadRoms = async () => {
-        await loadRom('128-0.rom', 8);
-        await loadRom('128-1.rom', 9);
-        await loadRom('48.rom', 10);
+    async loadRoms() {
+        await this.loadRom('128-0.rom', 8);
+        await this.loadRom('128-1.rom', 9);
+        await this.loadRom('48.rom', 10);
     }
 
-    const initKeyboard = () => {
+    getBufferToLock() {
+        for (let i = 0; i < 3; i++) {
+            if (i !== this.bufferBeingShown && i !== this.bufferAwaitingShow) {
+                return i;
+            }
+        }
+    }
+
+    runFrame() {
+        this.isRunningFrame = true;
+        this.lockedBuffer = this.getBufferToLock();
+        this.worker.postMessage({
+            'message': 'runFrame',
+            'frameBuffer': this.frameBuffers[this.lockedBuffer],
+        }, [this.frameBuffers[this.lockedBuffer]]);
+    }
+
+    runAnimationFrame(time) {
+        if (this.bufferAwaitingShow !== null) {
+            this.bufferBeingShown = this.bufferAwaitingShow;
+            this.bufferAwaitingShow = null;
+            this.renderer.showFrame(this.frameBuffers[this.bufferBeingShown]);
+            this.bufferBeingShown = null;
+            // benchmarkRenderCount++;
+        }
+        if (time > this.nextFrameTime && !this.isRunningFrame) {
+            this.runFrame();
+            this.nextFrameTime += this.msPerFrame;
+        }
+        window.requestAnimationFrame((t) => {
+            this.runAnimationFrame(t);
+        });
+    };
+
+    initKeyboard() {
         document.addEventListener('keydown', (evt) => {
             const keyCode = KEY_CODES[evt.keyCode];
             if (keyCode) {
-                worker.postMessage({
+                this.worker.postMessage({
                     message: 'keyDown', row: keyCode.row, mask: keyCode.mask,
                 })
                 if (keyCode.caps) {
-                    worker.postMessage({
+                    this.worker.postMessage({
                         message: 'keyDown', row: 0, mask: 0x01,
                     })
                 }
@@ -288,11 +187,11 @@ window.JSSpeccy = (container, opts) => {
         document.addEventListener('keyup', (evt) => {
             const keyCode = KEY_CODES[evt.keyCode];
             if (keyCode) {
-                worker.postMessage({
+                this.worker.postMessage({
                     message: 'keyUp', row: keyCode.row, mask: keyCode.mask,
                 })
                 if (keyCode.caps) {
-                    worker.postMessage({
+                    this.worker.postMessage({
                         message: 'keyUp', row: 0, mask: 0x01,
                     })
                 }
@@ -304,29 +203,171 @@ window.JSSpeccy = (container, opts) => {
         });
     }
 
-    const runFrame = () => {
-        isRunningFrame = true;
-        lockedBuffer = getBufferToLock();
-        worker.postMessage({
-            'message': 'runFrame',
-            'frameBuffer': frameBuffers[lockedBuffer],
-        }, [frameBuffers[lockedBuffer]]);
+
+    setMachine(type) {
+        if (type != 128) type = 48;
+        this.worker.postMessage({
+            message: 'setMachineType',
+            type,
+        });
+        this.emit('setMachine', type);
     }
 
-    const runAnimationFrame = (time) => {
-        if (bufferAwaitingShow !== null) {
-            bufferBeingShown = bufferAwaitingShow;
-            bufferAwaitingShow = null;
-            renderer.showFrame(frameBuffers[bufferBeingShown]);
-            bufferBeingShown = null;
-            // benchmarkRenderCount++;
+    reset() {
+        this.worker.postMessage({message: 'reset'});
+    }
+
+    loadSnapshot(snapshot) {
+        this.worker.postMessage({
+            message: 'loadSnapshot',
+            snapshot,
+        })
+        this.emit('setMachine', snapshot.model);
+    }
+
+    openTAPFile(data) {
+        this.worker.postMessage({
+            message: 'openTAPFile',
+            data,
+        })
+    }
+
+    openTZXFile(data) {
+        this.worker.postMessage({
+            message: 'openTZXFile',
+            data,
+        })
+    }
+
+    openFile(file) {
+        const cleanName = file.name.toLowerCase();
+        if (cleanName.endsWith('.z80')) {
+            file.arrayBuffer().then(arrayBuffer => {
+                const z80file = parseZ80File(arrayBuffer);
+                this.loadSnapshot(z80file);
+            });
+        } else if (cleanName.endsWith('.sna')) {
+            file.arrayBuffer().then(arrayBuffer => {
+                const snafile = parseSNAFile(arrayBuffer);
+                this.loadSnapshot(snafile);
+            });
+        } else if (cleanName.endsWith('.tap')) {
+            file.arrayBuffer().then(arrayBuffer => {
+                if (!TAPFile.isValid(arrayBuffer)) {
+                    alert('Invalid TAP file');
+                } else {
+                    this.openTAPFile(arrayBuffer);
+                }
+            });
+        } else if (cleanName.endsWith('.tzx')) {
+            file.arrayBuffer().then(arrayBuffer => {
+                if (!TZXFile.isValid(arrayBuffer)) {
+                    alert('Invalid TZX file');
+                } else {
+                    this.openTZXFile(arrayBuffer);
+                }
+            });
+        } else {
+            alert('Unrecognised file type: ' + file.name);
         }
-        if (time > nextFrameTime && !isRunningFrame) {
-            runFrame();
-            nextFrameTime += msPerFrame;
+    }
+}
+
+window.JSSpeccy = (container, opts) => {
+    // let benchmarkRunCount = 0;
+    // let benchmarkRenderCount = 0;
+    opts = opts || {};
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 240;
+
+    const appContainer = document.createElement('div');
+    container.appendChild(appContainer);
+
+    let zoom;
+    let displayWidth;
+    let displayHeight;
+    let onSetZoom;
+
+    const setZoom = (factor) => {
+        zoom = factor;
+        displayWidth = 320 * zoom;
+        displayHeight = 240 * zoom;
+        canvas.style.width = '' + displayWidth + 'px';
+        canvas.style.height = '' + displayHeight + 'px';
+        appContainer.style.width = '' + displayWidth + 'px';
+        if (onSetZoom) onSetZoom(factor);
+    }
+
+    const emu = new Emulator(canvas, opts.machine || 128);
+
+    if (opts.ui) {
+        const menuBar = new MenuBar(appContainer);
+        const fileMenu = menuBar.addMenu('File');
+        fileMenu.addItem('Open...', () => {
+            openFileDialog();
+        });
+        const machineMenu = menuBar.addMenu('Machine');
+        const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
+            emu.setMachine(48);
+        });
+        const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
+            emu.setMachine(128);
+        });
+        const displayMenu = menuBar.addMenu('Display');
+
+        const zoomItemsBySize = {
+            1: displayMenu.addItem('100%', () => setZoom(1)),
+            2: displayMenu.addItem('200%', () => setZoom(2)),
+            3: displayMenu.addItem('300%', () => setZoom(3)),
         }
-        window.requestAnimationFrame(runAnimationFrame);
-    };
+        onSetZoom = (factor) => {
+            for (let i in zoomItemsBySize) {
+                if (parseInt(i) == factor) {
+                    zoomItemsBySize[i].setCheckbox();
+                } else {
+                    zoomItemsBySize[i].unsetCheckbox();
+                }
+            }
+        }
+
+        displayMenu.addItem('Fullscreen', () => {
+            canvas.requestFullscreen();
+        })
+
+        emu.on('setMachine', (type) => {
+            if (type == 48) {
+                machine48Item.setCheckbox();
+                machine128Item.unsetCheckbox();
+            } else {
+                machine48Item.unsetCheckbox();
+                machine128Item.setCheckbox();
+            }
+        });
+    }
+
+    appContainer.appendChild(canvas);
+    canvas.style.display = 'block';
+
+    if (opts.ui) {
+        const toolbar = new Toolbar(appContainer);
+        toolbar.addButton(openIcon, 'Open file', () => {
+            openFileDialog();
+        });
+        toolbar.addButton(resetIcon, 'Reset', () => {
+            emu.reset();
+        });
+    }
+
+    setZoom(opts.zoom || 1);
+
+    const openFileDialog = () => {
+        fileDialog().then(files => {
+            const file = files[0];
+            emu.openFile(file);
+        });
+    }
 
     /*
         const benchmarkElement = document.getElementById('benchmark');
@@ -339,4 +380,6 @@ window.JSSpeccy = (container, opts) => {
             benchmarkRenderCount = 0;
         }, 1000)
     */
+
+    return emu;
 };
