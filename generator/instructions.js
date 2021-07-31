@@ -535,22 +535,16 @@ export default {
         im = ${k};
     `,
     'IN r,(C)': (r) => `
-        t++;
         const result:u8 = readPort(BC);
         ${r} = result;
-        t += 3;
         F = (F & FLAG_C) | sz53pTable[result];
     `,
     'IN A,(n)': () => `
-        t++;
         const port:u16 = (u16(A) << 8) | u16(readMem(pc++));
         A = readPort(port);
-        t += 3;
     `,
     'IN F,(C)': () => `
-        t++;
         const result:u8 = readPort(BC);
-        t += 3;
         F = (F & FLAG_C) | sz53pTable[result];
     `,
     'INC v': (v) => `
@@ -571,9 +565,7 @@ export default {
         contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
-        t++;
         const result:u8 = readPort(bc);
-        t += 3;
         const hl:u16 = HL;
         writeMem(hl, result);
         const b:u8 = u8(bc >> 8) - 1;
@@ -588,9 +580,7 @@ export default {
         contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
-        t++;
         const result:u8 = readPort(bc);
-        t += 3;
         const hl:u16 = HL;
         writeMem(hl, result);
         const b:u8 = u8(bc >> 8) - 1;
@@ -618,9 +608,7 @@ export default {
         contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
-        t++;
         const result:u8 = readPort(bc);
-        t += 3;
         const hl:u16 = HL;
         writeMem(hl, result);
         const b:u8 = u8(bc >> 8) - 1;
@@ -635,9 +623,7 @@ export default {
         contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
-        t++;
         const result:u8 = readPort(bc);
-        t += 3;
         const hl:u16 = HL;
         writeMem(hl, result);
         const b:u8 = u8(bc >> 8) - 1;
@@ -975,9 +961,7 @@ export default {
         const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
         const b:u8 = u8(bc >> 8);
         B = b;
-        t++;
         writePort(bc, val);
-        t += 3;
         hl--;
         HL = hl;
         const outitemp2:u8 = val + u8(hl & 0xff);
@@ -1004,9 +988,7 @@ export default {
         const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
         const b:u8 = u8(bc >> 8);
         B = b;
-        t++;
         writePort(bc, val);
-        t += 3;
         hl++;
         HL = hl;
         const outitemp2:u8 = val + u8(hl & 0xff);
@@ -1026,21 +1008,15 @@ export default {
         }
     `,
     'OUT (n),A': () => `
-        t++;
         const lo:u16 = u16(readMem(pc++));
         const a:u8 = A;
         writePort(lo | (u16(a) << 8), a);
-        t += 3;
     `,
     'OUT (C),0': () => `
-        t++;
         writePort(BC, 0);
-        t += 3;
     `,
     'OUT (C),r': (r) => `
-        t++;
         writePort(BC, ${r});
-        t += 3;
     `,
     'OUTD': () => `
         contendDirtyRead(IR);
@@ -1050,9 +1026,7 @@ export default {
         const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
         const b:u8 = u8(bc >> 8);
         B = b;
-        t++;
         writePort(bc, val);
-        t += 3;
         hl--;
         HL = hl;
         const outitemp2:u8 = val + u8(hl & 0xff);
@@ -1066,9 +1040,7 @@ export default {
         const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
         const b:u8 = u8(bc >> 8);
         B = b;
-        t++;
         writePort(bc, val);
-        t += 3;
         hl++;
         HL = hl;
         const outitemp2:u8 = val + u8(hl & 0xff);
