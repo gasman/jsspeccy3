@@ -281,6 +281,7 @@ window.JSSpeccy = (container, opts) => {
     const canvas = document.createElement('canvas');
     canvas.width = 320;
     canvas.height = 240;
+    canvas.style.objectFit = 'contain';
 
     const appContainer = document.createElement('div');
     container.appendChild(appContainer);
@@ -292,6 +293,10 @@ window.JSSpeccy = (container, opts) => {
 
     const setZoom = (factor) => {
         zoom = factor;
+        if (document.fullscreenElement == appContainer) {
+            document.exitFullscreen();
+            return;  // setZoom will be retriggered once fullscreen has exited
+        }
         displayWidth = 320 * zoom;
         displayHeight = 240 * zoom;
         canvas.style.width = '' + displayWidth + 'px';
@@ -299,6 +304,24 @@ window.JSSpeccy = (container, opts) => {
         appContainer.style.width = '' + displayWidth + 'px';
         if (onSetZoom) onSetZoom(factor);
     }
+
+    const setFullscreen = () => {
+        appContainer.requestFullscreen();
+    }
+    const exitFullscreen = () => {
+        if (document.fullscreenElement == appContainer) {
+            document.exitFullscreen();
+        }
+    }
+    appContainer.addEventListener('fullscreenchange', () => {
+        if (document.fullscreenElement) {
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            if (onSetZoom) onSetZoom('fullscreen');
+        } else {
+            setZoom(zoom);
+        }
+    })
 
     const emu = new Emulator(canvas, opts.machine || 128);
 
@@ -322,19 +345,26 @@ window.JSSpeccy = (container, opts) => {
             2: displayMenu.addItem('200%', () => setZoom(2)),
             3: displayMenu.addItem('300%', () => setZoom(3)),
         }
+        const fullscreenItem = displayMenu.addItem('Fullscreen', () => {
+            setFullscreen();
+        })
         onSetZoom = (factor) => {
-            for (let i in zoomItemsBySize) {
-                if (parseInt(i) == factor) {
-                    zoomItemsBySize[i].setCheckbox();
-                } else {
+            if (factor == 'fullscreen') {
+                fullscreenItem.setCheckbox();
+                for (let i in zoomItemsBySize) {
                     zoomItemsBySize[i].unsetCheckbox();
+                }
+            } else {
+                fullscreenItem.unsetCheckbox();
+                for (let i in zoomItemsBySize) {
+                    if (parseInt(i) == factor) {
+                        zoomItemsBySize[i].setCheckbox();
+                    } else {
+                        zoomItemsBySize[i].unsetCheckbox();
+                    }
                 }
             }
         }
-
-        displayMenu.addItem('Fullscreen', () => {
-            canvas.requestFullscreen();
-        })
 
         emu.on('setMachine', (type) => {
             if (type == 48) {
