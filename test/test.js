@@ -9,11 +9,15 @@ if (argv.length != 4) {
     exit(1);
 }
 
+const EVENT_TYPE_IDS = {
+    1: 'MR', 2: 'MW', 3: 'MC', 4: 'PR', 5: 'PW', 6: 'PC', 0xffff: 'END'
+}
+
 const inputFilename = argv[2];
 const resultsFilename = argv[3];
 
 const registers = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
-
+const logEvents = new Uint16Array(core.memory.buffer, core.LOG_ENTRIES, 2048);
 core.setMachineType(1212);
 
 
@@ -87,7 +91,9 @@ while (true) {
     core.setIM(im);
     core.setHalted(halted);
 
+    core.startLog();
     const status = core.runUntil(tstates);
+    core.stopLog();
 
     let resultLine;
     while (true) {
@@ -104,11 +110,35 @@ while (true) {
             "Test name in results file does not match: expected", testName, "but got", resultLine
         );
     }
-    // skip event lines for now
+
     resultLine = await getResultLine();
+    let checkingEvents = true;
+    let logPtr = 0;
     while (resultLine.startsWith(' ')) {
+        if (checkingEvents) {
+            const [expectedEventTime, expectedEventType, expectedEventAddr, expectedEventVal] = resultLine.trim().split(/\s+/);
+            const actualEventTime = logEvents[logPtr++];
+            const actualEventType = EVENT_TYPE_IDS[logEvents[logPtr++]];
+            const actualEventAddr = logEvents[logPtr++];
+            const actualEventVal = logEvents[logPtr++];
+            if (
+                (parseInt(expectedEventTime) != actualEventTime)
+                || (expectedEventType != actualEventType)
+                || (parseInt(expectedEventAddr, 16) != actualEventAddr)
+                || (parseInt(expectedEventVal || '0', 16) != actualEventVal)
+            ) {
+                const actualResult = '' + actualEventTime + ' ' + actualEventType + ' ' + actualEventAddr.toString(16) + ' ' + actualEventVal.toString(16);
+                console.log("Event mismatch on test", testName, "- expected", resultLine, "but got", actualResult);
+                checkingEvents = false;
+            }
+        }
+
         resultLine = await getResultLine();
     }
+    if (checkingEvents && logEvents[logPtr] != 0xffff) {
+        console.log("Extra event on test", testName);
+    }
+
     const mainRegistersOutLine = resultLine;
     const [newaf, newbc, newde, newhl, newaf_, newbc_, newde_, newhl_, newix, newiy, newsp, newpc] = mainRegistersOutLine.split(/\s+/).map(x => parseInt(x, 16));
     const auxRegistersOutLine = await getResultLine()

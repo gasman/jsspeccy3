@@ -59,6 +59,9 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 
 #alloc keyStates[8]: u8
 
+#alloc logEntries[2048]: u16
+export const LOG_ENTRIES:usize = (&logEntries);
+
 let i:u8 = 0;
 while (true) {
     sz53Table[i] = u8(i) & ( FLAG_3 | FLAG_5 | FLAG_S );
@@ -173,6 +176,8 @@ let borderColour:u8 = 0;
 // whether a trap on the next instruction will be honoured
 let willTrap:bool = true;
 
+let loggingEnabled:bool = false;
+let logPtr = 0;
 
 let machineType:u32 = 48;
 export function setMachineType(type:u32):void {
@@ -271,36 +276,79 @@ export function getHalted():bool {
     return halted;
 }
 
+function log(time:u32, type:u16, addr:u16, val:u8):void {
+    logEntries[logPtr++] = u16(time);
+    logEntries[logPtr++] = type;
+    logEntries[logPtr++] = addr;
+    logEntries[logPtr++] = u16(val);
+    logPtr = logPtr % 2048;
+}
+
+export function startLog():void {
+    loggingEnabled = true;
+    logPtr = 0;
+}
+export function stopLog():void {
+    log(0xffff, 0xffff, 0, 0);
+    loggingEnabled = false;
+}
+
 
 function readMem(addr:u16):u8 {
     const page:u8 = memoryPageReadMap[addr >> 14];
     const pageOffset:u32 = u32(page) << 14;
+    if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
     t += 3;
-    return machineMemory[pageOffset | (addr & 0x3fff)];
+    if (loggingEnabled) {
+        const val:u8 = machineMemory[pageOffset | (addr & 0x3fff)];
+        log(t, 1, addr, val);
+        return val;
+    } else {
+        return machineMemory[pageOffset | (addr & 0x3fff)];
+    }
+}
+
+function readMemInternal(addr:u16):u8 {
+    const page:u8 = memoryPageReadMap[addr >> 14];
+    const pageOffset:u32 = u32(page) << 14;
+    if (loggingEnabled) {
+        const val:u8 = machineMemory[pageOffset | (addr & 0x3fff)];
+        log(t, 1, addr, val);
+        return val;
+    } else {
+        return machineMemory[pageOffset | (addr & 0x3fff)];
+    }
 }
 
 function writeMem(addr:u16, val:u8):void {
     const page:u8 = memoryPageWriteMap[addr >> 14];
     const pageOffset:u32 = u32(page) << 14;
+    if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
     t += 3;
     if (addr >= 0x4000 && addr < 0x5b00) {
         updateFramebuffer();
     }
     machineMemory[pageOffset | (addr & 0x3fff)] = val;
+    if (loggingEnabled) {
+        log(t, 2, addr, val);
+    }
 }
 
 function contendRead(addr:u16):void {
     const page:u8 = memoryPageReadMap[addr >> 14];
+    if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 function contendDirtyRead(addr:u16):void {
     const page:u8 = memoryPageReadMap[addr >> 14];
+    if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 function contendDirtyWrite(addr:u16):void {
     const page:u8 = memoryPageWriteMap[addr >> 14];
+    if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 
@@ -314,90 +362,108 @@ export function poke(addr:u16, val:u8):void {
 }
 
 export function readPort(addr:u16):u8 {
+    /* apply pre-read contention */
     const page:u8 = memoryPageReadMap[addr >> 14];
-    if (pageIsContended[page]) {
+    const addressIsContended:u8 = pageIsContended[page];
+    if (addressIsContended) {
+        if (loggingEnabled) log(t, 6, addr, 0);
         t += contentionTable[t % frameCycleCount];
-        t++;
-        t += contentionTable[t % frameCycleCount];
-        if (addr & 0x0001) {
-            t++;
-            t += contentionTable[t % frameCycleCount];
-            t++;
-            t += contentionTable[t % frameCycleCount];
-            t++;
-        } else {
-            t += 3;
-        }
-    } else {
-        if (addr & 0x0001) {
-            t += 4;
-        } else {
-            t++;
-            t += contentionTable[t % frameCycleCount];
-            t += 3;
-        }
     }
+    t++;
 
+    let result:u8 = 0xff;
     if (machineType == 1212) {
         /*
         on port reads, the test machine just responds with the high byte of the port address.
         That's a thing now, I decided. (Well, Phil Kendall decided it to be exact.)
         */
-        return u8(addr >> 8);
+        result = u8(addr >> 8);
+    } else {
+
+        if (!(addr & 0x0001)) {
+            /* poll keyboard */
+            result = pollKeyboard(u8(addr >> 8));
+        } else if (!(addr & 0x00e0)) {
+            /* kempston joystick */
+            result = 0;
+        }
+    }
+    if (loggingEnabled) log(t, 4, addr, result);
+
+    /* apply post-read contention */
+    if (addr & 0x0001) {
+        if (addressIsContended) {
+            if (loggingEnabled) log(t, 6, addr, 0);
+            t += contentionTable[t % frameCycleCount];
+            t++;
+            if (loggingEnabled) log(t, 6, addr, 0);
+            t += contentionTable[t % frameCycleCount];
+            t++;
+            if (loggingEnabled) log(t, 6, addr, 0);
+            t += contentionTable[t % frameCycleCount];
+            t++;
+        } else {
+            t += 3;
+        }
+    } else {
+        if (loggingEnabled) log(t, 6, addr, 0);
+        t += contentionTable[t % frameCycleCount];
+        t += 3;
     }
 
-    if (!(addr & 0x0001)) {
-        /* poll keyboard */
-        return pollKeyboard(u8(addr >> 8));
-    } else if (!(addr & 0x00e0)) {
-        /* kempston joystick */
-        return 0;
-    } else {
-        return 0xff;
-    }
+    return result;
 }
 
 export function writePort(addr:u16, val:u8):void {
-    const page:u8 = memoryPageReadMap[addr >> 14];
-    if (pageIsContended[page]) {
+    /* apply pre-write contention */
+    const page:u8 = memoryPageWriteMap[addr >> 14];
+    const addressIsContended:u8 = pageIsContended[page];
+    if (addressIsContended) {
+        if (loggingEnabled) log(t, 6, addr, 0);
         t += contentionTable[t % frameCycleCount];
-        t++;
-        t += contentionTable[t % frameCycleCount];
-        if (addr & 0x0001) {
-            t++;
-            t += contentionTable[t % frameCycleCount];
-            t++;
-            t += contentionTable[t % frameCycleCount];
-            t++;
-        } else {
-            t += 3;
-        }
-    } else {
-        if (addr & 0x0001) {
-            t += 4;
-        } else {
-            t++;
-            t += contentionTable[t % frameCycleCount];
-            t += 3;
-        }
     }
+    t++;
 
+    if (loggingEnabled) log(t, 5, addr, val);
     if (!(addr & 0x0001)) {
         /* border colour / speaker */
         borderColour = val & 0x07;
         updateFramebuffer();
     } else if (!(addr & 0x8002)) {
         /* 128/+2 paging */
-        if (pagingLocked) return;
+        if (!pagingLocked) {
 
-        updateFramebuffer();  // so that screen switching happens at the right position
+            updateFramebuffer();  // so that screen switching happens at the right position
 
-        memoryPageReadMap[3] = val & 0x07;
-        memoryPageWriteMap[3] = val & 0x07;
-        screenPageIndex = (val & 0x08) ? 7 : 5;
-        memoryPageReadMap[0] = (val & 0x10) ? 9 : 8;
-        pagingLocked = bool(val & 0x20);
+            memoryPageReadMap[3] = val & 0x07;
+            memoryPageWriteMap[3] = val & 0x07;
+            screenPageIndex = (val & 0x08) ? 7 : 5;
+            memoryPageReadMap[0] = (val & 0x10) ? 9 : 8;
+            pagingLocked = bool(val & 0x20);
+        }
     }
+
+    /* apply post-write contention */
+    if (addr & 0x0001) {
+        if (addressIsContended) {
+            if (loggingEnabled) log(t, 6, addr, 0);
+            t += contentionTable[t % frameCycleCount];
+            t++;
+            if (loggingEnabled) log(t, 6, addr, 0);
+            t += contentionTable[t % frameCycleCount];
+            t++;
+            if (loggingEnabled) log(t, 6, addr, 0);
+            t += contentionTable[t % frameCycleCount];
+            t++;
+        } else {
+            t += 3;
+        }
+    } else {
+        if (loggingEnabled) log(t, 6, addr, 0);
+        t += contentionTable[t % frameCycleCount];
+        t += 3;
+    }
+
 }
 
 let screenEventPointer:u32 = 0;
@@ -518,12 +584,13 @@ export function runUntil(maxT:u32):i16 {
 
         interruptible = true; // unless overridden by opcode
         if (opcodePrefix == 0) {
-            let op:u8 = readMem(pc++);
+            contendRead(pc);
+            t += 4;
+            let op:u8 = readMemInternal(pc++);
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
 
-            t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable base
 
@@ -532,12 +599,13 @@ export function runUntil(maxT:u32):i16 {
             }
         } else if (opcodePrefix == 0xcb) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
-            let op:u8 = readMem(pc++);
+            contendRead(pc);
+            t += 4;
+            let op:u8 = readMemInternal(pc++);
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
 
-            t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable cb
 
@@ -546,12 +614,13 @@ export function runUntil(maxT:u32):i16 {
             }
         } else if (opcodePrefix == 0xdd) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
-            let op:u8 = readMem(pc++);
+            contendRead(pc);
+            t += 4;
+            let op:u8 = readMemInternal(pc++);
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
 
-            t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable dd
 
@@ -570,12 +639,13 @@ export function runUntil(maxT:u32):i16 {
             }
         } else if (opcodePrefix == 0xed) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
-            let op:u8 = readMem(pc++);
+            contendRead(pc);
+            t += 4;
+            let op:u8 = readMemInternal(pc++);
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
 
-            t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable ed
 
@@ -584,12 +654,13 @@ export function runUntil(maxT:u32):i16 {
             }
         } else if (opcodePrefix == 0xfd) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
-            let op:u8 = readMem(pc++);
+            contendRead(pc);
+            t += 4;
+            let op:u8 = readMemInternal(pc++);
 
             const r = R;
             R = (r & 0x80) | ((r + 1) & 0x7f);
 
-            t++;  // 1T to decode in addition to the memory read
             switch (op) {
                 #optable fd
 
