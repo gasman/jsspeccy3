@@ -69,6 +69,13 @@ window.JSSpeccy = (container, opts) => {
     canvas.width = 320;
     canvas.height = 240;
 
+    const zoom = opts.zoom || 1;
+    const displayWidth = 320 * zoom;
+    const displayHeight = 240 * zoom;
+
+    canvas.style.width = '' + displayWidth + 'px';
+    canvas.style.height = '' + displayHeight + 'px';
+
     const worker = new Worker('jsspeccy-worker.js');
 
     let onSetMachine = null;
@@ -76,7 +83,7 @@ window.JSSpeccy = (container, opts) => {
     if (opts.ui) {
         const innerContainer = document.createElement('div');
         container.appendChild(innerContainer);
-        innerContainer.style.width = '320px';
+        innerContainer.style.width = '' + displayWidth + 'px';
 
         const menuBar = new MenuBar(innerContainer);
         const fileMenu = menuBar.addMenu('File');
@@ -122,6 +129,10 @@ window.JSSpeccy = (container, opts) => {
         const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
             setMachine(128);
         });
+        const displayMenu = menuBar.addMenu('Display');
+        displayMenu.addItem('Fullscreen', () => {
+            canvas.requestFullscreen();
+        })
 
         onSetMachine = (type) => {
             if (type == 48) {
