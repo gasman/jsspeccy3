@@ -23,13 +23,26 @@ const valueGetter = (expr, hasPreviousIndexOffset) => {
         if (hasPreviousIndexOffset) {
             return `
                 const ixAddr:u16 = IX + indexOffset;
-                t += 2;  // contend lastpc
+                contendDirtyRead(pc-1);
+                t++;
+                contendDirtyRead(pc-1);
+                t++;
                 const val = readMem(ixAddr);
             `;
         } else {
             return `
-                const ixAddr:u16 = IX + i8(readMem(pc++));
-                t += 5;  // contend lastpc
+                const ixAddr:u16 = IX + i8(readMem(pc));
+                contendDirtyRead(pc);
+                t++;
+                contendDirtyRead(pc);
+                t++;
+                contendDirtyRead(pc);
+                t++;
+                contendDirtyRead(pc);
+                t++;
+                contendDirtyRead(pc);
+                t++;
+                pc++;
                 const val = readMem(ixAddr);
             `;
         }
@@ -37,13 +50,26 @@ const valueGetter = (expr, hasPreviousIndexOffset) => {
         if (hasPreviousIndexOffset) {
             return `
                 const iyAddr:u16 = IY + indexOffset;
-                t += 2;
+                contendDirtyRead(pc-1);
+                t++;
+                contendDirtyRead(pc-1);
+                t++;
                 const val = readMem(iyAddr);
             `;
         } else {
             return `
-                const iyAddr:u16 = IY + i8(readMem(pc++));
-                t += 5;
+                const iyAddr:u16 = IY + i8(readMem(pc));
+                contendDirtyRead(pc);
+                t++;
+                contendDirtyRead(pc);
+                t++;
+                contendDirtyRead(pc);
+                t++;
+                contendDirtyRead(pc);
+                t++;
+                contendDirtyRead(pc);
+                t++;
+                pc++;
                 const val = readMem(iyAddr);
             `;
         }
@@ -58,27 +84,32 @@ const valueSetter = (expr) => {
         return `${expr} = result;`;
     } else if (expr == '(HL)') {
         return `
+            contendDirtyRead(hl);
             t++;
             writeMem(hl, result);
         `;
     } else if (expr == '(IX+n)') {
         return `
+            contendDirtyRead(ixAddr);
             t++;
             writeMem(ixAddr, result);
         `;
     } else if (match = expr.match(/^\(IX\+n\>([ABCDEHL])\)$/)) {
         return `
+            contendDirtyRead(ixAddr);
             t++;
             writeMem(ixAddr, result);
             ${match[1]} = result;
         `;
     } else if (expr == '(IY+n)') {
         return `
+            contendDirtyRead(iyAddr);
             t++;
             writeMem(iyAddr, result);
         `;
     } else if (match = expr.match(/^\(IY\+n\>([ABCDEHL])\)$/)) {
         return `
+            contendDirtyRead(iyAddr);
             t++;
             writeMem(iyAddr, result);
             ${match[1]} = result;
@@ -129,7 +160,21 @@ export default {
         const lookup:u32 = ((hl & 0x8800) >> 11) | ((rr & 0x8800) >> 10) | ((result & 0x8800) >>  9);
         HL = result;
         F = (result & 0x10000 ? FLAG_C : 0) | overflowAddTable[lookup >> 4] | ((result >> 8) & (FLAG_3 | FLAG_5 | FLAG_S)) | halfcarryAddTable[lookup & 0x07] | ((result & 0xffff) ? 0 : FLAG_Z);
-        t += 7;
+        const ir:u16 = IR;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
     `,
     'ADD rr,rr': (rr1, rr2) => `
         const rr1:u16 = ${rr1};
@@ -138,7 +183,21 @@ export default {
         const lookup:u32 = ((rr1 & 0x0800) >> 11) | ((rr2 & 0x0800) >> 10) | ((add16temp & 0x0800) >>  9);
         ${rr1} = add16temp;
         F = (F & ( FLAG_V | FLAG_Z | FLAG_S )) | (add16temp & 0x10000 ? FLAG_C : 0) | ((add16temp >> 8) & ( FLAG_3 | FLAG_5 )) | halfcarryAddTable[lookup];
-        t += 7;
+        const ir:u16 = IR;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
     `,
     'ADD A,v': (v) => `
         ${valueGetter(v)}
@@ -158,11 +217,13 @@ export default {
         F = FLAG_H | sz53pTable[result];
     `,
     'BIT k,(HL)': (k) => `
-        const val:u8 = readMem(HL);
+        const hl:u16 = HL;
+        const val:u8 = readMem(hl);
         let f:u8 = ( F & FLAG_C ) | FLAG_H | ( val & ( FLAG_3 | FLAG_5 ) );
         if ( !(val & ${1 << k}) ) f |= FLAG_P | FLAG_Z;
         ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
         F = f;
+        contendDirtyRead(hl);
         t++;
     `,
     'BIT k,(IX+n)': (k) => `
@@ -171,6 +232,7 @@ export default {
         if( !(val & ${1 << k}) ) f |= FLAG_P | FLAG_Z;
         ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
         F = f;
+        contendDirtyRead(ixAddr);
         t++;
     `,
     'BIT k,(IY+n)': (k) => `
@@ -179,6 +241,7 @@ export default {
         if( !(val & ${1 << k}) ) f |= FLAG_P | FLAG_Z;
         ${k == 7 ? 'if (val & 0x80) f |= FLAG_S;' : ''}
         F = f;
+        contendDirtyRead(iyAddr);
         t++;
     `,
     'BIT k,r': (k, r) => `
@@ -191,8 +254,10 @@ export default {
     'CALL c,nn': (cond) => `
         if (${CONDITIONS[cond]}) {
             let lo = u16(readMem(pc++));
-            let hi = u16(readMem(pc++));
+            let hi = u16(readMem(pc));
+            contendDirtyRead(pc);
             t++;
+            pc++;
             let sp = SP;
             sp--;
             writeMem(sp, u8(pc >> 8));
@@ -201,14 +266,18 @@ export default {
             SP = sp;
             pc = lo + (hi << 8);
         } else {
-            pc += 2;
-            t += 6;
+            contendRead(pc++);
+            t += 3;
+            contendRead(pc++);
+            t += 3;
         }
     `,
     'CALL nn': () => `
         let lo = u16(readMem(pc++));
-        let hi = u16(readMem(pc++));
+        let hi = u16(readMem(pc));
+        contendDirtyRead(pc);
         t++;
+        pc++;
         let sp = SP;
         sp--;
         writeMem(sp, u8(pc >> 8));
@@ -234,13 +303,22 @@ export default {
         const a:u8 = A;
         let result:u8 = a - val;
         const lookup:u8 = ((a & 0x08) >> 3) | ((val & 0x08) >> 2) | ((result & 0x08) >> 1);
-        t += 5;
         HL = hl - 1;
         const bc:u16 = BC - 1;
         BC = bc;
         const f:u8 = (F & FLAG_C) | (bc ? (FLAG_V | FLAG_N) : FLAG_N) | halfcarrySubTable[lookup] | (result ? 0 : FLAG_Z) | (result & FLAG_S);
         if (f & FLAG_H) result--;
         F = f | (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
     `,
     'CPDR': () => `
         const hl:u16 = HL;
@@ -248,7 +326,6 @@ export default {
         const a:u8 = A;
         let result:u8 = a - val;
         const lookup:u8 = ((a & 0x08) >> 3) | ((val & 0x08) >> 2) | ((result & 0x08) >> 1);
-        t += 5;
         HL = hl - 1;
         const bc:u16 = BC - 1;
         BC = bc;
@@ -256,9 +333,28 @@ export default {
         if (f & FLAG_H) result--;
         f |= (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
         F = f;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
         if ((f & (FLAG_V | FLAG_Z)) == FLAG_V) {
             pc -= 2;
-            t += 5;
+            contendDirtyRead(hl);
+            t++;
+            contendDirtyRead(hl);
+            t++;
+            contendDirtyRead(hl);
+            t++;
+            contendDirtyRead(hl);
+            t++;
+            contendDirtyRead(hl);
+            t++;    
         }
     `,
     'CPI': () => `
@@ -267,13 +363,22 @@ export default {
         const a:u8 = A;
         let result:u8 = a - val;
         const lookup:u8 = ((a & 0x08) >> 3) | ((val & 0x08) >> 2) | ((result & 0x08) >> 1);
-        t += 5;
         HL = hl + 1;
         const bc:u16 = BC - 1;
         BC = bc;
         const f:u8 = (F & FLAG_C) | (bc ? (FLAG_V | FLAG_N) : FLAG_N) | halfcarrySubTable[lookup] | (result ? 0 : FLAG_Z) | (result & FLAG_S);
         if (f & FLAG_H) result--;
         F = f | (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
     `,
     'CPIR': () => `
         const hl:u16 = HL;
@@ -281,7 +386,6 @@ export default {
         const a:u8 = A;
         let result:u8 = a - val;
         const lookup:u8 = ((a & 0x08) >> 3) | ((val & 0x08) >> 2) | ((result & 0x08) >> 1);
-        t += 5;
         HL = hl + 1;
         const bc:u16 = BC - 1;
         BC = bc;
@@ -289,9 +393,28 @@ export default {
         if (f & FLAG_H) result--;
         f |= (result & FLAG_3) | ( (result & 0x02) ? FLAG_5 : 0 );
         F = f;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
         if ((f & (FLAG_V | FLAG_Z)) == FLAG_V) {
             pc -= 2;
-            t += 5;
+            contendDirtyRead(hl);
+            t++;
+            contendDirtyRead(hl);
+            t++;
+            contendDirtyRead(hl);
+            t++;
+            contendDirtyRead(hl);
+            t++;
+            contendDirtyRead(hl);
+            t++;
         }
     `,
     'CPL': () => `
@@ -323,7 +446,11 @@ export default {
     `,
     'DEC rr': (rr) => `
         ${rr} = ${rr} - 1;
-        t += 2;
+        const ir:u16 = IR;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
     `,
     'DEC v': (v) => `
         ${valueGetter(v)}
@@ -336,18 +463,28 @@ export default {
         iff1 = iff2 = 0;
     `,
     'DJNZ n': () => `
+        contendDirtyRead(IR);
         t++;
         const b:u8 = B - 1;
         B = b;
         if (b) {
             /* take branch */
-            const offset = i8(readMem(pc++));
-            t += 5;
-            pc += offset;
+            const offset = i8(readMem(pc));
+            contendDirtyRead(pc);
+            t++;
+            contendDirtyRead(pc);
+            t++;
+            contendDirtyRead(pc);
+            t++;
+            contendDirtyRead(pc);
+            t++;
+            contendDirtyRead(pc);
+            t++;
+            pc += offset + 1;
         } else {
             /* do not take branch */
+            contendRead(pc++);
             t += 3;
-            pc++;
         }
     `,
     'EI': () => `
@@ -358,12 +495,16 @@ export default {
         const sp:u16 = SP;
         const lo = u16(readMem(sp));
         const hi = u16(readMem(sp + 1));
+        contendDirtyRead(sp + 1);
         t++;
         const rr:u16 = ${rr};
         writeMem(sp + 1, u8(rr >> 8));
         writeMem(sp, u8(rr & 0xff));
         ${rr} = lo | (hi << 8);
-        t += 2;
+        contendDirtyWrite(sp);
+        t++;
+        contendDirtyWrite(sp);
+        t++;
     `,
     'EX AF,AF\'': () => `
         let tmp:u16 = AF;
@@ -420,9 +561,14 @@ export default {
     `,
     'INC rr': (rr) => `
         ${rr} = ${rr} + 1;
-        t += 2;
+        const ir:u16 = IR;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
     `,
     'IND': () => `
+        contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
         t++;
@@ -439,6 +585,7 @@ export default {
         F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
     `,
     'INDR': () => `
+        contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
         t++;
@@ -454,11 +601,21 @@ export default {
 
         F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
         if (b) {
-            t += 5;
+            contendDirtyWrite(hl);
+            t++;
+            contendDirtyWrite(hl);
+            t++;
+            contendDirtyWrite(hl);
+            t++;
+            contendDirtyWrite(hl);
+            t++;
+            contendDirtyWrite(hl);
+            t++;
             pc -= 2;
         }
     `,
     'INI': () => `
+        contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
         t++;
@@ -475,6 +632,7 @@ export default {
         F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
     `,
     'INIR': () => `
+        contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
         t++;
@@ -490,7 +648,16 @@ export default {
 
         F = (result & 0x80 ? FLAG_N : 0) | ((initemp2 < result) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(initemp2 & 0x07) ^ b] ? FLAG_P : 0) | sz53Table[b];
         if (b) {
-            t += 5;
+            contendDirtyWrite(hl);
+            t++;
+            contendDirtyWrite(hl);
+            t++;
+            contendDirtyWrite(hl);
+            t++;
+            contendDirtyWrite(hl);
+            t++;
+            contendDirtyWrite(hl);
+            t++;
             pc -= 2;
         }
     `,
@@ -500,8 +667,10 @@ export default {
             let hi = u16(readMem(pc++));
             pc = lo + (hi << 8);
         } else {
-            pc += 2;
-            t += 6;
+            contendRead(pc++);
+            t += 3;
+            contendRead(pc++);
+            t += 3;
         }
     `,
     'JP nn': () => `
@@ -520,18 +689,36 @@ export default {
     `,
     'JR c,n': (cond) => `
         if (${CONDITIONS[cond]}) {
-            t += 5;
-            let offset = i8(readMem(pc++));
-            pc += offset;
+            let offset = i8(readMem(pc));
+            contendDirtyRead(pc);
+            t++;
+            contendDirtyRead(pc);
+            t++;
+            contendDirtyRead(pc);
+            t++;
+            contendDirtyRead(pc);
+            t++;
+            contendDirtyRead(pc);
+            t++;
+            pc += offset + 1;
         } else {
+            contendRead(pc++);
             t += 3;
-            pc++;
         }
     `,
     'JR n': () => `
-        t += 5;
-        let offset = i8(readMem(pc++));
-        pc += offset;
+        let offset = i8(readMem(pc));
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        pc += offset + 1;
     `,
     'LD (nn),rr': (rr) => `
         const lo = u16(readMem(pc++));
@@ -563,9 +750,13 @@ export default {
         const hi = u16(readMem(pc++));
         ${rr} = lo | (hi << 8);
     `,
-    'LD rr,rr': (rr1, rr2) => `
-        ${rr1} = ${rr2};
-        t += 2;
+    'LD SP,rr': (rr2) => `
+        SP = ${rr2};
+        const ir:u16 = IR;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
     `,
     'LD (BC),A': () => `
         writeMem(BC, A);
@@ -581,24 +772,52 @@ export default {
     `,
     'LD (IX+n),n': () => `
         const ixAddr:u16 = IX + i8(readMem(pc++));
-        const result = readMem(pc++);
-        t += 2;  // contend lastpc
+        const result = readMem(pc);
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        pc++;
         writeMem(ixAddr, result);
     `,
     'LD (IX+n),r': (r) => `
-        const ixAddr:u16 = IX + i8(readMem(pc++));
-        t += 5;  // contend finalpc
+        const ixAddr:u16 = IX + i8(readMem(pc));
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        pc++;
         writeMem(ixAddr, ${r});
     `,
     'LD (IY+n),n': () => `
         const iyAddr:u16 = IY + i8(readMem(pc++));
-        const result = readMem(pc++);
-        t += 2;  // contend lastpc
+        const result = readMem(pc);
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        pc++;
         writeMem(iyAddr, result);
     `,
     'LD (IY+n),r': (r) => `
-        const iyAddr:u16 = IY + i8(readMem(pc++));
-        t += 5;  // contend finalpc
+        const iyAddr:u16 = IY + i8(readMem(pc));
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        contendDirtyRead(pc);
+        t++;
+        pc++;
         writeMem(iyAddr, ${r});
     `,
     'LD A,(nn)': () => `
@@ -616,22 +835,28 @@ export default {
         A = readMem(HL);
     `,
     'LD A,I': () => `
+        const ir:u16 = IR;
+        contendDirtyRead(ir);
         t++;
-        const val = I;
+        const val:u8 = u8(ir >> 8);
         A = val;
         F = (F & FLAG_C) | sz53Table[val] | (iff2 ? FLAG_V : 0);
     `,
     'LD A,R': () => `
+        const ir:u16 = IR;
+        contendDirtyRead(ir);
         t++;
-        const val = R;
+        const val:u8 = u8(ir & 0xff);
         A = val;
         F = (F & FLAG_C) | sz53Table[val] | (iff2 ? FLAG_V : 0);
     `,
     'LD I,A': () => `
+        contendDirtyRead(IR);
         I = A;
         t++;
     `,
     'LD R,A': () => `
+        contendDirtyRead(IR);
         R = A;
         t++;
     `,
@@ -640,60 +865,90 @@ export default {
         const de:u16 = DE;
         let val:u8 = readMem(hl);
         writeMem(de, val);
-        t += 2;
         const bc = BC - 1;
         BC = bc;
         val += A;
         F = (F & ( FLAG_C | FLAG_Z | FLAG_S )) | (bc ? FLAG_V : 0) | (val & FLAG_3) | ((val & 0x02) ? FLAG_5 : 0);
         HL = hl - 1;
         DE = de - 1;
+        contendDirtyWrite(de);
+        t++;
+        contendDirtyWrite(de);
+        t++;
     `,
     'LDDR': () => `
         const hl:u16 = HL;
         const de:u16 = DE;
         let val:u8 = readMem(hl);
         writeMem(de, val);
-        t += 2;
         const bc = BC - 1;
         BC = bc;
         val += A;
         F = (F & ( FLAG_C | FLAG_Z | FLAG_S )) | (bc ? FLAG_V : 0) | (val & FLAG_3) | ((val & 0x02) ? FLAG_5 : 0);
-        if (bc) {
-            t += 5;
-            pc -= 2;
-        }
         HL = hl - 1;
         DE = de - 1;
+        contendDirtyWrite(de);
+        t++;
+        contendDirtyWrite(de);
+        t++;
+        if (bc) {
+            pc -= 2;
+            contendDirtyWrite(de);
+            t++;
+            contendDirtyWrite(de);
+            t++;
+            contendDirtyWrite(de);
+            t++;
+            contendDirtyWrite(de);
+            t++;
+            contendDirtyWrite(de);
+            t++;
+        }
     `,
     'LDI': () => `
         const hl:u16 = HL;
         const de:u16 = DE;
         let val:u8 = readMem(hl);
         writeMem(de, val);
-        t += 2;
         const bc = BC - 1;
         BC = bc;
         val += A;
         F = (F & ( FLAG_C | FLAG_Z | FLAG_S )) | (bc ? FLAG_V : 0) | (val & FLAG_3) | ((val & 0x02) ? FLAG_5 : 0);
         HL = hl + 1;
         DE = de + 1;
+        contendDirtyWrite(de);
+        t++;
+        contendDirtyWrite(de);
+        t++;
     `,
     'LDIR': () => `
         const hl:u16 = HL;
         const de:u16 = DE;
         let val:u8 = readMem(hl);
         writeMem(de, val);
-        t += 2;
         const bc = BC - 1;
         BC = bc;
         val += A;
         F = (F & ( FLAG_C | FLAG_Z | FLAG_S )) | (bc ? FLAG_V : 0) | (val & FLAG_3) | ((val & 0x02) ? FLAG_5 : 0);
-        if (bc) {
-            t += 5;
-            pc -= 2;
-        }
         HL = hl + 1;
         DE = de + 1;
+        contendDirtyWrite(de);
+        t++;
+        contendDirtyWrite(de);
+        t++;
+        if (bc) {
+            pc -= 2;
+            contendDirtyWrite(de);
+            t++;
+            contendDirtyWrite(de);
+            t++;
+            contendDirtyWrite(de);
+            t++;
+            contendDirtyWrite(de);
+            t++;
+            contendDirtyWrite(de);
+            t++;
+        }
     `,
     'NEG': () => `
         const a:i32 = i32(A);
@@ -713,6 +968,7 @@ export default {
         F = sz53pTable[result];
     `,
     'OTDR': () => `
+        contendDirtyRead(IR);
         t++;
         let hl:u16 = HL;
         const val:u8 = readMem(hl);
@@ -728,10 +984,20 @@ export default {
         F = (val & 0x80 ? FLAG_N : 0) | ((outitemp2 < val) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(outitemp2 & 0x07) ^ b ] ? FLAG_P : 0 ) | sz53Table[b];
         if (b) {
             pc -= 2;
-            t += 5;
+            contendDirtyRead(bc);
+            t++;
+            contendDirtyRead(bc);
+            t++;
+            contendDirtyRead(bc);
+            t++;
+            contendDirtyRead(bc);
+            t++;
+            contendDirtyRead(bc);
+            t++;
         }
     `,
     'OTIR': () => `
+        contendDirtyRead(IR);
         t++;
         let hl:u16 = HL;
         const val:u8 = readMem(hl);
@@ -747,7 +1013,16 @@ export default {
         F = (val & 0x80 ? FLAG_N : 0) | ((outitemp2 < val) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(outitemp2 & 0x07) ^ b ] ? FLAG_P : 0 ) | sz53Table[b];
         if (b) {
             pc -= 2;
-            t += 5;
+            contendDirtyRead(bc);
+            t++;
+            contendDirtyRead(bc);
+            t++;
+            contendDirtyRead(bc);
+            t++;
+            contendDirtyRead(bc);
+            t++;
+            contendDirtyRead(bc);
+            t++;
         }
     `,
     'OUT (n),A': () => `
@@ -768,6 +1043,7 @@ export default {
         t += 3;
     `,
     'OUTD': () => `
+        contendDirtyRead(IR);
         t++;
         let hl:u16 = HL;
         const val:u8 = readMem(hl);
@@ -783,6 +1059,7 @@ export default {
         F = (val & 0x80 ? FLAG_N : 0) | ((outitemp2 < val) ? (FLAG_H | FLAG_C) : 0) | (parityTable[(outitemp2 & 0x07) ^ b ] ? FLAG_P : 0 ) | sz53Table[b];
     `,
     'OUTI': () => `
+        contendDirtyRead(IR);
         t++;
         let hl:u16 = HL;
         const val:u8 = readMem(hl);
@@ -805,6 +1082,7 @@ export default {
         ${rr} = lo | (hi << 8);
     `,
     'PUSH rr': (rr) => `
+        contendDirtyRead(IR);
         t++;
         const rr:u16 = ${rr};
         let sp = SP;
@@ -827,6 +1105,7 @@ export default {
         pc = lo | (hi << 8);
     `,
     'RET c': (cond) => `
+        contendDirtyRead(IR);
         t++;
         if (${CONDITIONS[cond]}) {
             let sp = SP;
@@ -872,7 +1151,14 @@ export default {
     'RLD': () => `
         const hl:u16 = HL;
         const val:u8 = readMem(hl);
-        t += 4;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
         const a:u8 = A;
         const result:u8 = (val << 4) | (a & 0x0f);
         writeMem(hl, result);
@@ -910,7 +1196,14 @@ export default {
     'RRD': () => `
         const hl:u16 = HL;
         const val:u8 = readMem(hl);
-        t += 4;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
+        contendDirtyRead(hl);
+        t++;
         const a:u8 = A;
         const result:u8 = (a << 4) | (val >> 4);
         writeMem(hl, result);
@@ -919,6 +1212,7 @@ export default {
         F = (F & FLAG_C) | sz53pTable[finalA];
     `,
     'RST k': (k) => `
+        contendDirtyRead(IR);
         t++;
         let sp = SP;
         sp--;
@@ -943,7 +1237,21 @@ export default {
         const lookup:u32 = ((hl & 0x8800) >> 11) | ((rr & 0x8800) >> 10) | ((sub16temp & 0x8800) >> 9);
         HL = u16(sub16temp);
         F = (sub16temp & 0x10000 ? FLAG_C : 0) | FLAG_N | overflowSubTable[lookup >> 4] | (((sub16temp & 0xff00) >> 8) & ( FLAG_3 | FLAG_5 | FLAG_S )) | halfcarrySubTable[lookup&0x07] | (sub16temp & 0xffff ? 0 : FLAG_Z);
-        t += 7;
+        const ir:u16 = IR;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
+        contendDirtyRead(ir);
+        t++;
     `,
     'SCF': () => `
         F = (F & (FLAG_P | FLAG_Z | FLAG_S)) | (A & (FLAG_3 | FLAG_5)) | FLAG_C;

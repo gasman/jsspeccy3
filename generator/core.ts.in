@@ -291,6 +291,19 @@ function writeMem(addr:u16, val:u8):void {
     machineMemory[pageOffset | (addr & 0x3fff)] = val;
 }
 
+function contendRead(addr:u16):void {
+    const page:u8 = memoryPageReadMap[addr >> 14];
+    if (pageIsContended[page]) t += contentionTable[t];
+}
+function contendDirtyRead(addr:u16):void {
+    const page:u8 = memoryPageReadMap[addr >> 14];
+    if (pageIsContended[page]) t += contentionTable[t];
+}
+function contendDirtyWrite(addr:u16):void {
+    const page:u8 = memoryPageWriteMap[addr >> 14];
+    if (pageIsContended[page]) t += contentionTable[t];
+}
+
 export function peek(addr:u16):u8 {
     const pageOffset:u32 = u32(memoryPageReadMap[addr >> 14]) << 14;
     return machineMemory[pageOffset | (addr & 0x3fff)];
