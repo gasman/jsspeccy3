@@ -275,7 +275,7 @@ export function getHalted():bool {
 function readMem(addr:u16):u8 {
     const page:u8 = memoryPageReadMap[addr >> 14];
     const pageOffset:u32 = u32(page) << 14;
-    if (pageIsContended[page]) t += contentionTable[t];
+    if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
     t += 3;
     return machineMemory[pageOffset | (addr & 0x3fff)];
 }
@@ -283,7 +283,7 @@ function readMem(addr:u16):u8 {
 function writeMem(addr:u16, val:u8):void {
     const page:u8 = memoryPageWriteMap[addr >> 14];
     const pageOffset:u32 = u32(page) << 14;
-    if (pageIsContended[page]) t += contentionTable[t];
+    if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
     t += 3;
     if (addr >= 0x4000 && addr < 0x5b00) {
         updateFramebuffer();
@@ -293,15 +293,15 @@ function writeMem(addr:u16, val:u8):void {
 
 function contendRead(addr:u16):void {
     const page:u8 = memoryPageReadMap[addr >> 14];
-    if (pageIsContended[page]) t += contentionTable[t];
+    if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 function contendDirtyRead(addr:u16):void {
     const page:u8 = memoryPageReadMap[addr >> 14];
-    if (pageIsContended[page]) t += contentionTable[t];
+    if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 function contendDirtyWrite(addr:u16):void {
     const page:u8 = memoryPageWriteMap[addr >> 14];
-    if (pageIsContended[page]) t += contentionTable[t];
+    if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 
 export function peek(addr:u16):u8 {
@@ -316,14 +316,14 @@ export function poke(addr:u16, val:u8):void {
 export function readPort(addr:u16):u8 {
     const page:u8 = memoryPageReadMap[addr >> 14];
     if (pageIsContended[page]) {
-        t += contentionTable[t];
+        t += contentionTable[t % frameCycleCount];
         t++;
-        t += contentionTable[t];
+        t += contentionTable[t % frameCycleCount];
         if (addr & 0x0001) {
             t++;
-            t += contentionTable[t];
+            t += contentionTable[t % frameCycleCount];
             t++;
-            t += contentionTable[t];
+            t += contentionTable[t % frameCycleCount];
             t++;
         } else {
             t += 3;
@@ -333,7 +333,7 @@ export function readPort(addr:u16):u8 {
             t += 4;
         } else {
             t++;
-            t += contentionTable[t];
+            t += contentionTable[t % frameCycleCount];
             t += 3;
         }
     }
@@ -360,14 +360,14 @@ export function readPort(addr:u16):u8 {
 export function writePort(addr:u16, val:u8):void {
     const page:u8 = memoryPageReadMap[addr >> 14];
     if (pageIsContended[page]) {
-        t += contentionTable[t];
+        t += contentionTable[t % frameCycleCount];
         t++;
-        t += contentionTable[t];
+        t += contentionTable[t % frameCycleCount];
         if (addr & 0x0001) {
             t++;
-            t += contentionTable[t];
+            t += contentionTable[t % frameCycleCount];
             t++;
-            t += contentionTable[t];
+            t += contentionTable[t % frameCycleCount];
             t++;
         } else {
             t += 3;
@@ -377,7 +377,7 @@ export function writePort(addr:u16, val:u8):void {
             t += 4;
         } else {
             t++;
-            t += contentionTable[t];
+            t += contentionTable[t % frameCycleCount];
             t += 3;
         }
     }
