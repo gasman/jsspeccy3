@@ -95,13 +95,15 @@ export class Menu {
 export class Toolbar {
     constructor(container) {
         this.elem = document.createElement('div');
-        this.elem.style.backgroundColor = '#eee';
+        this.elem.style.backgroundColor = '#ccc';
         container.appendChild(this.elem);
     }
-    addButton(label, onClick) {
+    addButton(icon, label, onClick) {
         const button = document.createElement('button');
         button.style.margin = '2px';
-        button.innerText = label;
+        button.innerHTML = icon;
+        button.firstChild.style.height = '20px';
+        button.title = label;
         this.elem.appendChild(button);
         button.addEventListener('click', onClick);
     }

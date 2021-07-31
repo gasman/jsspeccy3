@@ -6,6 +6,10 @@ import { MenuBar, Toolbar } from './ui.js';
 import { parseSNAFile, parseZ80File } from './snapshot.js';
 import { TAPFile, TZXFile } from './tape.js';
 
+import openIcon from './icons/open.svg';
+import resetIcon from './icons/reset.svg';
+
+
 const KEY_CODES = {
     49: {row: 3, mask: 0x01}, /* 1 */
     50: {row: 3, mask: 0x02}, /* 2 */
@@ -116,10 +120,10 @@ window.JSSpeccy = (container, opts) => {
         canvas.style.display = 'block';
 
         const toolbar = new Toolbar(innerContainer);
-        toolbar.addButton('open', () => {
+        toolbar.addButton(openIcon, 'Open file', () => {
             openFileDialog();
         });
-        toolbar.addButton('reset', () => {
+        toolbar.addButton(resetIcon, 'Reset', () => {
             reset();
         });
     } else {
