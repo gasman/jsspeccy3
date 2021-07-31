@@ -115,8 +115,8 @@ export function parseZ80File(data) {
             };
         }
         while (offset < data.byteLength) {
-            const compressedLength = file.getUint16(offset, true);
-            const isCompressed = true;
+            let compressedLength = file.getUint16(offset, true);
+            let isCompressed = true;
             if (compressedLength == 0xffff) {
                 compressedLength = 0x4000;
                 isCompressed = false;
