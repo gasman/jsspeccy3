@@ -91,3 +91,18 @@ export class Menu {
         }
     }
 }
+
+export class Toolbar {
+    constructor(container) {
+        this.elem = document.createElement('div');
+        this.elem.style.backgroundColor = '#eee';
+        container.appendChild(this.elem);
+    }
+    addButton(label, onClick) {
+        const button = document.createElement('button');
+        button.style.margin = '2px';
+        button.innerText = label;
+        this.elem.appendChild(button);
+        button.addEventListener('click', onClick);
+    }
+}

@@ -133,6 +133,9 @@ const run = (core) => {
             case 'setMachineType':
                 core.setMachineType(e.data.type);
                 break;
+            case 'reset':
+                core.reset();
+                break;
             case 'loadMemory':
                 loadMemoryPage(e.data.page, e.data.data);
                 break;

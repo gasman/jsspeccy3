@@ -2,7 +2,7 @@ import fileDialog from 'file-dialog';
 
 import { FRAME_BUFFER_SIZE } from './constants.js';
 import { CanvasRenderer } from './render.js';
-import { MenuBar } from './ui.js';
+import { MenuBar, Toolbar } from './ui.js';
 import { parseSNAFile, parseZ80File } from './snapshot.js';
 import { TAPFile, TZXFile } from './tape.js';
 
@@ -88,39 +88,7 @@ window.JSSpeccy = (container, opts) => {
         const menuBar = new MenuBar(innerContainer);
         const fileMenu = menuBar.addMenu('File');
         fileMenu.addItem('Open...', () => {
-            fileDialog().then(files => {
-                const file = files[0];
-                const cleanName = file.name.toLowerCase();
-                if (cleanName.endsWith('.z80')) {
-                    file.arrayBuffer().then(arrayBuffer => {
-                        const z80file = parseZ80File(arrayBuffer);
-                        loadSnapshot(z80file);
-                    });
-                } else if (cleanName.endsWith('.sna')) {
-                    file.arrayBuffer().then(arrayBuffer => {
-                        const snafile = parseSNAFile(arrayBuffer);
-                        loadSnapshot(snafile);
-                    });
-                } else if (cleanName.endsWith('.tap')) {
-                    file.arrayBuffer().then(arrayBuffer => {
-                        if (!TAPFile.isValid(arrayBuffer)) {
-                            alert('Invalid TAP file');
-                        } else {
-                            openTAPFile(arrayBuffer);
-                        }
-                    });
-                } else if (cleanName.endsWith('.tzx')) {
-                    file.arrayBuffer().then(arrayBuffer => {
-                        if (!TZXFile.isValid(arrayBuffer)) {
-                            alert('Invalid TZX file');
-                        } else {
-                            openTZXFile(arrayBuffer);
-                        }
-                    });
-                } else {
-                    alert('Unrecognised file type: ' + file.name);
-                }
-            })
+            openFileDialog();
         });
         const machineMenu = menuBar.addMenu('Machine');
         const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
@@ -145,6 +113,15 @@ window.JSSpeccy = (container, opts) => {
         }
 
         innerContainer.appendChild(canvas);
+        canvas.style.display = 'block';
+
+        const toolbar = new Toolbar(innerContainer);
+        toolbar.addButton('open', () => {
+            openFileDialog();
+        });
+        toolbar.addButton('reset', () => {
+            reset();
+        });
     } else {
         container.appendChild(canvas);
     }
@@ -172,6 +149,42 @@ window.JSSpeccy = (container, opts) => {
         }
     }
 
+    const openFileDialog = () => {
+        fileDialog().then(files => {
+            const file = files[0];
+            const cleanName = file.name.toLowerCase();
+            if (cleanName.endsWith('.z80')) {
+                file.arrayBuffer().then(arrayBuffer => {
+                    const z80file = parseZ80File(arrayBuffer);
+                    loadSnapshot(z80file);
+                });
+            } else if (cleanName.endsWith('.sna')) {
+                file.arrayBuffer().then(arrayBuffer => {
+                    const snafile = parseSNAFile(arrayBuffer);
+                    loadSnapshot(snafile);
+                });
+            } else if (cleanName.endsWith('.tap')) {
+                file.arrayBuffer().then(arrayBuffer => {
+                    if (!TAPFile.isValid(arrayBuffer)) {
+                        alert('Invalid TAP file');
+                    } else {
+                        openTAPFile(arrayBuffer);
+                    }
+                });
+            } else if (cleanName.endsWith('.tzx')) {
+                file.arrayBuffer().then(arrayBuffer => {
+                    if (!TZXFile.isValid(arrayBuffer)) {
+                        alert('Invalid TZX file');
+                    } else {
+                        openTZXFile(arrayBuffer);
+                    }
+                });
+            } else {
+                alert('Unrecognised file type: ' + file.name);
+            }
+        });
+    }
+
     const setMachine = (type) => {
         if (type != 128) type = 48;
         worker.postMessage({
@@ -187,6 +200,10 @@ window.JSSpeccy = (container, opts) => {
             snapshot,
         })
         if (onSetMachine) onSetMachine(snapshot.model);
+    }
+
+    const reset = () => {
+        worker.postMessage({message: 'reset'});
     }
 
     const openTAPFile = (data) => {
