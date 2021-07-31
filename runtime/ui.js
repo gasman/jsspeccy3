@@ -19,6 +19,12 @@ export class MenuBar {
     exitFullscreen() {
         this.elem.style.position = 'static';
     }
+    show() {
+        this.elem.style.visibility = 'visible';
+    }
+    hide() {
+        this.elem.style.visibility = 'hidden';
+    }
 }
 
 export class Menu {
@@ -123,5 +129,11 @@ export class Toolbar {
     }
     exitFullscreen() {
         this.elem.style.position = 'static';
+    }
+    show() {
+        this.elem.style.visibility = 'visible';
+    }
+    hide() {
+        this.elem.style.visibility = 'hidden';
     }
 }
