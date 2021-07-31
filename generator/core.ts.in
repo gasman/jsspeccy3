@@ -427,8 +427,8 @@ export function writePort(addr:u16, val:u8):void {
     if (loggingEnabled) log(t, 5, addr, val);
     if (!(addr & 0x0001)) {
         /* border colour / speaker */
+        updateFramebuffer();  // apply all screen upates up to this point
         borderColour = val & 0x07;
-        updateFramebuffer();
     } else if (!(addr & 0x8002)) {
         /* 128/+2 paging */
         if (!pagingLocked) {
