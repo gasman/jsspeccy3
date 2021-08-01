@@ -12,6 +12,7 @@ import resetIcon from './icons/reset.svg';
 import playIcon from './icons/play.svg';
 import pauseIcon from './icons/pause.svg';
 import fullscreenIcon from './icons/fullscreen.svg';
+import exitFullscreenIcon from './icons/exitfullscreen.svg';
 
 
 class Emulator extends EventEmitter {
@@ -280,13 +281,23 @@ window.JSSpeccy = (container, opts) => {
         pauseButton.setIcon(pauseIcon);
         pauseButton.setLabel('Pause');
     });
-    ui.toolbar.addButton(
+    const fullscreenButton = ui.toolbar.addButton(
         fullscreenIcon,
         {label: 'Enter full screen mode', align: 'right'},
         () => {
             ui.toggleFullscreen();
         }
     )
+
+    ui.on('setZoom', (factor) => {
+        if (factor == 'fullscreen') {
+            fullscreenButton.setIcon(exitFullscreenIcon);
+            fullscreenButton.setLabel('Exit full screen mode');
+        } else {
+            fullscreenButton.setIcon(fullscreenIcon);
+            fullscreenButton.setLabel('Enter full screen mode');
+        }
+    });
 
     const openFileDialog = () => {
         fileDialog().then(files => {
