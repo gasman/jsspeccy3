@@ -1,8 +1,7 @@
 import EventEmitter from 'events';
 import fileDialog from 'file-dialog';
 
-import { FRAME_BUFFER_SIZE } from './constants.js';
-import { CanvasRenderer } from './render.js';
+import { DisplayHandler } from './render.js';
 import { MenuBar, Toolbar } from './ui.js';
 import { parseSNAFile, parseZ80File, parseSZXFile } from './snapshot.js';
 import { TAPFile, TZXFile } from './tape.js';
@@ -19,18 +18,9 @@ class Emulator extends EventEmitter {
         this.canvas = canvas;
         this.worker = new Worker('jsspeccy-worker.js');
         this.keyboardHandler = new KeyboardHandler(this.worker);
-
-        this.renderer = new CanvasRenderer(canvas);
+        this.displayHandler = new DisplayHandler(this.canvas);
 
         this.msPerFrame = 20;
-        this.frameBuffers = [
-            new ArrayBuffer(FRAME_BUFFER_SIZE),
-            new ArrayBuffer(FRAME_BUFFER_SIZE),
-            new ArrayBuffer(FRAME_BUFFER_SIZE),
-        ];
-        this.bufferBeingShown = null;
-        this.bufferAwaitingShow = null;
-        this.lockedBuffer = null;
 
         this.isRunningFrame = false;
         this.nextFrameTime = performance.now();
@@ -48,9 +38,7 @@ class Emulator extends EventEmitter {
                     break;
                 case 'frameCompleted':
                     // benchmarkRunCount++;
-                    this.frameBuffers[this.lockedBuffer] = e.data.frameBuffer;
-                    this.bufferAwaitingShow = this.lockedBuffer;
-                    this.lockedBuffer = null;
+                    this.displayHandler.frameCompleted(e.data.frameBuffer);
                     const time = performance.now();
                     if (time > this.nextFrameTime) {
                         /* running at full blast - start next frame but adjust time base
@@ -83,29 +71,19 @@ class Emulator extends EventEmitter {
         await this.loadRom('48.rom', 10);
     }
 
-    getBufferToLock() {
-        for (let i = 0; i < 3; i++) {
-            if (i !== this.bufferBeingShown && i !== this.bufferAwaitingShow) {
-                return i;
-            }
-        }
-    }
 
     runFrame() {
         this.isRunningFrame = true;
-        this.lockedBuffer = this.getBufferToLock();
+        const frameBuffer = this.displayHandler.getNextFrameBuffer();
         this.worker.postMessage({
-            'message': 'runFrame',
-            'frameBuffer': this.frameBuffers[this.lockedBuffer],
-        }, [this.frameBuffers[this.lockedBuffer]]);
+            message: 'runFrame',
+            frameBuffer,
+        }, frameBuffer);
     }
 
     runAnimationFrame(time) {
-        if (this.bufferAwaitingShow !== null) {
-            this.bufferBeingShown = this.bufferAwaitingShow;
-            this.bufferAwaitingShow = null;
-            this.renderer.showFrame(this.frameBuffers[this.bufferBeingShown]);
-            this.bufferBeingShown = null;
+        if (this.displayHandler.readyToShow()) {
+            this.displayHandler.show();
             // benchmarkRenderCount++;
         }
         if (time > this.nextFrameTime && !this.isRunningFrame) {
