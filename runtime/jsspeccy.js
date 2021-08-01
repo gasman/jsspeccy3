@@ -9,6 +9,7 @@ import { TAPFile, TZXFile } from './tape.js';
 
 import openIcon from './icons/open.svg';
 import resetIcon from './icons/reset.svg';
+import fullscreenIcon from './icons/fullscreen.svg';
 
 
 const KEY_CODES = {
@@ -308,7 +309,7 @@ window.JSSpeccy = (container, opts) => {
         if (onSetZoom) onSetZoom(factor);
     }
 
-    const setFullscreen = () => {
+    const enterFullscreen = () => {
         appContainer.requestFullscreen();
     }
     const exitFullscreen = () => {
@@ -408,7 +409,7 @@ window.JSSpeccy = (container, opts) => {
             3: displayMenu.addItem('300%', () => setZoom(3)),
         }
         const fullscreenItem = displayMenu.addItem('Fullscreen', () => {
-            setFullscreen();
+            enterFullscreen();
         })
         onSetZoom = (factor) => {
             if (factor == 'fullscreen') {
@@ -444,12 +445,23 @@ window.JSSpeccy = (container, opts) => {
 
     if (opts.ui) {
         toolbar = new Toolbar(appContainer);
-        toolbar.addButton(openIcon, 'Open file', () => {
+        toolbar.addButton(openIcon, {label: 'Open file'}, () => {
             openFileDialog();
         });
-        toolbar.addButton(resetIcon, 'Reset', () => {
+        toolbar.addButton(resetIcon, {label: 'Reset'}, () => {
             emu.reset();
         });
+        toolbar.addButton(
+            fullscreenIcon,
+            {label: 'Enter full screen mode', align: 'right'},
+            () => {
+                if (isFullscreen) {
+                    exitFullscreen();
+                } else {
+                    enterFullscreen();
+                }
+            }
+        )
     }
 
     setZoom(opts.zoom || 1);

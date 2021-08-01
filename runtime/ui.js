@@ -137,12 +137,15 @@ export class Toolbar {
         this.currentMouseenterEvent = null;
         this.currentMouseoutEvent = null;
     }
-    addButton(icon, label, onClick) {
+    addButton(icon, opts, onClick) {
+        opts = opts || {};
         const button = document.createElement('button');
         button.style.margin = '2px';
         button.innerHTML = icon;
         button.firstChild.style.height = '20px';
-        button.title = label;
+        button.firstChild.style.verticalAlign = 'middle';
+        if (opts.label) button.title = opts.label;
+        if (opts.align == 'right') button.style.float = 'right';
         this.elem.appendChild(button);
         button.addEventListener('click', onClick);
     }
