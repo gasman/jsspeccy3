@@ -1,5 +1,7 @@
 import EventEmitter from 'events';
 
+import playIcon from './icons/play.svg';
+
 
 export class MenuBar {
     constructor(container) {
@@ -203,7 +205,7 @@ export class UIController extends EventEmitter {
         this.toolbar = new Toolbar(this.appContainer);
 
         this.startButton = document.createElement('button');
-        this.startButton.innerText = 'start';
+        this.startButton.innerHTML = playIcon;
         this.appContainer.appendChild(this.startButton);
         this.startButton.style.position = 'absolute';
         this.startButton.style.top = '50%';
@@ -212,6 +214,17 @@ export class UIController extends EventEmitter {
         this.startButton.style.height = '64px';
         this.startButton.style.marginLeft = '-48px';
         this.startButton.style.marginTop = '-32px';
+        this.startButton.style.backgroundColor = 'rgba(192, 192, 192, 0.7)';
+        this.startButton.style.border = 'none';
+        this.startButton.style.borderRadius = '4px';
+        this.startButton.firstChild.style.height = '56px';
+        this.startButton.firstChild.style.verticalAlign = 'middle';
+        this.startButton.addEventListener('mouseenter', () => {
+            this.startButton.style.backgroundColor = 'rgba(128, 128, 128, 0.7)';
+        });
+        this.startButton.addEventListener('mouseleave', () => {
+            this.startButton.style.backgroundColor = 'rgba(192, 192, 192, 0.7)';
+        });
         this.startButton.addEventListener('click', (e) => {
             emulator.start();
         });
