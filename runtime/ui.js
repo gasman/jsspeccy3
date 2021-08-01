@@ -186,19 +186,41 @@ export class Toolbar {
 
 
 export class UIController extends EventEmitter {
-    constructor(container, canvas, opts) {
+    constructor(container, emulator, opts) {
         super();
-        this.canvas = canvas;
+        this.canvas = emulator.canvas;
 
         /* build UI elements */
         this.appContainer = document.createElement('div');
         container.appendChild(this.appContainer);
+        this.appContainer.style.position = 'relative';
 
         this.menuBar = new MenuBar(this.appContainer);
+        this.appContainer.appendChild(this.canvas);
         this.canvas.style.objectFit = 'contain';
-        this.appContainer.appendChild(canvas);
         this.canvas.style.display = 'block';
+
         this.toolbar = new Toolbar(this.appContainer);
+
+        this.startButton = document.createElement('button');
+        this.startButton.innerText = 'start';
+        this.appContainer.appendChild(this.startButton);
+        this.startButton.style.position = 'absolute';
+        this.startButton.style.top = '50%';
+        this.startButton.style.left = '50%';
+        this.startButton.style.width = '96px';
+        this.startButton.style.height = '64px';
+        this.startButton.style.marginLeft = '-48px';
+        this.startButton.style.marginTop = '-32px';
+        this.startButton.addEventListener('click', (e) => {
+            emulator.start();
+        });
+        emulator.on('start', () => {
+            this.startButton.style.display = 'none';
+        });
+        emulator.on('pause', () => {
+            this.startButton.style.display = 'block';
+        });
 
         /* variables for tracking zoom / fullscreen state */
         this.zoom = null;
@@ -221,8 +243,8 @@ export class UIController extends EventEmitter {
         this.appContainer.addEventListener('fullscreenchange', () => {
             if (document.fullscreenElement) {
                 this.isFullscreen = true;
-                canvas.style.width = '100%';
-                canvas.style.height = '100%';
+                this.canvas.style.width = '100%';
+                this.canvas.style.height = '100%';
                 document.addEventListener('mousemove', fullscreenMouseMove);
                 /* a bogus mousemove event is emitted on entering fullscreen, so ignore it */
                 this.ignoreNextMouseMove = true;

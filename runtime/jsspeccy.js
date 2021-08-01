@@ -13,45 +13,67 @@ import fullscreenIcon from './icons/fullscreen.svg';
 
 
 class Emulator extends EventEmitter {
-    constructor(canvas, machineType) {
+    constructor(canvas, opts) {
         super();
         this.canvas = canvas;
         this.worker = new Worker('jsspeccy-worker.js');
         this.keyboardHandler = new KeyboardHandler(this.worker);
         this.displayHandler = new DisplayHandler(this.canvas);
+        this.isRunning = false;
 
         this.msPerFrame = 20;
 
-        this.isRunningFrame = false;
-        this.nextFrameTime = performance.now();
+        this.isExecutingFrame = false;
+        this.nextFrameTime = null;
 
         this.worker.onmessage = (e) => {
             switch(e.data.message) {
                 case 'ready':
                     this.loadRoms().then(() => {
-                        this.setMachine(machineType);
-                        this.keyboardHandler.start();
-                        window.requestAnimationFrame((t) => {
-                            this.runAnimationFrame(t);
-                        });
+                        this.setMachine(opts.machine || 128);
+                        if (opts.autoStart) this.start();
                     })
                     break;
                 case 'frameCompleted':
                     // benchmarkRunCount++;
                     this.displayHandler.frameCompleted(e.data.frameBuffer);
-                    const time = performance.now();
-                    if (time > this.nextFrameTime) {
-                        /* running at full blast - start next frame but adjust time base
-                        to give it the full time allocation */
-                        this.runFrame();
-                        this.nextFrameTime = time + this.msPerFrame;
+                    if (this.isRunning) {
+                        const time = performance.now();
+                        if (time > this.nextFrameTime) {
+                            /* running at full blast - start next frame but adjust time base
+                            to give it the full time allocation */
+                            this.runFrame();
+                            this.nextFrameTime = time + this.msPerFrame;
+                        } else {
+                            this.isExecutingFrame = false;
+                        }
                     } else {
-                        this.isRunningFrame = false;
+                        this.isExecutingFrame = false;
                     }
                     break;
                 default:
                     console.log('message received by host:', e.data);
             }
+        }
+    }
+
+    start() {
+        if (!this.isRunning) {
+            this.isRunning = true;
+            this.nextFrameTime = performance.now();
+            this.keyboardHandler.start();
+            this.emit('start');
+            window.requestAnimationFrame((t) => {
+                this.runAnimationFrame(t);
+            });
+        }
+    }
+
+    pause() {
+        if (this.isRunning) {
+            this.isRunning = false;
+            this.keyboardHandler.stop();
+            this.emit('pause');
         }
     }
 
@@ -73,7 +95,7 @@ class Emulator extends EventEmitter {
 
 
     runFrame() {
-        this.isRunningFrame = true;
+        this.isExecutingFrame = true;
         const frameBuffer = this.displayHandler.getNextFrameBuffer();
         this.worker.postMessage({
             message: 'runFrame',
@@ -86,13 +108,15 @@ class Emulator extends EventEmitter {
             this.displayHandler.show();
             // benchmarkRenderCount++;
         }
-        if (time > this.nextFrameTime && !this.isRunningFrame) {
-            this.runFrame();
-            this.nextFrameTime += this.msPerFrame;
+        if (this.isRunning) {
+            if (time > this.nextFrameTime && !this.isExecutingFrame) {
+                this.runFrame();
+                this.nextFrameTime += this.msPerFrame;
+            }
+            window.requestAnimationFrame((t) => {
+                this.runAnimationFrame(t);
+            });
         }
-        window.requestAnimationFrame((t) => {
-            this.runAnimationFrame(t);
-        });
     };
 
     setMachine(type) {
@@ -178,8 +202,11 @@ window.JSSpeccy = (container, opts) => {
     canvas.width = 320;
     canvas.height = 240;
 
-    const ui = new UIController(container, canvas, {zoom: opts.zoom || 1});
-    const emu = new Emulator(canvas, opts.machine || 128);
+    const emu = new Emulator(canvas, {
+        machine: opts.machine || 128,
+        autoStart: opts.autoStart || false,
+    });
+    const ui = new UIController(container, emu, {zoom: opts.zoom || 1});
 
     const fileMenu = ui.menuBar.addMenu('File');
     fileMenu.addItem('Open...', () => {
