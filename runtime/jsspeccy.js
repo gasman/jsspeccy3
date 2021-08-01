@@ -320,6 +320,7 @@ window.JSSpeccy = (container, opts) => {
     const hideUI = () => {
         if (!uiIsHidden) {
             uiIsHidden = true;
+            appContainer.style.cursor = 'none';
             if (menuBar) menuBar.hide();
             if (toolbar) toolbar.hide();
         }
@@ -327,6 +328,7 @@ window.JSSpeccy = (container, opts) => {
     const showUI = () => {
         if (uiIsHidden) {
             uiIsHidden = false;
+            appContainer.style.cursor = 'default';
             if (menuBar) menuBar.show();
             if (toolbar) toolbar.show();
         }
