@@ -202,7 +202,7 @@ window.JSSpeccy = (container, opts) => {
     const fullscreenItem = displayMenu.addItem('Fullscreen', () => {
         ui.enterFullscreen();
     })
-    ui.onSetZoom = (factor) => {
+    ui.on('setZoom', (factor) => {
         if (factor == 'fullscreen') {
             fullscreenItem.setCheckbox();
             for (let i in zoomItemsBySize) {
@@ -218,7 +218,7 @@ window.JSSpeccy = (container, opts) => {
                 }
             }
         }
-    }
+    });
 
     emu.on('setMachine', (type) => {
         if (type == 48) {

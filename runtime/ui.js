@@ -1,3 +1,6 @@
+import EventEmitter from 'events';
+
+
 export class MenuBar {
     constructor(container) {
         this.elem = document.createElement('div');
@@ -182,8 +185,9 @@ export class Toolbar {
 }
 
 
-export class UIController {
+export class UIController extends EventEmitter {
     constructor(container, canvas, opts) {
+        super();
         this.canvas = canvas;
 
         /* build UI elements */
@@ -232,7 +236,7 @@ export class UIController {
                 this.toolbar.onmouseout(() => {this.allowUIHiding = true;});
 
                 this.hideUI();
-                if (this.onSetZoom) this.onSetZoom('fullscreen');
+                this.emit('setZoom', 'fullscreen');
             } else {
                 this.isFullscreen = false;
                 if (this.hideUITimeout) clearTimeout(this.hideUITimeout);
@@ -251,7 +255,6 @@ export class UIController {
             }
         })
 
-        this.onSetZoom = null;
         this.setZoom(opts.zoom || 1);
     }
 
@@ -266,7 +269,7 @@ export class UIController {
         this.canvas.style.width = '' + displayWidth + 'px';
         this.canvas.style.height = '' + displayHeight + 'px';
         this.appContainer.style.width = '' + displayWidth + 'px';
-        if (this.onSetZoom) this.onSetZoom(factor);
+        this.emit('setZoom', factor);
     }
 
     enterFullscreen() {
