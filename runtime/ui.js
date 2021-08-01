@@ -7,6 +7,8 @@ export class MenuBar {
         this.elem.style.top = '0';
         this.elem.style.width = '100%';
         container.appendChild(this.elem);
+        this.currentMouseenterEvent = null;
+        this.currentMouseoutEvent = null;
     }
 
     addMenu(title) {
@@ -24,6 +26,24 @@ export class MenuBar {
     }
     hide() {
         this.elem.style.visibility = 'hidden';
+    }
+    onmouseenter(e) {
+        if (this.currentMouseenterEvent) {
+            this.elem.removeEventListener('mouseenter', this.currentMouseenterEvent);
+        }
+        if (e) {
+            this.elem.addEventListener('mouseenter', e);
+        }
+        this.currentMouseenterEvent = e;
+    }
+    onmouseout(e) {
+        if (this.currentMouseoutEvent) {
+            this.elem.removeEventListener('mouseleave', this.currentMouseoutEvent);
+        }
+        if (e) {
+            this.elem.addEventListener('mouseleave', e);
+        }
+        this.currentMouseoutEvent = e;
     }
 }
 
@@ -86,7 +106,7 @@ export class Menu {
         button.style.paddingBottom = '4px';
 
         // eww.
-        button.addEventListener('mouseover', () => {
+        button.addEventListener('mouseenter', () => {
             button.style.backgroundColor = '#ddd';
         });
         button.addEventListener('mouseout', () => {
@@ -114,6 +134,8 @@ export class Toolbar {
         this.elem.style.bottom = '0';
         this.elem.style.width = '100%';
         container.appendChild(this.elem);
+        this.currentMouseenterEvent = null;
+        this.currentMouseoutEvent = null;
     }
     addButton(icon, label, onClick) {
         const button = document.createElement('button');
@@ -135,5 +157,23 @@ export class Toolbar {
     }
     hide() {
         this.elem.style.visibility = 'hidden';
+    }
+    onmouseenter(e) {
+        if (this.currentMouseenterEvent) {
+            this.elem.removeEventListener('mouseenter', this.currentMouseenterEvent);
+        }
+        if (e) {
+            this.elem.addEventListener('mouseenter', e);
+        }
+        this.currentMouseenterEvent = e;
+    }
+    onmouseout(e) {
+        if (this.currentMouseoutEvent) {
+            this.elem.removeEventListener('mouseleave', this.currentMouseoutEvent);
+        }
+        if (e) {
+            this.elem.addEventListener('mouseleave', e);
+        }
+        this.currentMouseoutEvent = e;
     }
 }

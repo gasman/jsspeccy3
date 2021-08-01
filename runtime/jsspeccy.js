@@ -293,7 +293,6 @@ window.JSSpeccy = (container, opts) => {
     let menuBar = null;
     let toolbar = null;
     let isFullscreen = false;
-    let uiIsHidden = false;
 
     const setZoom = (factor) => {
         zoom = factor;
@@ -317,8 +316,11 @@ window.JSSpeccy = (container, opts) => {
             document.exitFullscreen();
         }
     }
+
+    let uiIsHidden = false;
+    let allowUIHiding = true;
     const hideUI = () => {
-        if (!uiIsHidden) {
+        if (allowUIHiding && !uiIsHidden) {
             uiIsHidden = true;
             appContainer.style.cursor = 'none';
             if (menuBar) menuBar.hide();
@@ -352,16 +354,32 @@ window.JSSpeccy = (container, opts) => {
             document.addEventListener('mousemove', fullscreenMouseMove);
             /* a bogus mousemove event is emitted on entering fullscreen, so ignore it */
             ignoreNextMouseMove = true;
-            if (menuBar) menuBar.enterFullscreen();
-            if (toolbar) toolbar.enterFullscreen();
+            if (menuBar) {
+                menuBar.enterFullscreen();
+                menuBar.onmouseenter(() => {allowUIHiding = false;});
+                menuBar.onmouseout(() => {allowUIHiding = true;});
+            }
+            if (toolbar) {
+                toolbar.enterFullscreen();
+                toolbar.onmouseenter(() => {allowUIHiding = false;});
+                toolbar.onmouseout(() => {allowUIHiding = true;});
+            }
             hideUI();
             if (onSetZoom) onSetZoom('fullscreen');
         } else {
             isFullscreen = false;
             if (hideUITimeout) clearTimeout(hideUITimeout);
             showUI();
-            if (menuBar) menuBar.exitFullscreen();
-            if (toolbar) toolbar.exitFullscreen();
+            if (menuBar) {
+                menuBar.exitFullscreen();
+                menuBar.onmouseenter(null);
+                menuBar.onmouseout(null);
+            }
+            if (toolbar) {
+                toolbar.exitFullscreen();
+                toolbar.onmouseenter(null);
+                toolbar.onmouseout(null);
+            }
             document.removeEventListener('mousemove', fullscreenMouseMove);
             setZoom(zoom);
         }
