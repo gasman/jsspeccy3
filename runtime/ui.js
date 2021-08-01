@@ -214,7 +214,7 @@ export class UIController extends EventEmitter {
         this.startButton.style.height = '64px';
         this.startButton.style.marginLeft = '-48px';
         this.startButton.style.marginTop = '-32px';
-        this.startButton.style.backgroundColor = 'rgba(192, 192, 192, 0.7)';
+        this.startButton.style.backgroundColor = 'rgba(160, 160, 160, 0.7)';
         this.startButton.style.border = 'none';
         this.startButton.style.borderRadius = '4px';
         this.startButton.firstChild.style.height = '56px';
@@ -223,7 +223,7 @@ export class UIController extends EventEmitter {
             this.startButton.style.backgroundColor = 'rgba(128, 128, 128, 0.7)';
         });
         this.startButton.addEventListener('mouseleave', () => {
-            this.startButton.style.backgroundColor = 'rgba(192, 192, 192, 0.7)';
+            this.startButton.style.backgroundColor = 'rgba(160, 160, 160, 0.7)';
         });
         this.startButton.addEventListener('click', (e) => {
             emulator.start();
