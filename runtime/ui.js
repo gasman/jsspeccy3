@@ -180,3 +180,125 @@ export class Toolbar {
         this.currentMouseoutEvent = e;
     }
 }
+
+
+export class UIController {
+    constructor(container, canvas, opts) {
+        this.canvas = canvas;
+
+        /* build UI elements */
+        this.appContainer = document.createElement('div');
+        container.appendChild(this.appContainer);
+
+        this.menuBar = new MenuBar(this.appContainer);
+        this.canvas.style.objectFit = 'contain';
+        this.appContainer.appendChild(canvas);
+        this.canvas.style.display = 'block';
+        this.toolbar = new Toolbar(this.appContainer);
+
+        /* variables for tracking zoom / fullscreen state */
+        this.zoom = null;
+        this.isFullscreen = false;
+        this.uiIsHidden = false;
+        this.allowUIHiding = true;
+        this.hideUITimeout = null;
+        this.ignoreNextMouseMove = false;
+
+        /* state changes when entering / exiting fullscreen */
+        const fullscreenMouseMove = () => {
+            if (this.ignoreNextMouseMove) {
+                this.ignoreNextMouseMove = false;
+                return;
+            }
+            this.showUI();
+            if (this.hideUITimeout) clearTimeout(this.hideUITimeout);
+            this.hideUITimeout = setTimeout(() => {this.hideUI();}, 3000);
+        }
+        this.appContainer.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                this.isFullscreen = true;
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                document.addEventListener('mousemove', fullscreenMouseMove);
+                /* a bogus mousemove event is emitted on entering fullscreen, so ignore it */
+                this.ignoreNextMouseMove = true;
+
+                this.menuBar.enterFullscreen();
+                this.menuBar.onmouseenter(() => {this.allowUIHiding = false;});
+                this.menuBar.onmouseout(() => {this.allowUIHiding = true;});
+
+                this.toolbar.enterFullscreen();
+                this.toolbar.onmouseenter(() => {this.allowUIHiding = false;});
+                this.toolbar.onmouseout(() => {this.allowUIHiding = true;});
+
+                this.hideUI();
+                if (this.onSetZoom) this.onSetZoom('fullscreen');
+            } else {
+                this.isFullscreen = false;
+                if (this.hideUITimeout) clearTimeout(this.hideUITimeout);
+                this.showUI();
+
+                this.menuBar.exitFullscreen();
+                this.menuBar.onmouseenter(null);
+                this.menuBar.onmouseout(null);
+
+                this.toolbar.exitFullscreen();
+                this.toolbar.onmouseenter(null);
+                this.toolbar.onmouseout(null);
+
+                document.removeEventListener('mousemove', fullscreenMouseMove);
+                this.setZoom(this.zoom);
+            }
+        })
+
+        this.onSetZoom = null;
+        this.setZoom(opts.zoom || 1);
+    }
+
+    setZoom(factor) {
+        this.zoom = factor;
+        if (this.isFullscreen) {
+            document.exitFullscreen();
+            return;  // setZoom will be retriggered once fullscreen has exited
+        }
+        const displayWidth = 320 * this.zoom;
+        const displayHeight = 240 * this.zoom;
+        this.canvas.style.width = '' + displayWidth + 'px';
+        this.canvas.style.height = '' + displayHeight + 'px';
+        this.appContainer.style.width = '' + displayWidth + 'px';
+        if (this.onSetZoom) this.onSetZoom(factor);
+    }
+
+    enterFullscreen() {
+        this.appContainer.requestFullscreen();
+    }
+    exitFullscreen() {
+        if (this.isFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+    toggleFullscreen() {
+        if (this.isFullscreen) {
+            this.exitFullscreen();
+        } else {
+            this.enterFullscreen();
+        }
+    }
+
+    hideUI() {
+        if (this.allowUIHiding && !this.uiIsHidden) {
+            this.uiIsHidden = true;
+            this.appContainer.style.cursor = 'none';
+            this.menuBar.hide();
+            this.toolbar.hide();
+        }
+    }
+    showUI() {
+        if (this.uiIsHidden) {
+            this.uiIsHidden = false;
+            this.appContainer.style.cursor = 'default';
+            this.menuBar.show();
+            this.toolbar.show();
+        }
+    }
+}

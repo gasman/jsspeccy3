@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 import fileDialog from 'file-dialog';
 
 import { DisplayHandler } from './render.js';
-import { MenuBar, Toolbar } from './ui.js';
+import { UIController } from './ui.js';
 import { parseSNAFile, parseZ80File, parseSZXFile } from './snapshot.js';
 import { TAPFile, TZXFile } from './tape.js';
 import { KeyboardHandler } from './keyboard.js';
@@ -174,138 +174,35 @@ window.JSSpeccy = (container, opts) => {
     // let benchmarkRenderCount = 0;
     opts = opts || {};
 
-    const appContainer = document.createElement('div');
-    container.appendChild(appContainer);
-    let menuBar = new MenuBar(appContainer);
-
     const canvas = document.createElement('canvas');
     canvas.width = 320;
     canvas.height = 240;
-    canvas.style.objectFit = 'contain';
-    appContainer.appendChild(canvas);
-    canvas.style.display = 'block';
 
-    let toolbar = new Toolbar(appContainer);
-
+    const ui = new UIController(container, canvas, {zoom: opts.zoom || 1});
     const emu = new Emulator(canvas, opts.machine || 128);
 
-    let zoom;
-    let displayWidth;
-    let displayHeight;
-    let onSetZoom;
-    let isFullscreen = false;
-
-    const setZoom = (factor) => {
-        zoom = factor;
-        if (isFullscreen) {
-            document.exitFullscreen();
-            return;  // setZoom will be retriggered once fullscreen has exited
-        }
-        displayWidth = 320 * zoom;
-        displayHeight = 240 * zoom;
-        canvas.style.width = '' + displayWidth + 'px';
-        canvas.style.height = '' + displayHeight + 'px';
-        appContainer.style.width = '' + displayWidth + 'px';
-        if (onSetZoom) onSetZoom(factor);
-    }
-
-    const enterFullscreen = () => {
-        appContainer.requestFullscreen();
-    }
-    const exitFullscreen = () => {
-        if (isFullscreen) {
-            document.exitFullscreen();
-        }
-    }
-
-    let uiIsHidden = false;
-    let allowUIHiding = true;
-    const hideUI = () => {
-        if (allowUIHiding && !uiIsHidden) {
-            uiIsHidden = true;
-            appContainer.style.cursor = 'none';
-            menuBar.hide();
-            toolbar.hide();
-        }
-    }
-    const showUI = () => {
-        if (uiIsHidden) {
-            uiIsHidden = false;
-            appContainer.style.cursor = 'default';
-            menuBar.show();
-            toolbar.show();
-        }
-    }
-    let hideUITimeout = null;
-    let ignoreNextMouseMove = false;
-    const fullscreenMouseMove = () => {
-        if (ignoreNextMouseMove) {
-            ignoreNextMouseMove = false;
-            return;
-        }
-        showUI();
-        if (hideUITimeout) clearTimeout(hideUITimeout);
-        hideUITimeout = setTimeout(hideUI, 3000);
-    }
-    appContainer.addEventListener('fullscreenchange', () => {
-        if (document.fullscreenElement) {
-            isFullscreen = true;
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            document.addEventListener('mousemove', fullscreenMouseMove);
-            /* a bogus mousemove event is emitted on entering fullscreen, so ignore it */
-            ignoreNextMouseMove = true;
-
-            menuBar.enterFullscreen();
-            menuBar.onmouseenter(() => {allowUIHiding = false;});
-            menuBar.onmouseout(() => {allowUIHiding = true;});
-
-            toolbar.enterFullscreen();
-            toolbar.onmouseenter(() => {allowUIHiding = false;});
-            toolbar.onmouseout(() => {allowUIHiding = true;});
-
-            hideUI();
-            if (onSetZoom) onSetZoom('fullscreen');
-        } else {
-            isFullscreen = false;
-            if (hideUITimeout) clearTimeout(hideUITimeout);
-            showUI();
-
-            menuBar.exitFullscreen();
-            menuBar.onmouseenter(null);
-            menuBar.onmouseout(null);
-
-            toolbar.exitFullscreen();
-            toolbar.onmouseenter(null);
-            toolbar.onmouseout(null);
-
-            document.removeEventListener('mousemove', fullscreenMouseMove);
-            setZoom(zoom);
-        }
-    })
-
-    const fileMenu = menuBar.addMenu('File');
+    const fileMenu = ui.menuBar.addMenu('File');
     fileMenu.addItem('Open...', () => {
         openFileDialog();
     });
-    const machineMenu = menuBar.addMenu('Machine');
+    const machineMenu = ui.menuBar.addMenu('Machine');
     const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
         emu.setMachine(48);
     });
     const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
         emu.setMachine(128);
     });
-    const displayMenu = menuBar.addMenu('Display');
+    const displayMenu = ui.menuBar.addMenu('Display');
 
     const zoomItemsBySize = {
-        1: displayMenu.addItem('100%', () => setZoom(1)),
-        2: displayMenu.addItem('200%', () => setZoom(2)),
-        3: displayMenu.addItem('300%', () => setZoom(3)),
+        1: displayMenu.addItem('100%', () => ui.setZoom(1)),
+        2: displayMenu.addItem('200%', () => ui.setZoom(2)),
+        3: displayMenu.addItem('300%', () => ui.setZoom(3)),
     }
     const fullscreenItem = displayMenu.addItem('Fullscreen', () => {
-        enterFullscreen();
+        ui.enterFullscreen();
     })
-    onSetZoom = (factor) => {
+    ui.onSetZoom = (factor) => {
         if (factor == 'fullscreen') {
             fullscreenItem.setCheckbox();
             for (let i in zoomItemsBySize) {
@@ -333,25 +230,19 @@ window.JSSpeccy = (container, opts) => {
         }
     });
 
-    toolbar.addButton(openIcon, {label: 'Open file'}, () => {
+    ui.toolbar.addButton(openIcon, {label: 'Open file'}, () => {
         openFileDialog();
     });
-    toolbar.addButton(resetIcon, {label: 'Reset'}, () => {
+    ui.toolbar.addButton(resetIcon, {label: 'Reset'}, () => {
         emu.reset();
     });
-    toolbar.addButton(
+    ui.toolbar.addButton(
         fullscreenIcon,
         {label: 'Enter full screen mode', align: 'right'},
         () => {
-            if (isFullscreen) {
-                exitFullscreen();
-            } else {
-                enterFullscreen();
-            }
+            ui.toggleFullscreen();
         }
     )
-
-    setZoom(opts.zoom || 1);
 
     const openFileDialog = () => {
         fileDialog().then(files => {
