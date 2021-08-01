@@ -1,3 +1,5 @@
+import pako from 'pako';
+
 function extractMemoryBlock(data, fileOffset, isCompressed, unpackedLength) {
     if (!isCompressed) {
         /* uncompressed; extract a byte array directly from data */
@@ -291,9 +293,12 @@ export function parseSZXFile(data) {
                 const isCompressed = file.getUint16(offset + 0, true) & 0x0001;
                 const pageNumber = file.getUint8(offset + 2);
                 if (isCompressed) {
-                    throw "Compressed blocks not supported";
+                    const compressedLength = blockLen - 3;
+                    const compressed = new Uint8Array(data, offset + 3, compressedLength);
+                    const pageData = pako.inflate(compressed);
+                    snapshot.memoryPages[pageNumber] = pageData;
                 } else {
-                    const pageData = new Uint8Array(data, offset + 27, 0x4000);
+                    const pageData = new Uint8Array(data, offset + 3, 0x4000);
                     snapshot.memoryPages[pageNumber] = pageData;
                 }
                 break;

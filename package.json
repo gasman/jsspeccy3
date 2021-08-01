@@ -60,6 +60,7 @@
     "webpack-cli": "^4.7.2"
   },
   "dependencies": {
-    "file-dialog": "^0.0.8"
+    "file-dialog": "^0.0.8",
+    "pako": "^2.0.4"
   }
 }
