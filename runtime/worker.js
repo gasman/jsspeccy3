@@ -28,6 +28,7 @@ const run = (core) => {
         core.setIFF1(snapshot.registers.iff1);
         core.setIFF2(snapshot.registers.iff2);
         core.setIM(snapshot.registers.im);
+        core.setHalted(!!snapshot.halted);
 
         core.writePort(0x00fe, snapshot.ulaState.borderColour);
         if (snapshot.model != 48) {

@@ -4,7 +4,7 @@ import fileDialog from 'file-dialog';
 import { FRAME_BUFFER_SIZE } from './constants.js';
 import { CanvasRenderer } from './render.js';
 import { MenuBar, Toolbar } from './ui.js';
-import { parseSNAFile, parseZ80File } from './snapshot.js';
+import { parseSNAFile, parseZ80File, parseSZXFile } from './snapshot.js';
 import { TAPFile, TZXFile } from './tape.js';
 
 import openIcon from './icons/open.svg';
@@ -246,6 +246,11 @@ class Emulator extends EventEmitter {
             file.arrayBuffer().then(arrayBuffer => {
                 const z80file = parseZ80File(arrayBuffer);
                 this.loadSnapshot(z80file);
+            });
+        } else if (cleanName.endsWith('.szx')) {
+            file.arrayBuffer().then(arrayBuffer => {
+                const szxfile = parseSZXFile(arrayBuffer);
+                this.loadSnapshot(szxfile);
             });
         } else if (cleanName.endsWith('.sna')) {
             file.arrayBuffer().then(arrayBuffer => {

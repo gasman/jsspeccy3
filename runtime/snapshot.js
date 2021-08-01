@@ -211,3 +211,100 @@ export function parseSNAFile(data) {
 
     return snapshot;
 }
+
+
+function getSZXIDString(file, offset) {
+    const dword = file.getUint32(offset, true);
+    return (
+        String.fromCharCode(dword & 0xff)
+        + String.fromCharCode((dword & 0xff00) >> 8)
+        + String.fromCharCode((dword & 0xff0000) >> 16)
+        + String.fromCharCode(dword >> 24)
+    )
+}
+
+export function parseSZXFile(data) {
+    const file = new DataView(data);
+    const fileLen = data.byteLength;
+    const snapshot = {
+        memoryPages: {},
+    };
+
+    if (getSZXIDString(file, 0) != 'ZXST') {
+        throw "Not a valid SZX file";
+    }
+
+    const machineId = file.getUint8(6);
+    switch (machineId) {
+        case 1:
+            snapshot.model = 48;
+            break;
+        case 2:
+        case 3:
+            snapshot.model = 128;
+            break;
+        default:
+            throw "Unsupported machine type: " + machineId;
+    }
+
+    let offset = 8;
+    while (offset < fileLen) {
+        const blockId = getSZXIDString(file, offset);
+        const blockLen = file.getUint32(offset + 4, true);
+        offset += 8;
+
+        switch (blockId) {
+            case 'Z80R':
+                snapshot.registers = {
+                    'AF': file.getUint16(offset + 0, true),
+                    'BC': file.getUint16(offset + 2, true),
+                    'DE': file.getUint16(offset + 4, true),
+                    'HL': file.getUint16(offset + 6, true),
+                    'AF_': file.getUint16(offset + 8, true),
+                    'BC_': file.getUint16(offset + 10, true),
+                    'DE_': file.getUint16(offset + 12, true),
+                    'HL_': file.getUint16(offset + 14, true),
+                    'IX': file.getUint16(offset + 16, true),
+                    'IY': file.getUint16(offset + 18, true),
+                    'SP': file.getUint16(offset + 20, true),
+                    'PC': file.getUint16(offset + 22, true),
+                    'IR': file.getUint16(offset + 24, false),
+                    'iff1': !!file.getUint8(offset + 26),
+                    'iff2': !!file.getUint8(offset + 27),
+                    'im': file.getUint8(offset + 28),
+                };
+                snapshot.tstates = file.getUint32(offset + 29, true);
+                snapshot.halted = file.getUint8(offset + 37) & 0x02;
+                // currently ignored:
+                // chHoldIntReqCycles, eilast, memptr
+
+                break;
+            case 'SPCR':
+                snapshot.ulaState = {
+                    borderColour: file.getUint8(offset + 0),
+                    pagingFlags: file.getUint8(offset + 1),
+                };
+                // currently ignored:
+                // ch1ffd, chEff7, chFe
+                break;
+            case 'RAMP':
+                const isCompressed = file.getUint16(offset + 0, true) & 0x0001;
+                const pageNumber = file.getUint8(offset + 2);
+                if (isCompressed) {
+                    throw "Compressed blocks not supported";
+                } else {
+                    const pageData = new Uint8Array(data, offset + 27, 0x4000);
+                    snapshot.memoryPages[pageNumber] = pageData;
+                }
+                break;
+            // default:
+            //     console.log('skipping block', blockId);
+        }
+
+        offset += blockLen;
+    }
+
+    return snapshot;
+
+
+}
