@@ -144,15 +144,10 @@ export class Toolbar {
     }
     addButton(icon, opts, onClick) {
         opts = opts || {};
-        const button = document.createElement('button');
-        button.style.margin = '2px';
-        button.innerHTML = icon;
-        button.firstChild.style.height = '20px';
-        button.firstChild.style.verticalAlign = 'middle';
-        if (opts.label) button.title = opts.label;
-        if (opts.align == 'right') button.style.float = 'right';
-        this.elem.appendChild(button);
-        button.addEventListener('click', onClick);
+        const button = new ToolbarButton(icon, opts, onClick);
+        if (opts.align == 'right') button.elem.style.float = 'right';
+        this.elem.appendChild(button.elem);
+        return button;
     }
     enterFullscreen() {
         this.elem.style.position = 'absolute';
@@ -183,6 +178,24 @@ export class Toolbar {
             this.elem.addEventListener('mouseleave', e);
         }
         this.currentMouseoutEvent = e;
+    }
+}
+
+class ToolbarButton {
+    constructor(icon, opts, onClick) {
+        this.elem = document.createElement('button');
+        this.elem.style.margin = '2px';
+        this.setIcon(icon);
+        if (opts.label) this.setLabel(opts.label);
+        this.elem.addEventListener('click', onClick);
+    }
+    setIcon(icon) {
+        this.elem.innerHTML = icon;
+        this.elem.firstChild.style.height = '20px';
+        this.elem.firstChild.style.verticalAlign = 'middle';
+    }
+    setLabel(label) {
+        this.elem.title = label;
     }
 }
 

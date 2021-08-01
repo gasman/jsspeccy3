@@ -9,6 +9,7 @@ import { KeyboardHandler } from './keyboard.js';
 
 import openIcon from './icons/open.svg';
 import resetIcon from './icons/reset.svg';
+import playIcon from './icons/play.svg';
 import pauseIcon from './icons/pause.svg';
 import fullscreenIcon from './icons/fullscreen.svg';
 
@@ -264,12 +265,20 @@ window.JSSpeccy = (container, opts) => {
     ui.toolbar.addButton(resetIcon, {label: 'Reset'}, () => {
         emu.reset();
     });
-    ui.toolbar.addButton(pauseIcon, {label: 'Pause'}, () => {
+    const pauseButton = ui.toolbar.addButton(playIcon, {label: 'Unpause'}, () => {
         if (emu.isRunning) {
             emu.pause();
         } else {
             emu.start();
         }
+    });
+    emu.on('pause', () => {
+        pauseButton.setIcon(playIcon);
+        pauseButton.setLabel('Unpause');
+    });
+    emu.on('start', () => {
+        pauseButton.setIcon(pauseIcon);
+        pauseButton.setLabel('Pause');
     });
     ui.toolbar.addButton(
         fullscreenIcon,
