@@ -41,7 +41,9 @@ class Emulator extends EventEmitter {
                     break;
                 case 'frameCompleted':
                     // benchmarkRunCount++;
-                    this.audioHandler.frameCompleted(e.data.audioBufferLeft, e.data.audioBufferRight);
+                    if ('audioBufferLeft' in e.data) {
+                        this.audioHandler.frameCompleted(e.data.audioBufferLeft, e.data.audioBufferRight);
+                    }
 
                     this.displayHandler.frameCompleted(e.data.frameBuffer);
                     if (this.isRunning) {
@@ -69,6 +71,7 @@ class Emulator extends EventEmitter {
             this.isRunning = true;
             this.nextFrameTime = performance.now();
             this.keyboardHandler.start();
+            this.audioHandler.start();
             this.emit('start');
             window.requestAnimationFrame((t) => {
                 this.runAnimationFrame(t);
@@ -80,6 +83,7 @@ class Emulator extends EventEmitter {
         if (this.isRunning) {
             this.isRunning = false;
             this.keyboardHandler.stop();
+            this.audioHandler.stop();
             this.emit('pause');
         }
     }
@@ -104,14 +108,22 @@ class Emulator extends EventEmitter {
     runFrame() {
         this.isExecutingFrame = true;
         const frameBuffer = this.displayHandler.getNextFrameBuffer();
-        const [audioBufferLeft, audioBufferRight] = this.audioHandler.buffers;
 
-        this.worker.postMessage({
-            message: 'runFrame',
-            frameBuffer,
-            audioBufferLeft,
-            audioBufferRight,
-        }, [frameBuffer, audioBufferLeft, audioBufferRight]);
+        if (this.audioHandler.isActive) {
+            const [audioBufferLeft, audioBufferRight] = this.audioHandler.frameBuffers;
+
+            this.worker.postMessage({
+                message: 'runFrame',
+                frameBuffer,
+                audioBufferLeft,
+                audioBufferRight,
+            }, [frameBuffer, audioBufferLeft, audioBufferRight]);
+        } else {
+            this.worker.postMessage({
+                message: 'runFrame',
+                frameBuffer,
+            }, [frameBuffer]);
+        }
     }
 
     runAnimationFrame(time) {
