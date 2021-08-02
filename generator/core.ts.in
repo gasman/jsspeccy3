@@ -59,8 +59,20 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 
 #alloc keyStates[8]: u8
 
+#alloc audioBufferLeft[1024]: f32
+export const AUDIO_BUFFER_LEFT:usize = (&audioBufferLeft);
+#alloc audioBufferRight[1024]: f32
+export const AUDIO_BUFFER_RIGHT:usize = (&audioBufferLeft);
+
 #alloc logEntries[2048]: u16
 export const LOG_ENTRIES:usize = (&logEntries);
+
+let requestedSamplesPerFrame:u32 = 0;
+let samplesPerFrame:u32 = 0;
+let lastAudioT:u32 = 0;  // the t on which we last called updateAudioBuffer
+let microslicesSinceLastSample:u32 = 0;
+let audioBufferPointer:u32 = 0;
+
 
 let i:u8 = 0;
 while (true) {
@@ -172,6 +184,7 @@ let halted:bool = false;
 let opcodePrefix:u8 = 0;
 let framebufferIndex = 0;
 let borderColour:u8 = 0;
+let speakerState:u8 = 0;
 
 // whether a trap on the next instruction will be honoured
 let willTrap:bool = true;
@@ -291,6 +304,13 @@ export function startLog():void {
 export function stopLog():void {
     log(0xffff, 0xffff, 0, 0);
     loggingEnabled = false;
+}
+
+export function setAudioSamplesPerFrame(val:u32):void {
+    requestedSamplesPerFrame = val;
+}
+export function getAudioSamplesPerFrame():u32 {
+    return samplesPerFrame;
 }
 
 
@@ -428,7 +448,9 @@ export function writePort(addr:u16, val:u8):void {
     if (!(addr & 0x0001)) {
         /* border colour / speaker */
         updateFramebuffer();  // apply all screen upates up to this point
+        updateAudioBuffer();
         borderColour = val & 0x07;
+        speakerState = (val & 0x10) >> 4;
     } else if (!(addr & 0x8002)) {
         /* 128/+2 paging */
         if (!pagingLocked) {
@@ -489,6 +511,18 @@ function updateFramebuffer():void {
     }
 }
 
+function updateAudioBuffer():void {
+    microslicesSinceLastSample += (t - lastAudioT) * samplesPerFrame;
+    while (microslicesSinceLastSample >= frameCycleCount) {
+        const level:f32 = speakerState ? 0.5 : 0.0;
+        audioBufferLeft[audioBufferPointer] = level;
+        audioBufferRight[audioBufferPointer] = level;
+        audioBufferPointer = (audioBufferPointer + 1) & 0x03ff;
+        microslicesSinceLastSample -= frameCycleCount;
+    }
+    lastAudioT = t;
+}
+
 export function keyDown(row:u8, mask:u8):void {
     keyStates[row] = keyStates[row] & ~mask;
 }
@@ -515,6 +549,19 @@ function pollKeyboard(addr:u8):u8 {
 export function runFrame():i16 {
     screenEventPointer = 0;
     framebufferIndex = 0;
+
+    if (requestedSamplesPerFrame != samplesPerFrame) {
+        samplesPerFrame = requestedSamplesPerFrame;
+        audioBufferPointer = 0;
+        lastAudioT = 0;
+    } else {
+        /* copy any excess samples from previous frame's buffer */
+        for (i = 0; i < audioBufferPointer; i++) {
+            audioBufferLeft[i] = audioBufferLeft[samplesPerFrame + i];
+            audioBufferRight[i] = audioBufferRight[samplesPerFrame + i];
+        }
+    }
+
     return resumeFrame();
 }
 
@@ -531,7 +578,10 @@ export function resumeFrame():i16 {
     }
 
     updateFramebuffer();
+    updateAudioBuffer();
     t -= frameCycleCount;
+    lastAudioT -= frameCycleCount;
+    audioBufferPointer -= samplesPerFrame;
 
     return 0;
 }

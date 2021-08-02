@@ -6,6 +6,7 @@ import { UIController } from './ui.js';
 import { parseSNAFile, parseZ80File, parseSZXFile } from './snapshot.js';
 import { TAPFile, TZXFile } from './tape.js';
 import { KeyboardHandler } from './keyboard.js';
+import { AudioHandler } from './audio.js';
 
 import openIcon from './icons/open.svg';
 import resetIcon from './icons/reset.svg';
@@ -22,6 +23,7 @@ class Emulator extends EventEmitter {
         this.worker = new Worker('jsspeccy-worker.js');
         this.keyboardHandler = new KeyboardHandler(this.worker);
         this.displayHandler = new DisplayHandler(this.canvas);
+        this.audioHandler = new AudioHandler();
         this.isRunning = false;
 
         this.msPerFrame = 20;
@@ -39,6 +41,8 @@ class Emulator extends EventEmitter {
                     break;
                 case 'frameCompleted':
                     // benchmarkRunCount++;
+                    this.audioHandler.frameCompleted(e.data.audioBufferLeft, e.data.audioBufferRight);
+
                     this.displayHandler.frameCompleted(e.data.frameBuffer);
                     if (this.isRunning) {
                         const time = performance.now();
@@ -100,10 +104,14 @@ class Emulator extends EventEmitter {
     runFrame() {
         this.isExecutingFrame = true;
         const frameBuffer = this.displayHandler.getNextFrameBuffer();
+        const [audioBufferLeft, audioBufferRight] = this.audioHandler.buffers;
+
         this.worker.postMessage({
             message: 'runFrame',
             frameBuffer,
-        }, frameBuffer);
+            audioBufferLeft,
+            audioBufferRight,
+        }, [frameBuffer, audioBufferLeft, audioBufferRight]);
     }
 
     runAnimationFrame(time) {

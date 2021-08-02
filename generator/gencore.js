@@ -123,6 +123,7 @@ const TYPE_SIZES = {
     'u8': 1,
     'u16': 2,
     'u32': 4,
+    'f32': 4,
 }
 let mem = 0;
 const vars = {};

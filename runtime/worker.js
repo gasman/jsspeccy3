@@ -101,6 +101,18 @@ const run = (core) => {
                 const frameBuffer = e.data.frameBuffer;
                 const frameData = new Uint8Array(frameBuffer);
 
+                let audioBufferLeft = null;
+                let audioBufferRight = null;
+                let audioLength = 0;
+                if ('audioBufferLeft' in e.data) {
+                    audioBufferLeft = e.data.audioBufferLeft;
+                    audioBufferRight = e.data.audioBufferRight;
+                    audioLength = audioBufferLeft.byteLength / 4;
+                    core.setAudioSamplesPerFrame(audioLength);
+                } else {
+                    core.setAudioSamplesPerFrame(0);
+                }
+
                 let status = core.runFrame();
                 while (status) {
                     switch (status) {
@@ -119,10 +131,25 @@ const run = (core) => {
                 }
 
                 frameData.set(workerFrameData);
-                postMessage({
-                    'message': 'frameCompleted',
-                    'frameBuffer': frameBuffer,
-                }, [frameBuffer]);
+                if (audioLength) {
+                    const leftSource = new Float32Array(core.memory.buffer, core.AUDIO_BUFFER_LEFT, audioLength);
+                    const rightSource = new Float32Array(core.memory.buffer, core.AUDIO_BUFFER_RIGHT, audioLength);
+                    const leftData = new Float32Array(audioBufferLeft);
+                    const rightData = new Float32Array(audioBufferRight);
+                    leftData.set(leftSource);
+                    rightData.set(rightSource);
+                    postMessage({
+                        message: 'frameCompleted',
+                        frameBuffer,
+                        audioBufferLeft,
+                        audioBufferRight,
+                    }, [frameBuffer, audioBufferLeft, audioBufferRight]);
+                } else {
+                    postMessage({
+                        message: 'frameCompleted',
+                        frameBuffer,
+                    }, [frameBuffer]);
+                }
 
                 break;
             case 'keyDown':
