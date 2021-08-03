@@ -358,25 +358,26 @@ function readMem(addr:u16):u8 {
 
 function readMemInternal(addr:u16):u8 {
     const page:u8 = memoryPageReadMap[addr >> 14];
-    const pageOffset:u32 = u32(page) << 14;
+    const pageStartPtr:u32 = u32(page) << 14;
     if (loggingEnabled) {
-        const val:u8 = machineMemory[pageOffset | (addr & 0x3fff)];
+        const val:u8 = machineMemory[pageStartPtr | (addr & 0x3fff)];
         log(t, 1, addr, val);
         return val;
     } else {
-        return machineMemory[pageOffset | (addr & 0x3fff)];
+        return machineMemory[pageStartPtr | (addr & 0x3fff)];
     }
 }
 
 function writeMem(addr:u16, val:u8):void {
     const page:u8 = memoryPageWriteMap[addr >> 14];
-    const pageOffset:u32 = u32(page) << 14;
+    const pageStartPtr:u32 = u32(page) << 14;
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
+    const pageOffset:u16 = addr & 0x3fff;
     if (page == screenPageIndex && pageOffset < 0x1b00) {
         updateFramebuffer();
     }
-    machineMemory[pageOffset | (addr & 0x3fff)] = val;
+    machineMemory[pageStartPtr | pageOffset] = val;
     t += 3;
     if (loggingEnabled) {
         log(t, 2, addr, val);
