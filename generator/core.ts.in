@@ -101,7 +101,7 @@ while (true) {
 }
 
 
-function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32):void {
+function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32, borderTimeMask:u32):void {
     /* build screen events table: a list of which screen bytes should be fetched on which
     t-states. A sequence of: two u32s per event:
     - tstate number or 0xffffffff for end marker
@@ -114,7 +114,7 @@ function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32):vo
     for (let y:u32 = 0; y < 24; y++) {
         const rowTime:u32 = mainScreenStartTstate - (24 - y) * tstatesPerRow - 16;
         for (let x:u32 = 0; x < 160; x++) {
-            screenEvents[screenEventPointer++] = rowTime + (x & 0xfc);
+            screenEvents[screenEventPointer++] = rowTime + (x & borderTimeMask);
             screenEvents[screenEventPointer++] = 0xffffffff;
         }
     }
@@ -126,7 +126,7 @@ function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32):vo
 
         /* left border */
         for (let x:u32 = 0; x < 16; x++) {
-            screenEvents[screenEventPointer++] = rowTime - 16 + (x & 0xfc);
+            screenEvents[screenEventPointer++] = rowTime - 16 + (x & borderTimeMask);
             screenEvents[screenEventPointer++] = 0xffffffff;
         }
 
@@ -140,7 +140,7 @@ function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32):vo
 
         /* right border */
         for (let x:u32 = 0; x < 16; x++) {
-            screenEvents[screenEventPointer++] = rowTime + 128 + (x & 0xfc);
+            screenEvents[screenEventPointer++] = rowTime + 128 + (x & borderTimeMask);
             screenEvents[screenEventPointer++] = 0xffffffff;
         }
     }
@@ -149,7 +149,7 @@ function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32):vo
     for (let y:u32 = 0; y < 24; y++) {
         const rowTime:u32 = mainScreenStartTstate + (192 + y) * tstatesPerRow - 16;
         for (let x:u32 = 0; x < 160; x++) {
-            screenEvents[screenEventPointer++] = rowTime + (x & 0xfc);
+            screenEvents[screenEventPointer++] = rowTime + (x & borderTimeMask);
             screenEvents[screenEventPointer++] = 0xffffffff;
         }
     }
@@ -157,6 +157,7 @@ function buildScreenEventsTable(mainScreenStartTstate:u32, tstatesPerRow:u32):vo
     // add end marker
     screenEvents[screenEventPointer] = 0xffffffff;
 }
+
 
 function buildContentionTable(mainScreenStartTstate:u32, tstatesPerRow:u32, frameCycleCount:u32):void {
     let pos:u32 = 0;
@@ -177,6 +178,14 @@ function buildContentionTable(mainScreenStartTstate:u32, tstatesPerRow:u32, fram
         contentionTable[pos++] = 0;
     }
 }
+
+
+function clearContentionTable(frameCycleCount:u32):void {
+    for (let i:u32 = 0; i < frameCycleCount; i++) {
+        contentionTable[i] = 0;
+    }
+}
+
 
 let frameCycleCount:u32 = 69888;
 let screenPageIndex:u32 = 5;
@@ -205,11 +214,18 @@ export function setMachineType(type:u32):void {
     machineType = type;
     if (type == 48 || type == 1212) {
         frameCycleCount = 69888;
-        buildScreenEventsTable(14335, 224);
+        recalculateAYCyclesPerSample();
+        buildScreenEventsTable(14335, 224, 0xfc);
         buildContentionTable(14335, 224, frameCycleCount);
+    } else if (type == 5) {  // pentagon
+        frameCycleCount = 71680;
+        recalculateAYCyclesPerSample();
+        buildScreenEventsTable(17988, 224, 0xff);
+        clearContentionTable(frameCycleCount);
     } else {  // 128
         frameCycleCount = 70908;
-        buildScreenEventsTable(14361, 228);
+        recalculateAYCyclesPerSample();
+        buildScreenEventsTable(14361, 228, 0xfc);
         buildContentionTable(14361, 228, frameCycleCount);
     }
     reset();
@@ -224,7 +240,7 @@ export function reset():void {
         memoryPageReadMap = [10, 5, 2, 0];
         memoryPageWriteMap = [10, 5, 2, 0];
         pagingLocked = 1;
-    } else {  // 128
+    } else {  // 128 or pentagon
         memoryPageReadMap = [8, 5, 2, 0];
         memoryPageWriteMap = [11, 5, 2, 0];
         pagingLocked = 0;
@@ -636,10 +652,15 @@ function pollKeyboard(addr:u8):u8 {
     return result;
 }
 
+function recalculateAYCyclesPerSample():void {
+    ayCyclesPerSample = 0.5 * f64(frameCycleCount) / f64(samplesPerFrame);
+}
+
 /* status codes returned from runFrame / resumeFrame:
 0 = OK (end of frame)
 1 = unrecognised opcode (should never happen...)
 */
+
 
 export function runFrame():i16 {
     screenEventPointer = 0;
@@ -647,7 +668,7 @@ export function runFrame():i16 {
 
     if (requestedSamplesPerFrame != samplesPerFrame) {
         samplesPerFrame = requestedSamplesPerFrame;
-        ayCyclesPerSample = 0.5 * f64(frameCycleCount) / f64(samplesPerFrame);
+        recalculateAYCyclesPerSample();
         audioBufferPointer = 0;
         lastAudioT = 0;
     } else {

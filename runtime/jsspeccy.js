@@ -143,7 +143,7 @@ class Emulator extends EventEmitter {
     };
 
     setMachine(type) {
-        if (type != 128) type = 48;
+        if (type != 128 && type != 5) type = 48;
         this.worker.postMessage({
             message: 'setMachineType',
             type,
@@ -242,6 +242,9 @@ window.JSSpeccy = (container, opts) => {
     const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
         emu.setMachine(128);
     });
+    const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
+        emu.setMachine(5);
+    });
     const displayMenu = ui.menuBar.addMenu('Display');
 
     const zoomItemsBySize = {
@@ -274,9 +277,15 @@ window.JSSpeccy = (container, opts) => {
         if (type == 48) {
             machine48Item.setCheckbox();
             machine128Item.unsetCheckbox();
-        } else {
+            machinePentagonItem.unsetCheckbox();
+        } else if (type == 128) {
             machine48Item.unsetCheckbox();
             machine128Item.setCheckbox();
+            machinePentagonItem.unsetCheckbox();
+        } else { // pentagon
+            machine48Item.unsetCheckbox();
+            machine128Item.unsetCheckbox();
+            machinePentagonItem.setCheckbox();
         }
     });
 
