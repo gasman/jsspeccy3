@@ -1,9 +1,12 @@
 #alloc frameBuffer[0x6600]: u8
 export const FRAME_BUFFER:usize = (&frameBuffer);
 
-// allocate memory for 8 RAM, 4 ROM pages
-// 0..7 - 128K RAM pages; 8 = 128 rom 0, 9 = 128 rom 1, 10 = 48 rom, 11 = scratch area for ROM writes
-#alloc machineMemory[0x30000]: u8
+// allocate memory for 8 RAM, 8 ROM pages
+// 0..7 - 128K RAM pages;
+// 8 = 128 rom 0, 9 = 128 rom 1
+// 10 = 48 rom, 11 = scratch area for ROM writes
+// 12 = Pentagon rom 0 (Pentagon ROM 1 is identical to 128 rom 1)
+#alloc machineMemory[0x40000]: u8
 export const MACHINE_MEMORY:usize = (&machineMemory);
 
 #alloc memoryPageReadMap[4]: u8
@@ -80,6 +83,9 @@ let lastAudioT:u32 = 0;  // the t on which we last called updateAudioBuffer
 let microslicesSinceLastSample:u32 = 0;
 let audioBufferPointer:u32 = 0;
 
+// which pages in memory bank correspond to roms 0 and 1 in paging
+let rom0Page:u8 = 8;
+let rom1Page:u8 = 9;
 
 let i:u8 = 0;
 while (true) {
@@ -222,11 +228,15 @@ export function setMachineType(type:u32):void {
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(17988, 224, 0xff);
         clearContentionTable(frameCycleCount);
+        rom0Page = 12;
+        rom1Page = 9;
     } else {  // 128
         frameCycleCount = 70908;
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(14361, 228, 0xfc);
         buildContentionTable(14361, 228, frameCycleCount);
+        rom0Page = 8;
+        rom1Page = 9;
     }
     reset();
 }
@@ -240,7 +250,12 @@ export function reset():void {
         memoryPageReadMap = [10, 5, 2, 0];
         memoryPageWriteMap = [10, 5, 2, 0];
         pagingLocked = 1;
-    } else {  // 128 or pentagon
+    } else if (machineType == 5) {
+        // Pentagon
+        memoryPageReadMap = [12, 5, 2, 0];
+        memoryPageWriteMap = [11, 5, 2, 0];
+        pagingLocked = 0;
+    } else {  // 128
         memoryPageReadMap = [8, 5, 2, 0];
         memoryPageWriteMap = [11, 5, 2, 0];
         pagingLocked = 0;
@@ -490,7 +505,7 @@ export function writePort(addr:u16, val:u8):void {
             memoryPageReadMap[3] = val & 0x07;
             memoryPageWriteMap[3] = val & 0x07;
             screenPageIndex = (val & 0x08) ? 7 : 5;
-            memoryPageReadMap[0] = (val & 0x10) ? 9 : 8;
+            memoryPageReadMap[0] = (val & 0x10) ? rom1Page : rom0Page;
             pagingLocked = bool(val & 0x20);
         }
     } else if ((addr & 0xc002) == 0xc000) {

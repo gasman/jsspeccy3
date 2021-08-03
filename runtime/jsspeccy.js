@@ -102,6 +102,7 @@ class Emulator extends EventEmitter {
         await this.loadRom('128-0.rom', 8);
         await this.loadRom('128-1.rom', 9);
         await this.loadRom('48.rom', 10);
+        await this.loadRom('pentagon-0.rom', 12);
     }
 
 
