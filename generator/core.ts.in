@@ -59,16 +59,23 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 
 #alloc keyStates[8]: u8
 
+// NB needs to start at an offset that's a multiple of 4
 #alloc audioBufferLeft[1024]: f32
 export const AUDIO_BUFFER_LEFT:usize = (&audioBufferLeft);
 #alloc audioBufferRight[1024]: f32
 export const AUDIO_BUFFER_RIGHT:usize = (&audioBufferLeft);
 
+#alloc ayVolumeLevels[16]: f32
+ayVolumeLevels = [0.0, 0.0022915, 0.0034105, 0.004842, 0.007057, 0.010307, 0.0141195, 0.0228165, 0.028188, 0.04411, 0.058784, 0.0749885, 0.0950615, 0.114544, 0.1413585, 0.166662];
+
 #alloc logEntries[2048]: u16
 export const LOG_ENTRIES:usize = (&logEntries);
 
+#alloc ayRegisters[14]: u8
+
 let requestedSamplesPerFrame:u32 = 0;
 let samplesPerFrame:u32 = 0;
+let ayCyclesPerSample:f64 = 0.0;
 let lastAudioT:u32 = 0;  // the t on which we last called updateAudioBuffer
 let microslicesSinceLastSample:u32 = 0;
 let audioBufferPointer:u32 = 0;
@@ -185,6 +192,7 @@ let opcodePrefix:u8 = 0;
 let framebufferIndex = 0;
 let borderColour:u8 = 0;
 let speakerState:u8 = 0;
+let selectedAYRegister:u8 = 0;
 
 // whether a trap on the next instruction will be honoured
 let willTrap:bool = true;
@@ -220,6 +228,9 @@ export function reset():void {
         memoryPageReadMap = [8, 5, 2, 0];
         memoryPageWriteMap = [11, 5, 2, 0];
         pagingLocked = 0;
+    }
+    for (let i:u8 = 0; i < 14; i++) {
+        writeAYRegister(i, 0);
     }
     screenPageIndex = 5;
     t = 0;
@@ -403,6 +414,8 @@ export function readPort(addr:u16):u8 {
         if (!(addr & 0x0001)) {
             /* poll keyboard */
             result = pollKeyboard(u8(addr >> 8));
+        } else if ((addr & 0xc002) == 0xc000) {
+            result = readAYRegister(selectedAYRegister);
         } else if (!(addr & 0x00e0)) {
             /* kempston joystick */
             result = 0;
@@ -463,6 +476,11 @@ export function writePort(addr:u16, val:u8):void {
             memoryPageReadMap[0] = (val & 0x10) ? 9 : 8;
             pagingLocked = bool(val & 0x20);
         }
+    } else if ((addr & 0xc002) == 0xc000) {
+        selectedAYRegister = val;
+    } else if ((addr & 0xc002) == 0x8000) {
+        updateAudioBuffer();
+        writeAYRegister(selectedAYRegister, val);
     }
 
     /* apply post-write contention */
@@ -514,9 +532,86 @@ function updateFramebuffer():void {
 function updateAudioBuffer():void {
     microslicesSinceLastSample += (t - lastAudioT) * samplesPerFrame;
     while (microslicesSinceLastSample >= frameCycleCount) {
-        const level:f32 = speakerState ? 0.5 : 0.0;
-        audioBufferLeft[audioBufferPointer] = level;
-        audioBufferRight[audioBufferPointer] = level;
+        const speakerLevel:f32 = speakerState ? 0.5 : 0.0;
+
+        toneGeneratorACounter -= ayCyclesPerSample;
+        while (toneGeneratorACounter < 0) {
+            toneGeneratorACounter += toneGeneratorAPeriod;
+            toneGeneratorAPhase ^= 0xff;
+        }
+
+        toneGeneratorBCounter -= ayCyclesPerSample;
+        while (toneGeneratorBCounter < 0) {
+            toneGeneratorBCounter += toneGeneratorBPeriod;
+            toneGeneratorBPhase ^= 0xff;
+        }
+
+        toneGeneratorCCounter -= ayCyclesPerSample;
+        while (toneGeneratorCCounter < 0) {
+            toneGeneratorCCounter += toneGeneratorCPeriod;
+            toneGeneratorCPhase ^= 0xff;
+        }
+
+        noiseGeneratorCounter -= ayCyclesPerSample;
+        while (noiseGeneratorCounter < 0) {
+            noiseGeneratorCounter += noiseGeneratorPeriod;
+
+            if ((noiseGeneratorSeed + 1) & 2)
+                noiseGeneratorPhase ^= 0xff;
+
+            /* rng is 17-bit shift reg, bit 0 is output.
+            * input is bit 0 xor bit 3.
+            */
+            if (noiseGeneratorSeed & 1) noiseGeneratorSeed ^= 0x24000;
+            noiseGeneratorSeed >>= 1;
+        }
+
+        envelopeCounter -= ayCyclesPerSample;
+        while (envelopeCounter < 0) {
+            envelopeCounter += envelopePeriod;
+
+            envelopeRampCounter--;
+            if (envelopeRampCounter == 0xff) {
+                envelopeRampCounter = 15;
+                envelopeOnFirstRamp = false;
+                envelopeAlternatePhase ^= 0x0f;
+            }
+
+            envelopeValue = (
+                /* start with the descending ramp counter */
+                envelopeRampCounter
+                /* XOR with the 'alternating' bit if on an even-numbered ramp */
+                ^ (envelopeAlternatePhase && envelopeAlternateMask)
+            );
+            /* OR with the 'hold' bit if past the first ramp */
+            if (!envelopeOnFirstRamp) envelopeValue |= envelopeHoldMask;
+            /* XOR with the 'attack' bit */
+            envelopeValue ^= envelopeAttackMask;
+            /* AND with the 'continue' bit if past the first ramp */
+            if (!envelopeOnFirstRamp) envelopeValue &= envelopeContinueMask;
+        }
+
+        const finalVolumeA:u8 = (
+            ((volumeA & 0x10) ? envelopeValue : (volumeA & 0x0f))
+            & (toneGeneratorAPhase | toneChanAMask)
+            & (noiseGeneratorPhase | noiseChanAMask)
+        );
+        const finalVolumeB:u8 = (
+            ((volumeB & 0x10) ? envelopeValue : (volumeB & 0x0f))
+            & (toneGeneratorBPhase | toneChanBMask)
+            & (noiseGeneratorPhase | noiseChanBMask)
+        );
+        const finalVolumeC:u8 = (
+            ((volumeC & 0x10) ? envelopeValue : (volumeC & 0x0f))
+            & (toneGeneratorCPhase | toneChanCMask)
+            & (noiseGeneratorPhase | noiseChanCMask)
+        );
+        const levelA:f32 = ayVolumeLevels[finalVolumeA];
+        const levelB:f32 = ayVolumeLevels[finalVolumeB];
+        const levelC:f32 = ayVolumeLevels[finalVolumeC];
+
+        audioBufferLeft[audioBufferPointer] = speakerLevel * 0.70711 + levelA * 0.86603 + levelB * 0.5 + levelC * 0.70711;
+        audioBufferRight[audioBufferPointer] = speakerLevel * 0.70711 + levelA * 0.5 + levelB * 0.86603 + levelC * 0.70711;
         audioBufferPointer = (audioBufferPointer + 1) & 0x03ff;
         microslicesSinceLastSample -= frameCycleCount;
     }
@@ -552,6 +647,7 @@ export function runFrame():i16 {
 
     if (requestedSamplesPerFrame != samplesPerFrame) {
         samplesPerFrame = requestedSamplesPerFrame;
+        ayCyclesPerSample = 0.5 * f64(frameCycleCount) / f64(samplesPerFrame);
         audioBufferPointer = 0;
         lastAudioT = 0;
     } else {
@@ -731,4 +827,113 @@ export function runUntil(maxT:u32):i16 {
     }
 
     return 0;
+}
+
+
+/* AY chip state */
+let toneGeneratorAPhase:u8 = 0;
+let toneGeneratorAPeriod:f64 = 8;
+let toneGeneratorACounter:f64 = 0;
+
+let toneGeneratorBPhase:u8 = 0;
+let toneGeneratorBPeriod:f64 = 8;
+let toneGeneratorBCounter:f64 = 0;
+
+let toneGeneratorCPhase:u8 = 0;
+let toneGeneratorCPeriod:f64 = 8;
+let toneGeneratorCCounter:f64 = 0;
+
+let noiseGeneratorPhase:u8 = 0;
+let noiseGeneratorPeriod:f64 = 16;
+let noiseGeneratorCounter:f64 = 0;
+let noiseGeneratorSeed:u32 = 1;
+
+let toneChanAMask:u8 = 0x00;
+let toneChanBMask:u8 = 0x00;
+let toneChanCMask:u8 = 0x00;
+let noiseChanAMask:u8 = 0x00;
+let noiseChanBMask:u8 = 0x00;
+let noiseChanCMask:u8 = 0x00;
+
+let envelopePeriod:f64 = 256;
+let envelopeCounter:f64 = 0;
+let envelopeRampCounter:u8 = 16;
+let envelopeOnFirstRamp:bool = true;
+let envelopeAlternateMask:u8 = 0x00;
+let envelopeAlternatePhase:u8 = 0x00;
+let envelopeHoldMask:u8 = 0x00;
+let envelopeAttackMask:u8 = 0x00;
+let envelopeContinueMask:u8 = 0x00;
+let envelopeValue:u8 = 0x00;
+
+let volumeA:u8 = 0x00;
+let volumeB:u8 = 0x00;
+let volumeC:u8 = 0x00;
+
+function readAYRegister(reg:u8):u8 {
+    if (reg < 14) {
+        return ayRegisters[reg];
+    } else {
+        return 0x00;
+    }
+}
+
+function writeAYRegister(reg:u8, val:u8):void {
+    if (reg < 14) {
+        ayRegisters[reg] = val;
+    }
+
+    switch(reg) {
+        case 0:
+        case 1:
+            toneGeneratorAPeriod = f64((((ayRegisters[1] & 0x0f) << 8) | ayRegisters[0]) * 8);
+            if (toneGeneratorAPeriod === 0) toneGeneratorAPeriod = 8;
+            break;
+        case 2:
+        case 3:
+            toneGeneratorBPeriod = f64((((ayRegisters[3] & 0x0f) << 8) | ayRegisters[2]) * 8);
+            if (toneGeneratorBPeriod === 0) toneGeneratorBPeriod = 8;
+            break;
+        case 4:
+        case 5:
+            toneGeneratorCPeriod = f64((((ayRegisters[5] & 0x0f) << 8) | ayRegisters[4]) * 8);
+            if (toneGeneratorCPeriod === 0) toneGeneratorCPeriod = 8;
+            break;
+        case 6:
+            noiseGeneratorPeriod = f64((val & 0x1f) << 4);
+            if (noiseGeneratorPeriod === 0) noiseGeneratorPeriod = 16;
+            break;
+        case 7:
+            toneChanAMask = (val & 0x01) ? 0xff : 0x00;
+            toneChanBMask = (val & 0x02) ? 0xff : 0x00;
+            toneChanCMask = (val & 0x04) ? 0xff : 0x00;
+            noiseChanAMask = (val & 0x08) ? 0xff : 0x00;
+            noiseChanBMask = (val & 0x10) ? 0xff : 0x00;
+            noiseChanCMask = (val & 0x20) ? 0xff : 0x00;
+            break;
+        case 8:
+            volumeA = val;
+            break;
+        case 9:
+            volumeB = val;
+            break;
+        case 10:
+            volumeC = val;
+            break;
+        case 11:
+        case 12:
+            envelopePeriod = f64(((ayRegisters[12] << 8) | ayRegisters[11]) << 4);
+            if (envelopePeriod === 0) envelopePeriod = 16;
+            break;
+        case 13:
+            envelopeCounter = 0;
+            envelopeRampCounter = 16;
+            envelopeOnFirstRamp = true;
+            envelopeAlternatePhase = 0x00;
+            envelopeHoldMask = (val & 0x01) ? 0x0f : 0x00;
+            envelopeAlternateMask = (val & 0x02) ? 0x0f : 0x00;
+            envelopeAttackMask = (val & 0x04) ? 0x0f : 0x00;
+            envelopeContinueMask = (val & 0x08) ? 0x0f : 0x00;
+            break;
+    }
 }
