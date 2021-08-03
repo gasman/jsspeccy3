@@ -6,6 +6,7 @@ const run = (core) => {
     const memoryData = new Uint8Array(memory.buffer);
     const workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
     const registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
+    const trdosDisk = new Uint8Array(0xa0000);
 
     let stopped = false;
     let tape = null;
@@ -175,6 +176,11 @@ const run = (core) => {
                 break;
             case 'openTZXFile':
                 tape = new TZXFile(e.data.data);
+                break;
+            case 'openTRDFile':
+                const trdBufferLength = Math.min(0xa0000, e.data.data.byteLength);
+                const sourceBuffer = new Uint8Array(e.data.data, 0, trdBufferLength);
+                trdosDisk.set(sourceBuffer);
                 break;
             default:
                 console.log('message received by worker:', e.data);

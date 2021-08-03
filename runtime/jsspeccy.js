@@ -179,6 +179,13 @@ class Emulator extends EventEmitter {
         })
     }
 
+    openTRDFile(data) {
+        this.worker.postMessage({
+            message: 'openTRDFile',
+            data,
+        })
+    }
+
     openFile(file) {
         const cleanName = file.name.toLowerCase();
         if (cleanName.endsWith('.z80')) {
@@ -211,6 +218,10 @@ class Emulator extends EventEmitter {
                 } else {
                     this.openTZXFile(arrayBuffer);
                 }
+            });
+        } else if (cleanName.endsWith('.trd')) {
+            file.arrayBuffer().then(arrayBuffer => {
+                this.openTRDFile(arrayBuffer);
             });
         } else {
             alert('Unrecognised file type: ' + file.name);
