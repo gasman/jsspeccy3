@@ -6,6 +6,7 @@ export const FRAME_BUFFER:usize = (&frameBuffer);
 // 8 = 128 rom 0, 9 = 128 rom 1
 // 10 = 48 rom, 11 = scratch area for ROM writes
 // 12 = Pentagon rom 0 (Pentagon ROM 1 is identical to 128 rom 1)
+// 13 = TRDOS rom
 #alloc machineMemory[0x40000]: u8
 export const MACHINE_MEMORY:usize = (&machineMemory);
 
@@ -86,6 +87,11 @@ let audioBufferPointer:u32 = 0;
 // which pages in memory bank correspond to roms 0 and 1 in paging
 let rom0Page:u8 = 8;
 let rom1Page:u8 = 9;
+
+let betadiskEnabled:bool = false;
+let betadiskROMActive:bool = false;
+// the ROM page that was active prior to TRDOS ROM being paged in
+let romPageBeforeTrdos = 12;
 
 let i:u8 = 0;
 while (true) {
@@ -223,6 +229,7 @@ export function setMachineType(type:u32):void {
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(14335, 224, 0xfc);
         buildContentionTable(14335, 224, frameCycleCount);
+        betadiskEnabled = false;
     } else if (type == 5) {  // pentagon
         frameCycleCount = 71680;
         recalculateAYCyclesPerSample();
@@ -230,6 +237,8 @@ export function setMachineType(type:u32):void {
         clearContentionTable(frameCycleCount);
         rom0Page = 12;
         rom1Page = 9;
+        betadiskEnabled = true;
+        betadiskROMActive = false;
     } else {  // 128
         frameCycleCount = 70908;
         recalculateAYCyclesPerSample();
@@ -237,6 +246,7 @@ export function setMachineType(type:u32):void {
         buildContentionTable(14361, 228, frameCycleCount);
         rom0Page = 8;
         rom1Page = 9;
+        betadiskEnabled = false;
     }
     reset();
 }
@@ -764,6 +774,17 @@ export function runUntil(maxT:u32):i16 {
             return 2;
         }
         willTrap = true;
+
+        if (betadiskEnabled) {
+            if ((pc & 0xff00) == 0x3d00 && !betadiskROMActive) {
+                betadiskROMActive = true;
+                romPageBeforeTrdos = memoryPageReadMap[0];
+                memoryPageReadMap[0] = 13;
+            } else if (pc >= 0x4000 && betadiskROMActive) {
+                betadiskROMActive = false;
+                memoryPageReadMap[0] = romPageBeforeTrdos;
+            }
+        }
 
         interruptible = true; // unless overridden by opcode
         if (opcodePrefix == 0) {
