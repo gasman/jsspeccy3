@@ -116,13 +116,19 @@ const run = (core) => {
 
                 let status = core.runFrame();
                 while (status) {
-                    switch (status) {
+                    switch (status >> 24) {
                         case 1:
                             stopped = true;
-                            throw("Unrecognised opcode!");
+                            throw("Unrecognised opcode: " + (status & 0x00ffffff).toString(16));
                         case 2:
                             trapTapeLoad();
                             break;
+                        case 3:
+                            stopped = true;
+                            throw("Trapped port read: " + ((status & 0x00ffff00) >> 8).toString(16));
+                        case 4:
+                            stopped = true;
+                            throw("Trapped port write: " + ((status & 0x00ffff00) >> 8).toString(16) + ", " + (status & 0x000000ff).toString(16));
                         default:
                             stopped = true;
                             throw("runFrame returned unexpected result: " + status);

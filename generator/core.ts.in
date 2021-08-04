@@ -238,7 +238,6 @@ export function setMachineType(type:u32):void {
         rom0Page = 12;
         rom1Page = 9;
         betadiskEnabled = true;
-        betadiskROMActive = false;
     } else {  // 128
         frameCycleCount = 70908;
         recalculateAYCyclesPerSample();
@@ -282,6 +281,7 @@ export function reset():void {
     halted = false;
     opcodePrefix = 0;
     framebufferIndex = 0;
+    betadiskROMActive = false;
 }
 setMachineType(48);
 
@@ -434,7 +434,7 @@ export function poke(addr:u16, val:u8):void {
     machineMemory[pageOffset | (addr & 0x3fff)] = val;
 }
 
-export function readPort(addr:u16):u8 {
+export function readPort(addr:u16):u32 {
     /* apply pre-read contention */
     const page:u8 = memoryPageReadMap[addr >> 14];
     const addressIsContended:u8 = pageIsContended[page];
@@ -444,26 +444,37 @@ export function readPort(addr:u16):u8 {
     }
     t++;
 
-    let result:u8 = 0xff;
+    let result:u32 = 0xff;
     if (machineType == 1212) {
         /*
         on port reads, the test machine just responds with the high byte of the port address.
         That's a thing now, I decided. (Well, Phil Kendall decided it to be exact.)
         */
-        result = u8(addr >> 8);
+        result = u32(addr >> 8);
     } else {
 
         if (!(addr & 0x0001)) {
             /* poll keyboard */
-            result = pollKeyboard(u8(addr >> 8));
+            result = u32(pollKeyboard(u8(addr >> 8)));
         } else if ((addr & 0xc002) == 0xc000) {
-            result = readAYRegister(selectedAYRegister);
+            result = u32(readAYRegister(selectedAYRegister));
+        } else if (betadiskROMActive) {
+            if ((addr & 0x00ff) == 0x001f) {
+            } else if ((addr & 0x00ff) == 0x003f) {
+                return 0x03003f00;
+            } else if ((addr & 0x00ff) == 0x005f) {
+                return 0x03005f00;
+            } else if ((addr & 0x00ff) == 0x007f) {
+                return 0x03007f00;
+            } else if ((addr & 0x00ff) == 0x00ff) {
+                return 0x0300ff00;
+            }
         } else if (!(addr & 0x00e0)) {
             /* kempston joystick */
             result = 0;
         }
     }
-    if (loggingEnabled) log(t, 4, addr, result);
+    if (loggingEnabled) log(t, 4, addr, u8(result));
 
     /* apply post-read contention */
     if (addr & 0x0001) {
@@ -489,7 +500,7 @@ export function readPort(addr:u16):u8 {
     return result;
 }
 
-export function writePort(addr:u16, val:u8):void {
+export function writePort(addr:u16, val:u8):u32 {
     /* apply pre-write contention */
     const page:u8 = memoryPageWriteMap[addr >> 14];
     const addressIsContended:u8 = pageIsContended[page];
@@ -506,7 +517,9 @@ export function writePort(addr:u16, val:u8):void {
         updateAudioBuffer();
         borderColour = val & 0x07;
         speakerState = (val & 0x10) >> 4;
-    } else if (!(addr & 0x8002)) {
+    }
+
+    if (!(addr & 0x8002)) {
         /* 128/+2 paging */
         if (!pagingLocked) {
 
@@ -524,6 +537,21 @@ export function writePort(addr:u16, val:u8):void {
         updateAudioBuffer();
         writeAYRegister(selectedAYRegister, val);
     }
+
+    if (betadiskROMActive) {
+        if ((addr & 0x00ff) == 0x001f) {
+            return 0x04001f00 | u32(val);
+        } else if ((addr & 0x00ff) == 0x003f) {
+            return 0x04003f00 | u32(val);
+        } else if ((addr & 0x00ff) == 0x005f) {
+            return 0x04005f00 | u32(val);
+        } else if ((addr & 0x00ff) == 0x007f) {
+            return 0x04007f00 | u32(val);
+        } else if ((addr & 0x00ff) == 0x00ff) {
+            return 0x0400ff00 | u32(val);
+        }
+    }
+
 
     /* apply post-write contention */
     if (addr & 0x0001) {
@@ -545,7 +573,7 @@ export function writePort(addr:u16, val:u8):void {
         t += contentionTable[t % frameCycleCount];
         t += 3;
     }
-
+    return 0;
 }
 
 let screenEventPointer:u32 = 0;
@@ -688,7 +716,7 @@ function recalculateAYCyclesPerSample():void {
 */
 
 
-export function runFrame():i16 {
+export function runFrame():u32 {
     screenEventPointer = 0;
     framebufferIndex = 0;
 
@@ -708,8 +736,8 @@ export function runFrame():i16 {
     return resumeFrame();
 }
 
-export function resumeFrame():i16 {
-    const status = runUntil(frameCycleCount);
+export function resumeFrame():u32 {
+    const status:u32 = runUntil(frameCycleCount);
     if (status) {
         // a non-zero status indicates we've broken out of the frame prematurely
         // and will need to resume it with resumeFrame.
@@ -729,7 +757,7 @@ export function resumeFrame():i16 {
     return 0;
 }
 
-export function runUntil(maxT:u32):i16 {
+export function runUntil(maxT:u32):u32 {
     while (t < maxT || opcodePrefix) {
         if (t < 36 && iff1 && interruptible) {
             /* process interrupt */
@@ -771,7 +799,7 @@ export function runUntil(maxT:u32):i16 {
             && willTrap
         ) {
             // tape loading trap
-            return 2;
+            return 0x02000000;
         }
         willTrap = true;
 
@@ -799,7 +827,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable base
 
                 default:
-                    return 1;  /* unrecognised opcode */
+                    return 0x01000000 | u32(op);  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xcb) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -814,7 +842,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable cb
 
                 default:
-                    return 1;  /* unrecognised opcode */
+                    return 0x0100cb00 | u32(op);  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xdd) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -829,7 +857,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable dd
 
                 default:
-                    return 1;  /* unrecognised opcode */
+                    return 0x0100dd00 | u32(op);  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xdc) {  // ddcb
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -839,7 +867,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable ddcb
 
                 default:
-                    return 1;  /* unrecognised opcode */
+                    return 0x01ddcb00 | u32(op);  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xed) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -854,7 +882,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable ed
 
                 default:
-                    return 1;  /* unrecognised opcode */
+                    return 0x0100ed00 | u32(op);  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xfd) {
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -869,7 +897,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable fd
 
                 default:
-                    return 1;  /* unrecognised opcode */
+                    return 0x0100fd00 | u32(op);  /* unrecognised opcode */
             }
         } else if (opcodePrefix == 0xfc) {  // fdcb
             opcodePrefix = 0;  // for the next instruction (unless overridden)
@@ -879,7 +907,7 @@ export function runUntil(maxT:u32):i16 {
                 #optable fdcb
 
                 default:
-                    return 1;  /* unrecognised opcode */
+                    return 0x01fdcb00 | u32(op);  /* unrecognised opcode */
             }
         }
     }

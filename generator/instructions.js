@@ -535,16 +535,22 @@ export default {
         im = ${k};
     `,
     'IN r,(C)': (r) => `
-        const result:u8 = readPort(BC);
+        const result32:u32 = readPort(BC);
+        if (result32 & 0xffffff00) return result32;
+        const result:u8 = u8(result32);
         ${r} = result;
         F = (F & FLAG_C) | sz53pTable[result];
     `,
     'IN A,(n)': () => `
         const port:u16 = (u16(A) << 8) | u16(readMem(pc++));
-        A = readPort(port);
+        const result32:u32 = readPort(port);
+        if (result32 & 0xffffff00) return result32;
+        A = u8(result32);
     `,
     'IN F,(C)': () => `
-        const result:u8 = readPort(BC);
+        const result32:u32 = readPort(BC);
+        if (result32 & 0xffffff00) return result32;
+        const result:u8 = u8(result32);
         F = (F & FLAG_C) | sz53pTable[result];
     `,
     'INC v': (v) => `
@@ -565,7 +571,9 @@ export default {
         contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
-        const result:u8 = readPort(bc);
+        const result32:u32 = readPort(bc);
+        if (result32 && 0xffffff00) return result32;
+        const result:u8 = u8(result32);
         const hl:u16 = HL;
         writeMem(hl, result);
         const b:u8 = u8(bc >> 8) - 1;
@@ -580,7 +588,9 @@ export default {
         contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
-        const result:u8 = readPort(bc);
+        const result32:u32 = readPort(bc);
+        if (result32 && 0xffffff00) return result32;
+        const result:u8 = u8(result32);
         const hl:u16 = HL;
         writeMem(hl, result);
         const b:u8 = u8(bc >> 8) - 1;
@@ -608,7 +618,9 @@ export default {
         contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
-        const result:u8 = readPort(bc);
+        const result32:u32 = readPort(bc);
+        if (result32 && 0xffffff00) return result32;
+        const result:u8 = u8(result32);
         const hl:u16 = HL;
         writeMem(hl, result);
         const b:u8 = u8(bc >> 8) - 1;
@@ -623,7 +635,9 @@ export default {
         contendDirtyRead(IR);
         t++;
         const bc:u16 = BC;
-        const result:u8 = readPort(bc);
+        const result32:u32 = readPort(bc);
+        if (result32 && 0xffffff00) return result32;
+        const result:u8 = u8(result32);
         const hl:u16 = HL;
         writeMem(hl, result);
         const b:u8 = u8(bc >> 8) - 1;
@@ -961,7 +975,8 @@ export default {
         const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
         const b:u8 = u8(bc >> 8);
         B = b;
-        writePort(bc, val);
+        const writeResult:u32 = writePort(bc, val);
+        if (writeResult) return writeResult;
         hl--;
         HL = hl;
         const outitemp2:u8 = val + u8(hl & 0xff);
@@ -988,7 +1003,8 @@ export default {
         const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
         const b:u8 = u8(bc >> 8);
         B = b;
-        writePort(bc, val);
+        const writeResult:u32 = writePort(bc, val);
+        if (writeResult) return writeResult;
         hl++;
         HL = hl;
         const outitemp2:u8 = val + u8(hl & 0xff);
@@ -1010,13 +1026,16 @@ export default {
     'OUT (n),A': () => `
         const lo:u16 = u16(readMem(pc++));
         const a:u8 = A;
-        writePort(lo | (u16(a) << 8), a);
+        const writeResult:u32 = writePort(lo | (u16(a) << 8), a);
+        if (writeResult) return writeResult;
     `,
     'OUT (C),0': () => `
-        writePort(BC, 0);
+        const writeResult:u32 = writePort(BC, 0);
+        if (writeResult) return writeResult;
     `,
     'OUT (C),r': (r) => `
-        writePort(BC, ${r});
+        const writeResult:u32 = writePort(BC, ${r});
+        if (writeResult) return writeResult;
     `,
     'OUTD': () => `
         contendDirtyRead(IR);
@@ -1026,7 +1045,8 @@ export default {
         const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
         const b:u8 = u8(bc >> 8);
         B = b;
-        writePort(bc, val);
+        const writeResult:u32 = writePort(bc, val);
+        if (writeResult) return writeResult;
         hl--;
         HL = hl;
         const outitemp2:u8 = val + u8(hl & 0xff);
@@ -1040,7 +1060,8 @@ export default {
         const bc:u16 = BC - 0x100;  /* the decrement does happen first, despite what the specs say */
         const b:u8 = u8(bc >> 8);
         B = b;
-        writePort(bc, val);
+        const writeResult:u32 = writePort(bc, val);
+        if (writeResult) return writeResult;
         hl++;
         HL = hl;
         const outitemp2:u8 = val + u8(hl & 0xff);
