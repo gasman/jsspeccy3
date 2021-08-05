@@ -90,6 +90,7 @@ let rom1Page:u8 = 9;
 
 let betadiskEnabled:bool = false;
 let betadiskROMActive:bool = false;
+let trdosSystemRegister:u8 = 0;
 
 let i:u8 = 0;
 while (true) {
@@ -546,7 +547,7 @@ export function writePort(addr:u16, val:u8):u32 {
         } else if ((addr & 0x00ff) == 0x007f) {
             return 0x04007f00 | u32(val);
         } else if ((addr & 0x00ff) == 0x00ff) {
-            return 0x0400ff00 | u32(val);
+            trdosSystemRegister = val;
         }
     }
 
