@@ -90,8 +90,6 @@ let rom1Page:u8 = 9;
 
 let betadiskEnabled:bool = false;
 let betadiskROMActive:bool = false;
-// the ROM page that was active prior to TRDOS ROM being paged in
-let romPageBeforeTrdos = 12;
 
 let i:u8 = 0;
 while (true) {
@@ -776,13 +774,12 @@ export function runUntil(maxT:u32):i16 {
         willTrap = true;
 
         if (betadiskEnabled) {
-            if ((pc & 0xff00) == 0x3d00 && !betadiskROMActive) {
+            if ((pc & 0xff00) == 0x3d00 && !betadiskROMActive && memoryPageReadMap[0] == rom1Page) {
                 betadiskROMActive = true;
-                romPageBeforeTrdos = memoryPageReadMap[0];
                 memoryPageReadMap[0] = 13;
             } else if (pc >= 0x4000 && betadiskROMActive) {
                 betadiskROMActive = false;
-                memoryPageReadMap[0] = romPageBeforeTrdos;
+                memoryPageReadMap[0] = rom1Page;
             }
         }
 
