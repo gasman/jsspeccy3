@@ -91,6 +91,8 @@ let rom1Page:u8 = 9;
 let betadiskEnabled:bool = false;
 let betadiskROMActive:bool = false;
 let trdosSystemRegister:u8 = 0;
+let trdosStatusRegister:u8 = 0;
+let trdosVgPortFFIn:u8 = 0;
 
 let i:u8 = 0;
 while (true) {
@@ -539,7 +541,16 @@ export function writePort(addr:u16, val:u8):u32 {
 
     if (betadiskROMActive) {
         if ((addr & 0x00ff) == 0x001f) {
-            return 0x04001f00 | u32(val);
+            trdosStatusRegister = val;
+            const side:i32 = trdos_system_register & 0x10 ? 0 : 1;
+            switch (val & 0xf0) {
+                case 0xd0:
+                    /* interrupt */
+                    trdosVgPortFFIn = 0x80;
+                    break;
+                default:
+                    return 0x04001f00 | u32(val);
+            }
         } else if ((addr & 0x00ff) == 0x003f) {
             return 0x04003f00 | u32(val);
         } else if ((addr & 0x00ff) == 0x005f) {
