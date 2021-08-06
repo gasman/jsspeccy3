@@ -36,8 +36,14 @@ class Emulator extends EventEmitter {
                 case 'ready':
                     this.loadRoms().then(() => {
                         this.setMachine(opts.machine || 128);
-                        if (opts.autoStart) this.start();
-                    })
+                        if (opts.openUrl) {
+                            this.openUrl(opts.openUrl).then(() => {
+                                if (opts.autoStart) this.start();
+                            });
+                        } else if (opts.autoStart) {
+                            this.start();
+                        }
+                    });
                     break;
                 case 'frameCompleted':
                     // benchmarkRunCount++;
@@ -179,41 +185,58 @@ class Emulator extends EventEmitter {
         })
     }
 
-    openFile(file) {
-        const cleanName = file.name.toLowerCase();
+    getFileOpener(filename) {
+        const cleanName = filename.toLowerCase();
         if (cleanName.endsWith('.z80')) {
-            file.arrayBuffer().then(arrayBuffer => {
+            return arrayBuffer => {
                 const z80file = parseZ80File(arrayBuffer);
                 this.loadSnapshot(z80file);
-            });
+            };
         } else if (cleanName.endsWith('.szx')) {
-            file.arrayBuffer().then(arrayBuffer => {
+            return arrayBuffer => {
                 const szxfile = parseSZXFile(arrayBuffer);
                 this.loadSnapshot(szxfile);
-            });
+            };
         } else if (cleanName.endsWith('.sna')) {
-            file.arrayBuffer().then(arrayBuffer => {
+            return arrayBuffer => {
                 const snafile = parseSNAFile(arrayBuffer);
                 this.loadSnapshot(snafile);
-            });
+            };
         } else if (cleanName.endsWith('.tap')) {
-            file.arrayBuffer().then(arrayBuffer => {
+            return arrayBuffer => {
                 if (!TAPFile.isValid(arrayBuffer)) {
                     alert('Invalid TAP file');
                 } else {
                     this.openTAPFile(arrayBuffer);
                 }
-            });
+            };
         } else if (cleanName.endsWith('.tzx')) {
-            file.arrayBuffer().then(arrayBuffer => {
+            return arrayBuffer => {
                 if (!TZXFile.isValid(arrayBuffer)) {
                     alert('Invalid TZX file');
                 } else {
                     this.openTZXFile(arrayBuffer);
                 }
-            });
+            };
+        }
+    }
+
+    async openFile(file) {
+        const opener = this.getFileOpener(file.name);
+        if (opener) {
+            opener(await file.arrayBuffer());
         } else {
             alert('Unrecognised file type: ' + file.name);
+        }
+    }
+
+    async openUrl(url) {
+        const opener = this.getFileOpener(url);
+        if (opener) {
+            const response = await fetch(url);
+            opener(await response.arrayBuffer());
+        } else {
+            alert('Unrecognised file type: ' + url.split('/').pop());
         }
     }
 }
@@ -230,6 +253,7 @@ window.JSSpeccy = (container, opts) => {
     const emu = new Emulator(canvas, {
         machine: opts.machine || 128,
         autoStart: opts.autoStart || false,
+        openUrl: opts.openUrl,
     });
     const ui = new UIController(container, emu, {zoom: opts.zoom || 1});
 
