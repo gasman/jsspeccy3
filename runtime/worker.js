@@ -169,12 +169,24 @@ const run = (core) => {
                 break;
             case 'loadSnapshot':
                 loadSnapshot(e.data.snapshot);
+                postMessage({
+                    message: 'fileOpened',
+                    id: e.data.id,
+                });
                 break;
             case 'openTAPFile':
                 tape = new TAPFile(e.data.data);
+                postMessage({
+                    message: 'fileOpened',
+                    id: e.data.id,
+                });
                 break;
             case 'openTZXFile':
                 tape = new TZXFile(e.data.data);
+                postMessage({
+                    message: 'fileOpened',
+                    id: e.data.id,
+                });
                 break;
             default:
                 console.log('message received by worker:', e.data);

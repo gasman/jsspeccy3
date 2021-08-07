@@ -31,13 +31,18 @@ class Emulator extends EventEmitter {
         this.isExecutingFrame = false;
         this.nextFrameTime = null;
 
+        this.nextFileOpenID = 0;
+        this.fileOpenPromiseResolutions = {};
+
         this.worker.onmessage = (e) => {
             switch(e.data.message) {
                 case 'ready':
                     this.loadRoms().then(() => {
                         this.setMachine(opts.machine || 128);
                         if (opts.openUrl) {
-                            this.openUrl(opts.openUrl).then(() => {
+                            this.openUrlList(opts.openUrl).catch(err => {
+                                alert(err);
+                            }).then(() => {
                                 if (opts.autoStart) this.start();
                             });
                         } else if (opts.autoStart) {
@@ -65,6 +70,9 @@ class Emulator extends EventEmitter {
                     } else {
                         this.isExecutingFrame = false;
                     }
+                    break;
+                case 'fileOpened':
+                    this.fileOpenPromiseResolutions[e.data.id]();
                     break;
                 default:
                     console.log('message received by host:', e.data);
@@ -164,25 +172,40 @@ class Emulator extends EventEmitter {
     }
 
     loadSnapshot(snapshot) {
+        const fileID = this.nextFileOpenID++;
         this.worker.postMessage({
             message: 'loadSnapshot',
+            id: fileID,
             snapshot,
         })
         this.emit('setMachine', snapshot.model);
+        return new Promise((resolve, reject) => {
+            this.fileOpenPromiseResolutions[fileID] = resolve;
+        });
     }
 
     openTAPFile(data) {
+        const fileID = this.nextFileOpenID++;
         this.worker.postMessage({
             message: 'openTAPFile',
+            id: fileID,
             data,
         })
+        return new Promise((resolve, reject) => {
+            this.fileOpenPromiseResolutions[fileID] = resolve;
+        });
     }
 
     openTZXFile(data) {
+        const fileID = this.nextFileOpenID++;
         this.worker.postMessage({
             message: 'openTZXFile',
+            id: fileID,
             data,
         })
+        return new Promise((resolve, reject) => {
+            this.fileOpenPromiseResolutions[fileID] = resolve;
+        });
     }
 
     getFileOpener(filename) {
@@ -190,24 +213,24 @@ class Emulator extends EventEmitter {
         if (cleanName.endsWith('.z80')) {
             return arrayBuffer => {
                 const z80file = parseZ80File(arrayBuffer);
-                this.loadSnapshot(z80file);
+                return this.loadSnapshot(z80file);
             };
         } else if (cleanName.endsWith('.szx')) {
             return arrayBuffer => {
                 const szxfile = parseSZXFile(arrayBuffer);
-                this.loadSnapshot(szxfile);
+                return this.loadSnapshot(szxfile);
             };
         } else if (cleanName.endsWith('.sna')) {
             return arrayBuffer => {
                 const snafile = parseSNAFile(arrayBuffer);
-                this.loadSnapshot(snafile);
+                return this.loadSnapshot(snafile);
             };
         } else if (cleanName.endsWith('.tap')) {
             return arrayBuffer => {
                 if (!TAPFile.isValid(arrayBuffer)) {
                     alert('Invalid TAP file');
                 } else {
-                    this.openTAPFile(arrayBuffer);
+                    return this.openTAPFile(arrayBuffer);
                 }
             };
         } else if (cleanName.endsWith('.tzx')) {
@@ -215,7 +238,7 @@ class Emulator extends EventEmitter {
                 if (!TZXFile.isValid(arrayBuffer)) {
                     alert('Invalid TZX file');
                 } else {
-                    this.openTZXFile(arrayBuffer);
+                    return this.openTZXFile(arrayBuffer);
                 }
             };
         }
@@ -224,9 +247,10 @@ class Emulator extends EventEmitter {
     async openFile(file) {
         const opener = this.getFileOpener(file.name);
         if (opener) {
-            opener(await file.arrayBuffer());
+            const buf = await file.arrayBuffer();
+            await opener(buf).then(console.log('loaded ' + file.name));
         } else {
-            alert('Unrecognised file type: ' + file.name);
+            throw 'Unrecognised file type: ' + file.name;
         }
     }
 
@@ -234,9 +258,19 @@ class Emulator extends EventEmitter {
         const opener = this.getFileOpener(url);
         if (opener) {
             const response = await fetch(url);
-            opener(await response.arrayBuffer());
+            const buf = await response.arrayBuffer();
+            await opener(buf);
         } else {
-            alert('Unrecognised file type: ' + url.split('/').pop());
+            throw 'Unrecognised file type: ' + url.split('/').pop();
+        }
+    }
+    async openUrlList(urls) {
+        if (typeof(urls) === 'string') {
+            return await this.openUrl(urls);
+        } else {
+            for (const url of urls) {
+                await this.openUrl(url);
+            }
         }
     }
 }
@@ -360,7 +394,7 @@ window.JSSpeccy = (container, opts) => {
     const openFileDialog = () => {
         fileDialog().then(files => {
             const file = files[0];
-            emu.openFile(file);
+            emu.openFile(file).catch((err) => {alert(err);});
         });
     }
 
