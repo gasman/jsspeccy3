@@ -63,7 +63,7 @@ export function parseZ80File(data) {
         ulaState: {
             borderColour: (byte12 & 0x0e) >> 1
         },
-        memoryPages: {}
+        memoryPages: {},
     };
 
     if (snapshot.registers.PC !== 0) {
@@ -72,9 +72,11 @@ export function parseZ80File(data) {
         const memory = extractMemoryBlock(data, 30, byte12 & 0x20, 0xc000);
 
         /* construct byte arrays of length 0x4000 at the appropriate offsets into the data stream */
-        snapshot.memoryPages[5] = new Uint8Array(memory, 0, 0x4000);
-        snapshot.memoryPages[2] = new Uint8Array(memory, 0x4000, 0x4000);
-        snapshot.memoryPages[0] = new Uint8Array(memory, 0x8000, 0x4000);
+        snapshot.memoryPages[5] = new Uint8Array(memory.buffer, 0, 0x4000);
+        snapshot.memoryPages[2] = new Uint8Array(memory.buffer, 0x4000, 0x4000);
+        snapshot.memoryPages[0] = new Uint8Array(memory.buffer, 0x8000, 0x4000);
+
+        snapshot.tstates = 0;
     } else {
         /* version 2-3 snapshot */
         const additionalHeaderLength = file.getUint16(30, true);
@@ -157,7 +159,8 @@ export function parseSNAFile(data) {
                 memoryPages: {
                     5: new Uint8Array(data, 0x0000 + 27, 0x4000),
                     2: new Uint8Array(data, 0x4000 + 27, 0x4000)
-                }
+                },
+                tstates: 0,
             };
 
             if (mode128) {
@@ -276,7 +279,7 @@ export function parseSZXFile(data) {
                     'im': file.getUint8(offset + 28),
                 };
                 snapshot.tstates = file.getUint32(offset + 29, true);
-                snapshot.halted = file.getUint8(offset + 37) & 0x02;
+                snapshot.halted = !!(file.getUint8(offset + 37) & 0x02);
                 // currently ignored:
                 // chHoldIntReqCycles, eilast, memptr
 
