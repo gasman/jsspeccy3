@@ -122,12 +122,18 @@ export class Menu {
         }
         li.appendChild(button);
         return {
-            setCheckbox: () => {
+            setBullet: () => {
                 button.innerText = String.fromCharCode(0x2022) + ' ' + title;
+            },
+            unsetBullet: () => {
+                button.innerText = title;
+            },
+            setCheckbox: () => {
+                button.innerText = String.fromCharCode(0x2713) + ' ' + title;
             },
             unsetCheckbox: () => {
                 button.innerText = title;
-            }
+            },
         }
     }
 }

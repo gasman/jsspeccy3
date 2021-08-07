@@ -26,11 +26,13 @@ class Emulator extends EventEmitter {
         this.audioHandler = new AudioHandler();
         this.isRunning = false;
         this.isInitiallyPaused = (!opts.autoStart);
+        this.autoLoadTapes = opts.autoLoadTapes || false;
 
         this.msPerFrame = 20;
 
         this.isExecutingFrame = false;
         this.nextFrameTime = null;
+        this.machineType = null;
 
         this.nextFileOpenID = 0;
         this.fileOpenPromiseResolutions = {};
@@ -73,7 +75,17 @@ class Emulator extends EventEmitter {
                     }
                     break;
                 case 'fileOpened':
-                    this.fileOpenPromiseResolutions[e.data.id]();
+                    if (e.data.mediaType == 'tape' && this.autoLoadTapes) {
+                        const TAPE_LOADERS_BY_MACHINE = {
+                            '48': 'tapeloaders/tape_48.szx',
+                            '128': 'tapeloaders/tape_128.szx',
+                            '5': 'tapeloaders/tape_pentagon.szx',
+                        };
+                        this.openUrl(TAPE_LOADERS_BY_MACHINE[this.machineType]);
+                    }
+                    this.fileOpenPromiseResolutions[e.data.id]({
+                        mediaType: e.data.mediaType,
+                    });
                     break;
                 default:
                     console.log('message received by host:', e.data);
@@ -166,6 +178,7 @@ class Emulator extends EventEmitter {
             message: 'setMachineType',
             type,
         });
+        this.machineType = type;
         this.emit('setMachine', type);
     }
 
@@ -275,6 +288,11 @@ class Emulator extends EventEmitter {
             }
         }
     }
+
+    setAutoLoadTapes(val) {
+        this.autoLoadTapes = val;
+        this.emit('setAutoLoadTapes', val);
+    }
 }
 
 window.JSSpeccy = (container, opts) => {
@@ -289,6 +307,7 @@ window.JSSpeccy = (container, opts) => {
     const emu = new Emulator(canvas, {
         machine: opts.machine || 128,
         autoStart: opts.autoStart || false,
+        autoLoadTapes: opts.autoLoadTapes || false,
         openUrl: opts.openUrl,
     });
     const ui = new UIController(container, emu, {zoom: opts.zoom || 1});
@@ -296,6 +315,9 @@ window.JSSpeccy = (container, opts) => {
     const fileMenu = ui.menuBar.addMenu('File');
     fileMenu.addItem('Open...', () => {
         openFileDialog();
+    });
+    const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
+        emu.setAutoLoadTapes(!emu.autoLoadTapes);
     });
     const machineMenu = ui.menuBar.addMenu('Machine');
     const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
@@ -319,17 +341,17 @@ window.JSSpeccy = (container, opts) => {
     })
     const setZoomCheckbox = (factor) => {
         if (factor == 'fullscreen') {
-            fullscreenItem.setCheckbox();
+            fullscreenItem.setBullet();
             for (let i in zoomItemsBySize) {
-                zoomItemsBySize[i].unsetCheckbox();
+                zoomItemsBySize[i].unsetBullet();
             }
         } else {
-            fullscreenItem.unsetCheckbox();
+            fullscreenItem.unsetBullet();
             for (let i in zoomItemsBySize) {
                 if (parseInt(i) == factor) {
-                    zoomItemsBySize[i].setCheckbox();
+                    zoomItemsBySize[i].setBullet();
                 } else {
-                    zoomItemsBySize[i].unsetCheckbox();
+                    zoomItemsBySize[i].unsetBullet();
                 }
             }
         }
@@ -340,19 +362,29 @@ window.JSSpeccy = (container, opts) => {
 
     emu.on('setMachine', (type) => {
         if (type == 48) {
-            machine48Item.setCheckbox();
-            machine128Item.unsetCheckbox();
-            machinePentagonItem.unsetCheckbox();
+            machine48Item.setBullet();
+            machine128Item.unsetBullet();
+            machinePentagonItem.unsetBullet();
         } else if (type == 128) {
-            machine48Item.unsetCheckbox();
-            machine128Item.setCheckbox();
-            machinePentagonItem.unsetCheckbox();
+            machine48Item.unsetBullet();
+            machine128Item.setBullet();
+            machinePentagonItem.unsetBullet();
         } else { // pentagon
-            machine48Item.unsetCheckbox();
-            machine128Item.unsetCheckbox();
-            machinePentagonItem.setCheckbox();
+            machine48Item.unsetBullet();
+            machine128Item.unsetBullet();
+            machinePentagonItem.setBullet();
         }
     });
+
+    const updateAutoLoadTapesCheckbox = () => {
+        if (emu.autoLoadTapes) {
+            autoLoadTapesMenuItem.setCheckbox();
+        } else {
+            autoLoadTapesMenuItem.unsetCheckbox();
+        }
+    }
+    emu.on('setAutoLoadTapes', updateAutoLoadTapesCheckbox);
+    updateAutoLoadTapesCheckbox();
 
     ui.toolbar.addButton(openIcon, {label: 'Open file'}, () => {
         openFileDialog();

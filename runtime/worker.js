@@ -172,6 +172,7 @@ const run = (core) => {
                 postMessage({
                     message: 'fileOpened',
                     id: e.data.id,
+                    mediaType: 'snapshot',
                 });
                 break;
             case 'openTAPFile':
@@ -179,6 +180,7 @@ const run = (core) => {
                 postMessage({
                     message: 'fileOpened',
                     id: e.data.id,
+                    mediaType: 'tape',
                 });
                 break;
             case 'openTZXFile':
@@ -186,6 +188,7 @@ const run = (core) => {
                 postMessage({
                     message: 'fileOpened',
                     id: e.data.id,
+                    mediaType: 'tape',
                 });
                 break;
             default:
