@@ -328,6 +328,9 @@ export class UIController extends EventEmitter {
                     });
                 }
             }
+            loadList.then(() => {
+                if (emulator.isInitiallyPaused) emulator.start();
+            })
         });
         this.appContainer.addEventListener('dragover', (ev) => {
             ev.preventDefault();

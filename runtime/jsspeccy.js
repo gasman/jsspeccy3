@@ -25,6 +25,7 @@ class Emulator extends EventEmitter {
         this.displayHandler = new DisplayHandler(this.canvas);
         this.audioHandler = new AudioHandler();
         this.isRunning = false;
+        this.isInitiallyPaused = (!opts.autoStart);
 
         this.msPerFrame = 20;
 
@@ -83,6 +84,7 @@ class Emulator extends EventEmitter {
     start() {
         if (!this.isRunning) {
             this.isRunning = true;
+            this.isInitiallyPaused = false;
             this.nextFrameTime = performance.now();
             this.keyboardHandler.start();
             this.audioHandler.start();
@@ -394,7 +396,9 @@ window.JSSpeccy = (container, opts) => {
     const openFileDialog = () => {
         fileDialog().then(files => {
             const file = files[0];
-            emu.openFile(file).catch((err) => {alert(err);});
+            emu.openFile(file).then(() => {
+                if (emu.isInitiallyPaused) emu.start();
+            }).catch((err) => {alert(err);});
         });
     }
 
