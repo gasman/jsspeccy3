@@ -248,7 +248,7 @@ class Emulator extends EventEmitter {
         const opener = this.getFileOpener(file.name);
         if (opener) {
             const buf = await file.arrayBuffer();
-            await opener(buf).then(console.log('loaded ' + file.name));
+            await opener(buf);
         } else {
             throw 'Unrecognised file type: ' + file.name;
         }
