@@ -311,36 +311,38 @@ export class UIController extends EventEmitter {
 
         this.setZoom(opts.zoom || 1);
 
-        /* drag-and-drop for loading files */
-        this.appContainer.addEventListener('drop', (ev) => {
-            ev.preventDefault();
-            let loadList = Promise.resolve();
-            if (ev.dataTransfer.items) {
-                // Use DataTransferItemList interface to access the file(s)
-                for (const item of ev.dataTransfer.items) {
-                    // If dropped items aren't files, reject them
-                    if (item.kind === 'file') {
-                        const file = item.getAsFile();
+        if (!opts.sandbox) {
+            /* drag-and-drop for loading files */
+            this.appContainer.addEventListener('drop', (ev) => {
+                ev.preventDefault();
+                let loadList = Promise.resolve();
+                if (ev.dataTransfer.items) {
+                    // Use DataTransferItemList interface to access the file(s)
+                    for (const item of ev.dataTransfer.items) {
+                        // If dropped items aren't files, reject them
+                        if (item.kind === 'file') {
+                            const file = item.getAsFile();
+                            loadList = loadList.then(() => {
+                                emulator.openFile(file);
+                            });
+                        }
+                    }
+                } else {
+                    // Use DataTransfer interface to access the file(s)
+                    for (const file of ev.dataTransfer.files) {
                         loadList = loadList.then(() => {
                             emulator.openFile(file);
                         });
                     }
                 }
-            } else {
-                // Use DataTransfer interface to access the file(s)
-                for (const file of ev.dataTransfer.files) {
-                    loadList = loadList.then(() => {
-                        emulator.openFile(file);
-                    });
-                }
-            }
-            loadList.then(() => {
-                if (emulator.isInitiallyPaused) emulator.start();
-            })
-        });
-        this.appContainer.addEventListener('dragover', (ev) => {
-            ev.preventDefault();
-        });
+                loadList.then(() => {
+                    if (emulator.isInitiallyPaused) emulator.start();
+                })
+            });
+            this.appContainer.addEventListener('dragover', (ev) => {
+                ev.preventDefault();
+            });
+        }
     }
 
     setZoom(factor) {

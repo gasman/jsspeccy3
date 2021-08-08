@@ -334,15 +334,28 @@ window.JSSpeccy = (container, opts) => {
         autoLoadTapes: opts.autoLoadTapes || false,
         openUrl: opts.openUrl,
     });
-    const ui = new UIController(container, emu, {zoom: opts.zoom || 1});
+    const ui = new UIController(container, emu, {zoom: opts.zoom || 1, sandbox: opts.sandbox});
 
-    const fileMenu = ui.menuBar.addMenu('File');
-    fileMenu.addItem('Open...', () => {
-        openFileDialog();
-    });
-    const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
-        emu.setAutoLoadTapes(!emu.autoLoadTapes);
-    });
+    if (!opts.sandbox) {
+        const fileMenu = ui.menuBar.addMenu('File');
+        fileMenu.addItem('Open...', () => {
+            openFileDialog();
+        });
+        const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
+            emu.setAutoLoadTapes(!emu.autoLoadTapes);
+        });
+
+        const updateAutoLoadTapesCheckbox = () => {
+            if (emu.autoLoadTapes) {
+                autoLoadTapesMenuItem.setCheckbox();
+            } else {
+                autoLoadTapesMenuItem.unsetCheckbox();
+            }
+        }
+        emu.on('setAutoLoadTapes', updateAutoLoadTapesCheckbox);
+        updateAutoLoadTapesCheckbox();
+    }
+
     const machineMenu = ui.menuBar.addMenu('Machine');
     const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
         emu.setMachine(48);
@@ -400,19 +413,11 @@ window.JSSpeccy = (container, opts) => {
         }
     });
 
-    const updateAutoLoadTapesCheckbox = () => {
-        if (emu.autoLoadTapes) {
-            autoLoadTapesMenuItem.setCheckbox();
-        } else {
-            autoLoadTapesMenuItem.unsetCheckbox();
-        }
+    if (!opts.sandbox) {
+        ui.toolbar.addButton(openIcon, {label: 'Open file'}, () => {
+            openFileDialog();
+        });
     }
-    emu.on('setAutoLoadTapes', updateAutoLoadTapesCheckbox);
-    updateAutoLoadTapesCheckbox();
-
-    ui.toolbar.addButton(openIcon, {label: 'Open file'}, () => {
-        openFileDialog();
-    });
     ui.toolbar.addButton(resetIcon, {label: 'Reset'}, () => {
         emu.reset();
     });
