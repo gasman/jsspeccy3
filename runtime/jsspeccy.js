@@ -16,12 +16,13 @@ import pauseIcon from './icons/pause.svg';
 import fullscreenIcon from './icons/fullscreen.svg';
 import exitFullscreenIcon from './icons/exitfullscreen.svg';
 
+const scriptUrl = document.currentScript.src;
 
 class Emulator extends EventEmitter {
     constructor(canvas, opts) {
         super();
         this.canvas = canvas;
-        this.worker = new Worker('jsspeccy-worker.js');
+        this.worker = new Worker(new URL('jsspeccy-worker.js', scriptUrl));
         this.keyboardHandler = new KeyboardHandler(this.worker);
         this.displayHandler = new DisplayHandler(this.canvas);
         this.audioHandler = new AudioHandler();
@@ -82,7 +83,7 @@ class Emulator extends EventEmitter {
                             '128': 'tapeloaders/tape_128.szx',
                             '5': 'tapeloaders/tape_pentagon.szx',
                         };
-                        this.openUrl(TAPE_LOADERS_BY_MACHINE[this.machineType]);
+                        this.openUrl(new URL(TAPE_LOADERS_BY_MACHINE[this.machineType], scriptUrl));
                     }
                     this.fileOpenPromiseResolutions[e.data.id]({
                         mediaType: e.data.mediaType,
@@ -92,6 +93,10 @@ class Emulator extends EventEmitter {
                     console.log('message received by host:', e.data);
             }
         }
+        this.worker.postMessage({
+            message: 'loadCore',
+            baseUrl: scriptUrl,
+        })
     }
 
     start() {
@@ -118,7 +123,7 @@ class Emulator extends EventEmitter {
     }
 
     async loadRom(url, page) {
-        const response = await fetch(url);
+        const response = await fetch(new URL(url, scriptUrl));
         const data = new Uint8Array(await response.arrayBuffer());
         this.worker.postMessage({
             message: 'loadMemory',
@@ -294,7 +299,7 @@ class Emulator extends EventEmitter {
     }
 
     async openUrl(url) {
-        const opener = this.getFileOpener(url);
+        const opener = this.getFileOpener(url.toString());
         if (opener) {
             const response = await fetch(url);
             const buf = await response.arrayBuffer();
