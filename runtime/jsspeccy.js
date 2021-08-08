@@ -258,28 +258,27 @@ class Emulator extends EventEmitter {
                 }
             };
         } else if (cleanName.endsWith('.zip')) {
-            return arrayBuffer => {
-                JSZip.loadAsync(arrayBuffer).then(zip => {
-                    const openers = [];
-                    zip.forEach((path, file) => {
-                        const opener = this.getFileOpener(path);
-                        if (opener) {
-                            const boundOpener = async () => {
-                                const buf = await file.async('arraybuffer');
-                                return opener(buf);
-                            }
-                            openers.push(boundOpener);
-                        }
-                    });
-                    if (openers.length == 1) {
-                        return openers[0]();
-                    } else if (openers.length == 0) {
-                        throw 'No loadable files found inside ZIP file: ' + filename;
-                    } else {
-                        // TODO: prompt to choose a file
-                        throw 'Multiple loadable files found inside ZIP file: ' + filename;
+            return async arrayBuffer => {
+                const zip = await JSZip.loadAsync(arrayBuffer);
+                const openers = [];
+                zip.forEach((path, file) => {
+                    const opener = this.getFileOpener(path);
+                    if (opener) {
+                        const boundOpener = async () => {
+                            const buf = await file.async('arraybuffer');
+                            return opener(buf);
+                        };
+                        openers.push(boundOpener);
                     }
-                })
+                });
+                if (openers.length == 1) {
+                    return openers[0]();
+                } else if (openers.length == 0) {
+                    throw 'No loadable files found inside ZIP file: ' + filename;
+                } else {
+                    // TODO: prompt to choose a file
+                    throw 'Multiple loadable files found inside ZIP file: ' + filename;
+                }
             }
         }
     }
@@ -288,7 +287,7 @@ class Emulator extends EventEmitter {
         const opener = this.getFileOpener(file.name);
         if (opener) {
             const buf = await file.arrayBuffer();
-            await opener(buf);
+            return opener(buf).catch(err => {alert(err);});
         } else {
             throw 'Unrecognised file type: ' + file.name;
         }
@@ -299,7 +298,7 @@ class Emulator extends EventEmitter {
         if (opener) {
             const response = await fetch(url);
             const buf = await response.arrayBuffer();
-            await opener(buf);
+            return opener(buf);
         } else {
             throw 'Unrecognised file type: ' + url.split('/').pop();
         }
