@@ -480,5 +480,15 @@ window.JSSpeccy = (container, opts) => {
         }, 1000)
     */
 
-    return emu;
+    return {
+        setZoom: (zoom) => {ui.setZoom(zoom);},
+        toggleFullscreen: () => {ui.toggleFullscreen();},
+        enterFullscreen: () => {ui.enterFullscreen();},
+        exitFullscreen: () => {ui.exitFullscreen();},
+        setMachine: (model) => {emu.setMachine(model);},
+        openFileDialog: () => {openFileDialog();},
+        openUrl: (url) => {
+            emu.openUrl(url).catch((err) => {alert(err);});
+        },
+    };
 };
