@@ -322,6 +322,11 @@ class Emulator extends EventEmitter {
         this.autoLoadTapes = val;
         this.emit('setAutoLoadTapes', val);
     }
+
+    exit() {
+        this.pause();
+        this.worker.terminate();
+    }
 }
 
 window.JSSpeccy = (container, opts) => {
@@ -468,6 +473,11 @@ window.JSSpeccy = (container, opts) => {
         });
     }
 
+    const exit = () => {
+        emu.exit();
+        ui.unload();
+    }
+
     /*
         const benchmarkElement = document.getElementById('benchmark');
         setInterval(() => {
@@ -490,5 +500,6 @@ window.JSSpeccy = (container, opts) => {
         openUrl: (url) => {
             emu.openUrl(url).catch((err) => {alert(err);});
         },
+        exit: () => {exit();},
     };
 };

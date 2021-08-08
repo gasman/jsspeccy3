@@ -391,4 +391,7 @@ export class UIController extends EventEmitter {
             this.toolbar.show();
         }
     }
+    unload() {
+        this.appContainer.remove();
+    }
 }

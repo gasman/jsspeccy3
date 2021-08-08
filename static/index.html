@@ -4,7 +4,7 @@
         <title>JSSpeccy v3</title>
         <script src="jsspeccy.js"></script>
     </head>
-    <body onload="JSSpeccy(document.getElementById('jsspeccy'), {zoom: 2, sandbox: false})">
-        <div id="jsspeccy"></div>
+    <body onload="emu = JSSpeccy(document.getElementById('jsspeccy'), {zoom: 2, sandbox: false}); document.getElementById('exit').onclick = () => {emu.exit();}">
+        <div id="jsspeccy"></div><button id="exit">exit</button>
     </body>
 </html>
