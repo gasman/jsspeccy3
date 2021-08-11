@@ -248,6 +248,9 @@ export function parseSZXFile(data) {
         case 3:
             snapshot.model = 128;
             break;
+        case 7:
+            snapshot.model = 5;
+            break;
         default:
             throw "Unsupported machine type: " + machineId;
     }

@@ -3,8 +3,18 @@
     <head>
         <title>JSSpeccy v3</title>
         <script src="jsspeccy.js"></script>
+        <style>
+            body {
+                background-color: #444;
+            }
+            #jsspeccy {
+                width: 640px;
+                margin: auto;
+                background-color: white;
+            }
+        </style>
     </head>
-    <body onload="emu = JSSpeccy(document.getElementById('jsspeccy'), {zoom: 2, sandbox: false}); document.getElementById('exit').onclick = () => {emu.exit();}">
-        <div id="jsspeccy"></div><button id="exit">exit</button>
+    <body onload="emu = JSSpeccy(document.getElementById('jsspeccy'), {zoom: 2, sandbox: false, tapeAutoLoadMode: 'usr0'})">
+        <div id="jsspeccy"></div>
     </body>
 </html>
