@@ -268,6 +268,7 @@ class Emulator extends EventEmitter {
                 const zip = await JSZip.loadAsync(arrayBuffer);
                 const openers = [];
                 zip.forEach((path, file) => {
+                    if (path.startsWith('__MACOSX/')) return;
                     const opener = this.getFileOpener(path);
                     if (opener) {
                         const boundOpener = async () => {
