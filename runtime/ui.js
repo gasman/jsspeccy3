@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 
 import playIcon from './icons/play.svg';
+import closeIcon from './icons/close.svg';
 
 
 export class MenuBar {
@@ -212,6 +213,23 @@ export class UIController extends EventEmitter {
         this.canvas = emulator.canvas;
 
         /* build UI elements */
+        this.dialog = document.createElement('div');
+        this.dialog.style.display = 'none';
+        container.appendChild(this.dialog);
+        const dialogCloseButton = document.createElement('button');
+        dialogCloseButton.innerHTML = closeIcon;
+        dialogCloseButton.style.float = 'right';
+        dialogCloseButton.style.border = 'none';
+        dialogCloseButton.firstChild.style.height = '20px';
+        dialogCloseButton.firstChild.style.verticalAlign = 'middle';
+        this.dialog.appendChild(dialogCloseButton);
+        dialogCloseButton.addEventListener('click', () => {
+            this.hideDialog();
+        })
+        this.dialogBody = document.createElement('div');
+        this.dialogBody.style.clear = 'both';
+        this.dialog.appendChild(this.dialogBody);
+
         this.appContainer = document.createElement('div');
         container.appendChild(this.appContainer);
         this.appContainer.style.position = 'relative';
@@ -391,7 +409,28 @@ export class UIController extends EventEmitter {
             this.toolbar.show();
         }
     }
+    showDialog() {
+        this.dialog.style.display = 'block';
+        this.dialog.style.position = 'absolute';
+        this.dialog.style.backgroundColor = '#eee';
+        this.dialog.style.zIndex = '100';
+        this.dialog.style.width = '75%';
+        this.dialog.style.height = '80%';
+        this.dialog.style.left = '12%';
+        this.dialog.style.top = '10%';
+        this.dialog.style.overflow = 'scroll';  // TODO: less hacky scrolling that doesn't hide the close button
+        this.dialogBody.style.paddingLeft = '8px';
+        this.dialogBody.style.paddingRight = '8px';
+        this.dialogBody.style.paddingBottom = '8px';
+
+        return this.dialogBody;
+    }
+    hideDialog() {
+        this.dialog.style.display = 'none';
+        this.dialogBody.innerHTML = '';
+    }
     unload() {
+        this.dialog.remove();
         this.appContainer.remove();
     }
 }
