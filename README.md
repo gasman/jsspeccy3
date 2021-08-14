@@ -54,9 +54,27 @@ The available configuration options are:
 * `autoLoadTapes`: if true, any tape files opened (either manually or through the openUrl option) will be loaded automatically without the user having to enter LOAD "" or select the Tape Loader menu option.
 * `tapeAutoLoadMode`: specifies the mode that the machine should be set to before auto-loading tape files. When set to 'default' (the default), this is equivalent to selecting the Tape Loader menu option on machines that support it; when set to 'usr0', this is equivalent to entering 'usr0' in 128 BASIC then LOAD "" from the resulting 48K BASIC prompt (which leaves 128K memory paging available without the extra housekeeping of the 128K ROM - this mode is commonly used for launching demos).
 * `machine`: specifies the machine to emulate. Can be `48` (for a 48K Spectrum), `128` (for a 128K Spectrum), or `5` (for a Pentagon 128).
-* `openURL`: specifies a URL, or an array of URLs, to a file (or files) to load on startup, in any supported snapshot, tape or archive format.
+* `openURL`: specifies a URL, or an array of URLs, to a file (or files) to load on startup, in any supported snapshot, tape or archive format. Standard browser security restrictions apply for loading remote files: if the URL being loaded is not on the same domain as the calling page, it must serve [CORS HTTP headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) to be loadable.
 * `zoom`: specifies the size of the emulator window; 1 for 100% size (one Spectrum pixel per screen pixel), 2 for 200% size and so on.
 * `sandbox`: if true, all UI options for opening a new file are disabled - useful if you're showcasing a specific bit of Spectrum software on your page.
+
+For additional JavaScript hackery, the return value of the JSSpeccy function call is an object exposing a number of functions for controlling the running emulator:
+
+```html
+    <script>
+        let emu = JSSpeccy(document.getElementById('jsspeccy'));
+        emu.openFileDialog();
+    </script>
+```
+
+* `emu.setZoom(zoomLevel)` - set the zoom level of the emulator
+* `emu.enterFullscreen()` - activate full-screen mode
+* `emu.exitFullscreen()` - exit full-screen mode
+* `emu.toggleFullscreen()` - enter or exit full-screen mode
+* `emu.setMachine(machine)` - set the emulated machine type
+* `emu.openFileDialog()` - open the file chooser dialog
+* `emu.openUrl(url)` - open the file at the given URL
+* `emu.exit()` - immediately stop the emulator and remove it from the document
 
 
 ## Licence
