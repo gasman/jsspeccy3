@@ -1,7 +1,7 @@
 export default [
     {
         output: {
-            filename: 'jsspeccy.js',
+            filename: 'jsspeccy/jsspeccy.js',
         },
         name: 'jsspeccy',
         entry: './runtime/jsspeccy.js',
@@ -17,7 +17,7 @@ export default [
     },
     {
         output: {
-            filename: 'jsspeccy-worker.js',
+            filename: 'jsspeccy/jsspeccy-worker.js',
         },
         name: 'worker',
         entry: './runtime/worker.js',
