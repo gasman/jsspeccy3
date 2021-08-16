@@ -480,7 +480,7 @@ export default {
             t++;
             contendDirtyRead(pc);
             t++;
-            pc += offset + 1;
+            pc += i16(offset) + 1;
         } else {
             /* do not take branch */
             contendRead(pc++);
@@ -686,7 +686,7 @@ export default {
             t++;
             contendDirtyRead(pc);
             t++;
-            pc += offset + 1;
+            pc += i16(offset) + 1;
         } else {
             contendRead(pc++);
             t += 3;
@@ -704,7 +704,7 @@ export default {
         t++;
         contendDirtyRead(pc);
         t++;
-        pc += offset + 1;
+        pc += i16(offset) + 1;
     `,
     'LD (nn),rr': (rr) => `
         const lo = u16(readMem(pc++));
