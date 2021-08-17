@@ -212,6 +212,7 @@ let framebufferIndex = 0;
 let borderColour:u8 = 0;
 let speakerState:u8 = 0;
 let selectedAYRegister:u8 = 0;
+let floatingBusValue:u8 = 0xff;
 
 // whether a trap on the next instruction will be honoured
 let willTrap:bool = true;
@@ -459,6 +460,10 @@ export function readPort(addr:u16):u8 {
         } else if (!(addr & 0x00e0)) {
             /* kempston joystick */
             result = 0;
+        } else if (machineType == 48 || machineType == 128) {
+            /* floating bus */
+            updateFramebuffer();
+            result = floatingBusValue;
         }
     }
     if (loggingEnabled) log(t, 4, addr, result);
@@ -557,13 +562,15 @@ function updateFramebuffer():void {
         const addressWord:u32 = screenEvents[screenEventPointer + 1];
         if (addressWord == 0xffffffff) {
             frameBuffer[framebufferIndex++] = borderColour;
+            floatingBusValue = 0xff;
         } else {
             const screenAddr:u32 = screenBaseAddr | (addressWord & 0xffff);
             const attributeAddr:u32 = screenBaseAddr | (addressWord >> 16);
             frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
             frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
             frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
-            frameBuffer[framebufferIndex++] = machineMemory[attributeAddr + 1];
+            floatingBusValue = machineMemory[attributeAddr + 1];
+            frameBuffer[framebufferIndex++] = floatingBusValue;
         }
         screenEventPointer += 2;
     }
