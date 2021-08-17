@@ -12,21 +12,21 @@ export class CanvasRenderer {
         this.palette = new Uint32Array([
             /* RGBA dark */
             0x000000ff,
-            0x2030c0ff,
-            0xc04010ff,
-            0xc040c0ff,
-            0x40b010ff,
-            0x50c0b0ff,
-            0xe0c010ff,
-            0xc0c0c0ff,
+            0x0000ddff,
+            0xdd0000ff,
+            0xdd00ddff,
+            0x00dd00ff,
+            0x00ddddff,
+            0xdddd00ff,
+            0xddddddff,
             /* RGBA bright */
             0x000000ff,
-            0x3040ffff,
-            0xff4030ff,
-            0xff70f0ff,
-            0x50e010ff,
-            0x50e0ffff,
-            0xffe850ff,
+            0x0000ffff,
+            0xff0000ff,
+            0xff00ffff,
+            0x00ff00ff,
+            0x00ffffff,
+            0xffff00ff,
             0xffffffff
         ]);
 
@@ -37,11 +37,10 @@ export class CanvasRenderer {
             for (let i = 0; i < 16; i++) {
                 const color = this.palette[i];
                 this.palette[i] = (
-                    (color << 24) & 0xff000000)
-                    | ((color << 8) & 0xff0000)
-                    | ((color >>> 8) & 0xff00)
-                    | ((color >>> 24) & 0xff
-                );
+                        (color << 24) & 0xff000000) |
+                    ((color << 8) & 0xff0000) |
+                    ((color >>> 8) & 0xff00) |
+                    ((color >>> 24) & 0xff);
             }
         }
     }
