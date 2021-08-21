@@ -204,6 +204,14 @@ class ToolbarButton {
     setLabel(label) {
         this.elem.title = label;
     }
+    disable() {
+        this.elem.disabled = true;
+        this.elem.firstChild.style.opacity = '0.5';
+    }
+    enable() {
+        this.elem.disabled = false;
+        this.elem.firstChild.style.opacity = '1';
+    }
 }
 
 

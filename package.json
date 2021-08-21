@@ -35,9 +35,10 @@
     "build:js": {
       "patterns": [
         "runtime/*.js",
+        "runtime/icons/*.svg",
         "build/*.js"
       ],
-      "extensions": "js"
+      "extensions": ["js", "svg"]
     },
     "build:static": {
       "patterns": [
