@@ -15,6 +15,8 @@ import playIcon from './icons/play.svg';
 import pauseIcon from './icons/pause.svg';
 import fullscreenIcon from './icons/fullscreen.svg';
 import exitFullscreenIcon from './icons/exitfullscreen.svg';
+import tapePlayIcon from './icons/tape_play.svg';
+import tapePauseIcon from './icons/tape_pause.svg';
 
 const scriptUrl = document.currentScript.src;
 
@@ -30,6 +32,7 @@ class Emulator extends EventEmitter {
         this.isInitiallyPaused = (!opts.autoStart);
         this.autoLoadTapes = opts.autoLoadTapes || false;
         this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default';  // or usr0
+        this.tapeIsPlaying = false;
 
         this.msPerFrame = 20;
 
@@ -89,6 +92,17 @@ class Emulator extends EventEmitter {
                     this.fileOpenPromiseResolutions[e.data.id]({
                         mediaType: e.data.mediaType,
                     });
+                    if (e.data.mediaType == 'tape') {
+                        this.emit('openedTapeFile');
+                    }
+                    break;
+                case 'playingTape':
+                    this.tapeIsPlaying = true;
+                    this.emit('playingTape');
+                    break;
+                case 'stoppedTape':
+                    this.tapeIsPlaying = false;
+                    this.emit('stoppedTape');
                     break;
                 default:
                     console.log('message received by host:', e.data);
@@ -325,6 +339,17 @@ class Emulator extends EventEmitter {
         this.emit('setAutoLoadTapes', val);
     }
 
+    playTape() {
+        this.worker.postMessage({
+            message: 'playTape',
+        });
+    }
+    stopTape() {
+        this.worker.postMessage({
+            message: 'stopTape',
+        });
+    }
+
     exit() {
         this.pause();
         this.worker.terminate();
@@ -453,6 +478,26 @@ window.JSSpeccy = (container, opts) => {
         pauseButton.setIcon(pauseIcon);
         pauseButton.setLabel('Pause');
     });
+    const tapeButton = ui.toolbar.addButton(tapePlayIcon, {label: 'Start tape'}, () => {
+        if (emu.tapeIsPlaying) {
+            emu.stopTape();
+        } else {
+            emu.playTape();
+        }
+    });
+    tapeButton.disable();
+    emu.on('openedTapeFile', () => {
+        tapeButton.enable();
+    });
+    emu.on('playingTape', () => {
+        tapeButton.setIcon(tapePauseIcon);
+        tapeButton.setLabel('Stop tape');
+    });
+    emu.on('stoppedTape', () => {
+        tapeButton.setIcon(tapePlayIcon);
+        tapeButton.setLabel('Start tape');
+    });
+
     const fullscreenButton = ui.toolbar.addButton(
         fullscreenIcon,
         {label: 'Enter full screen mode', align: 'right'},

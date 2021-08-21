@@ -9,6 +9,7 @@ let registerPairs = null;
 
 let stopped = false;
 let tape = null;
+let tapeIsPlaying = false;
 
 const loadCore = (baseUrl) => {
     WebAssembly.instantiateStreaming(
@@ -196,6 +197,7 @@ onmessage = (e) => {
             break;
         case 'openTAPFile':
             tape = new TAPFile(e.data.data);
+            tapeIsPlaying = false;
             postMessage({
                 message: 'fileOpened',
                 id: e.data.id,
@@ -204,11 +206,28 @@ onmessage = (e) => {
             break;
         case 'openTZXFile':
             tape = new TZXFile(e.data.data);
+            tapeIsPlaying = false;
             postMessage({
                 message: 'fileOpened',
                 id: e.data.id,
                 mediaType: 'tape',
             });
+            break;
+        case 'playTape':
+            if (tape && !tapeIsPlaying) {
+                tapeIsPlaying = true;
+                postMessage({
+                    message: 'playingTape',
+                });
+            }
+            break;
+        case 'stopTape':
+            if (tape && tapeIsPlaying) {
+                tapeIsPlaying = false;
+                postMessage({
+                    message: 'stoppedTape',
+                });
+            }
             break;
         default:
             console.log('message received by worker:', e.data);
