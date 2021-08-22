@@ -90,6 +90,7 @@ let rom1Page:u8 = 9;
 
 let betadiskEnabled:bool = false;
 let betadiskROMActive:bool = false;
+let tapeTrapsEnabled:bool = true;
 
 let i:u8 = 0;
 while (true) {
@@ -338,6 +339,9 @@ export function setHalted(val:bool):void {
 }
 export function getHalted():bool {
     return halted;
+}
+export function setTapeTraps(val:bool):void {
+    tapeTrapsEnabled = val;
 }
 
 function log(time:u32, type:u16, addr:u16, val:u8):void {
@@ -773,7 +777,7 @@ export function runUntil(maxT:u32):i16 {
         if (
             (pc == 0x056b || pc == 0x0111)
             && (memoryPageReadMap[0] == 9 || memoryPageReadMap[0] == 10)
-            && willTrap
+            && tapeTrapsEnabled && willTrap
         ) {
             // tape loading trap
             return 2;
