@@ -33,6 +33,7 @@ class Emulator extends EventEmitter {
         this.autoLoadTapes = opts.autoLoadTapes || false;
         this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default';  // or usr0
         this.tapeIsPlaying = false;
+        this.tapeTrapsEnabled = ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true;
 
         this.msPerFrame = 20;
 
@@ -48,6 +49,7 @@ class Emulator extends EventEmitter {
                 case 'ready':
                     this.loadRoms().then(() => {
                         this.setMachine(opts.machine || 128);
+                        this.setTapeTraps(this.tapeTrapsEnabled);
                         if (opts.openUrl) {
                             this.openUrlList(opts.openUrl).catch(err => {
                                 alert(err);
@@ -338,6 +340,14 @@ class Emulator extends EventEmitter {
         this.autoLoadTapes = val;
         this.emit('setAutoLoadTapes', val);
     }
+    setTapeTraps(val) {
+        this.tapeTrapsEnabled = val;
+        this.worker.postMessage({
+            message: 'setTapeTraps',
+            value: val,
+        })
+        this.emit('setTapeTraps', val);
+    }
 
     playTape() {
         this.worker.postMessage({
@@ -371,6 +381,7 @@ window.JSSpeccy = (container, opts) => {
         autoLoadTapes: opts.autoLoadTapes || false,
         tapeAutoLoadMode: opts.tapeAutoLoadMode || 'default',
         openUrl: opts.openUrl,
+        tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
     });
     const ui = new UIController(container, emu, {zoom: opts.zoom || 1, sandbox: opts.sandbox});
 
@@ -379,8 +390,14 @@ window.JSSpeccy = (container, opts) => {
         fileMenu.addItem('Open...', () => {
             openFileDialog();
         });
+        fileMenu.addItem('Find games...', () => {
+            openGameBrowser();
+        });
         const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
             emu.setAutoLoadTapes(!emu.autoLoadTapes);
+        });
+        const tapeTrapsMenuItem = fileMenu.addItem('Enable tape traps', () => {
+            emu.setTapeTraps(!emu.tapeTrapsEnabled);
         });
 
         const updateAutoLoadTapesCheckbox = () => {
@@ -393,9 +410,15 @@ window.JSSpeccy = (container, opts) => {
         emu.on('setAutoLoadTapes', updateAutoLoadTapesCheckbox);
         updateAutoLoadTapesCheckbox();
 
-        fileMenu.addItem('Find games...', () => {
-            openGameBrowser();
-        });
+        const updateTapeTrapsCheckbox = () => {
+            if (emu.tapeTrapsEnabled) {
+                tapeTrapsMenuItem.setCheckbox();
+            } else {
+                tapeTrapsMenuItem.unsetCheckbox();
+            }
+        }
+        emu.on('setTapeTraps', updateTapeTrapsCheckbox);
+        updateTapeTrapsCheckbox();
     }
 
     const machineMenu = ui.menuBar.addMenu('Machine');

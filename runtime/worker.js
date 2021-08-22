@@ -213,6 +213,7 @@ onmessage = (e) => {
                 mediaType: 'tape',
             });
             break;
+        
         case 'playTape':
             if (tape && !tapeIsPlaying) {
                 tapeIsPlaying = true;
@@ -228,6 +229,9 @@ onmessage = (e) => {
                     message: 'stoppedTape',
                 });
             }
+            break;
+        case 'setTapeTraps':
+            core.setTapeTraps(e.data.value);
             break;
         default:
             console.log('message received by worker:', e.data);
