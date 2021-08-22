@@ -69,6 +69,10 @@ export const AUDIO_BUFFER_LEFT:usize = (&audioBufferLeft);
 #alloc audioBufferRight[1024]: f32
 export const AUDIO_BUFFER_RIGHT:usize = (&audioBufferLeft);
 
+#alloc tapePulses[10000]: u16
+export const TAPE_PULSES:usize = (&tapePulses);
+export const TAPE_PULSES_LENGTH:usize = 10000;
+
 #alloc ayVolumeLevels[16]: f32
 ayVolumeLevels = [0.0, 0.0022915, 0.0034105, 0.004842, 0.007057, 0.010307, 0.0141195, 0.0228165, 0.028188, 0.04411, 0.058784, 0.0749885, 0.0950615, 0.114544, 0.1413585, 0.166662];
 
@@ -214,6 +218,9 @@ let borderColour:u8 = 0;
 let speakerState:u8 = 0;
 let selectedAYRegister:u8 = 0;
 let floatingBusValue:u8 = 0xff;
+let currentTapeTime:u32 = 0;  // time at which tape pulse pointer was last updated
+let tapePulseIndex:u16 = 0;  // index into the tape pulses buffer for the current pulse
+let tapePulseCyclesElapsed:u32 = 0;  // number of cycles of the current pulse that have elapsed
 
 // whether a trap on the next instruction will be honoured
 let willTrap:bool = true;
@@ -459,6 +466,8 @@ export function readPort(addr:u16):u8 {
         if (!(addr & 0x0001)) {
             /* poll keyboard */
             result = pollKeyboard(u8(addr >> 8));
+            updateTapePulses();
+            result |= u8((tapePulses[tapePulseIndex] & 0x8000) >> 9);
         } else if ((addr & 0xc002) == 0xc000) {
             result = readAYRegister(selectedAYRegister);
         } else if (!(addr & 0x00e0)) {
@@ -669,6 +678,26 @@ function updateAudioBuffer():void {
     lastAudioT = t;
 }
 
+function updateTapePulses(): void {
+    let cyclesToAdvance = t - currentTapeTime;
+    while (cyclesToAdvance > 0) {
+        const pulseLength = u32(tapePulses[tapePulseIndex] & 0x7fff);
+        if (pulseLength == 0) return;
+        const remainingPulseCycles = pulseLength - tapePulseCyclesElapsed;
+        if (cyclesToAdvance < remainingPulseCycles) {
+            // new tape position is within this pulse
+            tapePulseCyclesElapsed += cyclesToAdvance;
+            cyclesToAdvance = 0;
+        } else {
+            // move to next pulse
+            cyclesToAdvance -= remainingPulseCycles;
+            tapePulseIndex++;
+            tapePulseCyclesElapsed = 0;
+        }
+    }
+    currentTapeTime = t;
+}
+
 export function keyDown(row:u8, mask:u8):void {
     keyStates[row] = keyStates[row] & ~mask;
 }
@@ -677,7 +706,7 @@ export function keyUp(row:u8, mask:u8):void {
 }
 
 function pollKeyboard(addr:u8):u8 {
-    let result:u8 = 0xff;
+    let result:u8 = 0xbf;
     for (let row:u8 = 0; row < 8; row++) {
         if (!(addr & (1<<row))) {
             /* scan this row */
@@ -713,6 +742,10 @@ export function runFrame():i16 {
             audioBufferRight[i] = audioBufferRight[samplesPerFrame + i];
         }
     }
+
+    currentTapeTime = 0;
+    tapePulseIndex = 0;
+    tapePulseCyclesElapsed = 0;
 
     return resumeFrame();
 }
