@@ -6,6 +6,7 @@ let memory = null;
 let memoryData = null;
 let workerFrameData = null;
 let registerPairs = null;
+let tapePulses = null;
 
 let stopped = false;
 let tape = null;
@@ -20,6 +21,12 @@ const loadCore = (baseUrl) => {
         memoryData = new Uint8Array(memory.buffer);
         workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
         registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
+        tapePulses = new Uint16Array(core.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
+
+        for (let i = 0; i < 36; i += 2) {
+            tapePulses[i] = 2168;
+            tapePulses[i+1] = 0x8000 | 2168;
+        }
 
         postMessage({
             'message': 'ready',
