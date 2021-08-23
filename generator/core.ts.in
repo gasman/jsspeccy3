@@ -374,6 +374,9 @@ export function setAudioSamplesPerFrame(val:u32):void {
 export function getAudioSamplesPerFrame():u32 {
     return samplesPerFrame;
 }
+export function getFrameCycleCount():u32 {
+    return frameCycleCount;
+}
 
 
 function readMem(addr:u16):u8 {
