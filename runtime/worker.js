@@ -23,11 +23,6 @@ const loadCore = (baseUrl) => {
         registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
         tapePulses = new Uint16Array(core.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
 
-        for (let i = 0; i < 36; i += 2) {
-            tapePulses[i] = 2168;
-            tapePulses[i+1] = 0x8000 | 2168;
-        }
-
         postMessage({
             'message': 'ready',
         });
@@ -138,6 +133,20 @@ onmessage = (e) => {
                 core.setAudioSamplesPerFrame(audioLength);
             } else {
                 core.setAudioSamplesPerFrame(0);
+            }
+
+            if (tape && tapeIsPlaying) {
+                const cycleCount = core.getFrameCycleCount();
+                const pulsesEmitted = tape.pulseGenerator.emitPulses(tapePulses, cycleCount);
+                if (tapePulses[pulsesEmitted - 1] === 0) {
+                    // if last pulse was a 0, we've reached the end of the tape
+                    tapeIsPlaying = false;
+                    postMessage({
+                        message: 'stoppedTape',
+                    });
+                }
+            } else {
+                tapePulses[0] = 0;
             }
 
             let status = core.runFrame();

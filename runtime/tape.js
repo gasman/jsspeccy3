@@ -1,3 +1,127 @@
+class ToneSegment {
+    constructor(pulseLength, pulseCount) {
+        this.pulseLength = pulseLength;
+        this.pulseCount = pulseCount;
+        this.pulsesGenerated = 0;
+    }
+    isFinished() {
+        return this.pulsesGenerated == this.pulseCount;
+    }
+    getNextPulseLength() {
+        this.pulsesGenerated++;
+        return this.pulseLength;
+    }
+}
+
+class PulseSequenceSegment {
+    constructor(pulses) {
+        this.pulses = pulses;
+        this.index = 0;
+    }
+    isFinished() {
+        return this.index == this.pulses.length;
+    }
+    getNextPulseLength() {
+        return this.pulses[this.index++];
+    }
+}
+
+class DataSegment {
+    constructor(data, zeroPulseLength, onePulseLength, lastByteBits) {
+        this.data = data;
+        this.zeroPulseLength = zeroPulseLength;
+        this.onePulseLength = onePulseLength;
+        this.bitCount = (this.data.length - 1) * 8 + lastByteBits;
+        this.pulsesOutput = 0;
+        this.lastPulseLength = null;
+    }
+    isFinished() {
+        return this.pulsesOutput == this.bitCount * 2;
+    }
+    getNextPulseLength() {
+        if (this.pulsesOutput & 0x01) {
+            this.pulsesOutput++;
+            return this.lastPulseLength;
+        } else {
+            const bitIndex = this.pulsesOutput >> 1;
+            const byteIndex = bitIndex >> 3;
+            const bitMask = 1 << (7 - (bitIndex & 0x07));
+            this.lastPulseLength = (this.data[byteIndex] & bitMask) ? this.onePulseLength : this.zeroPulseLength;
+            this.pulsesOutput++;
+            return this.lastPulseLength;
+        }
+    }
+}
+
+class PauseSegment {
+    constructor(duration) {
+        this.duration = duration;
+        this.emitted = false;
+    }
+    isFinished() {
+        return this.emitted;
+    }
+    getNextPulseLength() {
+        // TODO: take level back down to 0 after 1ms if it's currently high
+        this.emitted = true;
+        return this.duration * 3500;
+    }
+}
+
+class PulseGenerator {
+    constructor(getSegments) {
+        this.segments = [];
+        this.getSegments = getSegments;
+        this.level = 0x0000;
+        this.tapeIsFinished = false;  // if true, don't call getSegments again
+        this.pendingCycles = 0;
+    }
+    addSegment(segment) {
+        this.segments.push(segment);
+    }
+    emitPulses(buffer, cycleCount) {
+        let cyclesRemaining = cycleCount;
+        let index = 0;
+        while (cyclesRemaining > 0) {
+            if (this.pendingCycles > 0) {
+                if (this.pendingCycles < 0x8000 && this.pendingCycles < cyclesRemaining) {
+                    // emit the remainder of the pulse in full
+                    buffer[index++] = this.level | this.pendingCycles;
+                    cyclesRemaining -= this.pendingCycles;
+                    this.pendingCycles = 0;
+                } else if (this.pendingCycles >= 0x8000 && cyclesRemaining >= 0x8000) {
+                    // emit a pulse of length 0x7fff
+                    buffer[index++] = this.level | 0x7fff;
+                    cyclesRemaining -= 0x7fff;
+                    this.pendingCycles -= 0x7fff;
+                } else {
+                    // emit a pulse up to end of frame
+                    buffer[index++] = this.level | cyclesRemaining;
+                    this.pendingCycles -= cyclesRemaining;
+                    cyclesRemaining = 0;
+                }
+            } else if (this.segments.length === 0) {
+                if (this.tapeIsFinished) {
+                    // mark end of tape
+                    buffer[index++] = 0;
+                    break;
+                } else {
+                    // get more segments
+                    this.tapeIsFinished = !this.getSegments(this);
+                }
+            } else if (this.segments[0].isFinished()) {
+                // discard finished segment
+                this.segments.shift();
+            } else {
+                // new pulse
+                this.pendingCycles = this.segments[0].getNextPulseLength();
+                this.level ^= 0x8000;
+            }
+        }
+        return index;
+    }
+}
+
 export class TAPFile {
     constructor(data) {
         let i = 0;
@@ -12,6 +136,26 @@ export class TAPFile {
         }
 
         this.nextBlockIndex = 0;
+
+        this.pulseGenerator = new PulseGenerator((generator) => {
+            if (this.blocks.length === 0) return false;
+            const block = this.blocks[this.nextBlockIndex];
+            this.nextBlockIndex = (this.nextBlockIndex + 1) % this.blocks.length;
+
+            if (block[0] & 0x80) {
+                // add short leader tone for data block
+                generator.addSegment(new ToneSegment(2168, 3223));
+            } else {
+                // add long leader tone for header block
+                generator.addSegment(new ToneSegment(2168, 8063));
+            }
+            generator.addSegment(new PulseSequenceSegment([667, 735]));
+            generator.addSegment(new DataSegment(block, 855, 1710, 8));
+            generator.addSegment(new PauseSegment(1000));
+
+            // return false if tape has ended
+            return this.nextBlockIndex != 0;
+        });
     }
 
     getNextLoadableBlock() {
