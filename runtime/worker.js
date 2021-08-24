@@ -136,17 +136,18 @@ onmessage = (e) => {
             }
 
             if (tape && tapeIsPlaying) {
-                const cycleCount = core.getFrameCycleCount();
-                const pulsesEmitted = tape.pulseGenerator.emitPulses(tapePulses, cycleCount);
-                if (tapePulses[pulsesEmitted - 1] === 0) {
-                    // if last pulse was a 0, we've reached the end of the tape
+                const tapePulseBufferTstateCount = core.getTapePulseBufferTstateCount();
+                const tapePulseWriteIndex = core.getTapePulseWriteIndex();
+                const [newTapePulseWriteIndex, tstatesGenerated, tapeFinished] = tape.pulseGenerator.emitPulses(
+                    tapePulses, tapePulseWriteIndex, 80000 - tapePulseBufferTstateCount
+                );
+                core.setTapePulseBufferState(newTapePulseWriteIndex, tapePulseBufferTstateCount + tstatesGenerated);
+                if (tapeFinished) {
                     tapeIsPlaying = false;
                     postMessage({
                         message: 'stoppedTape',
                     });
                 }
-            } else {
-                tapePulses[0] = 0;
             }
 
             let status = core.runFrame();
