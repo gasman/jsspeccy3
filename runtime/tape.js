@@ -79,9 +79,10 @@ class PulseGenerator {
     addSegment(segment) {
         this.segments.push(segment);
     }
-    emitPulses(buffer, cycleCount) {
+    emitPulses(buffer, startIndex, cycleCount) {
         let cyclesRemaining = cycleCount;
-        let index = 0;
+        let index = startIndex;
+        let isFinished = false;
         while (cyclesRemaining > 0) {
             if (this.pendingCycles > 0) {
                 if (this.pendingCycles < 0x8000 && this.pendingCycles < cyclesRemaining) {
@@ -103,7 +104,7 @@ class PulseGenerator {
             } else if (this.segments.length === 0) {
                 if (this.tapeIsFinished) {
                     // mark end of tape
-                    buffer[index++] = 0;
+                    isFinished = true;
                     break;
                 } else {
                     // get more segments
@@ -118,7 +119,7 @@ class PulseGenerator {
                 this.level ^= 0x8000;
             }
         }
-        return index;
+        return [index, cycleCount, isFinished];
     }
 }
 

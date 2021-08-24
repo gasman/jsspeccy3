@@ -219,8 +219,11 @@ let speakerState:u8 = 0;
 let selectedAYRegister:u8 = 0;
 let floatingBusValue:u8 = 0xff;
 let currentTapeTime:u32 = 0;  // time at which tape pulse pointer was last updated
-let tapePulseIndex:u16 = 0;  // index into the tape pulses buffer for the current pulse
+let tapePulseReadIndex:u16 = 0;  // index into the tape pulses buffer for the current pulse
+let tapePulseWriteIndex:u16 = 0;
+let tapePulseBufferTstateCount:u32 = 0;  // total number of tstates of all pulses in the buffer
 let tapePulseCyclesElapsed:u32 = 0;  // number of cycles of the current pulse that have elapsed
+let tapeLevel:u8 = 0x00;
 
 // whether a trap on the next instruction will be honoured
 let willTrap:bool = true;
@@ -374,10 +377,16 @@ export function setAudioSamplesPerFrame(val:u32):void {
 export function getAudioSamplesPerFrame():u32 {
     return samplesPerFrame;
 }
-export function getFrameCycleCount():u32 {
-    return frameCycleCount;
+export function getTapePulseWriteIndex():u16 {
+    return tapePulseWriteIndex;
 }
-
+export function getTapePulseBufferTstateCount():u32 {
+    return tapePulseBufferTstateCount;
+}
+export function setTapePulseBufferState(writeIndex: u16, tstateCount:u32):void {
+    tapePulseWriteIndex = writeIndex;
+    tapePulseBufferTstateCount = tstateCount;
+}
 
 function readMem(addr:u16):u8 {
     const page:u8 = memoryPageReadMap[addr >> 14];
@@ -469,8 +478,8 @@ export function readPort(addr:u16):u8 {
         if (!(addr & 0x0001)) {
             /* poll keyboard */
             result = pollKeyboard(u8(addr >> 8));
-            updateTapePulses();
-            result |= u8((tapePulses[tapePulseIndex] & 0x8000) >> 9);
+            updateTapePulses(t);
+            result |= tapeLevel;
         } else if ((addr & 0xc002) == 0xc000) {
             result = readAYRegister(selectedAYRegister);
         } else if (!(addr & 0x00e0)) {
@@ -681,11 +690,15 @@ function updateAudioBuffer():void {
     lastAudioT = t;
 }
 
-function updateTapePulses(): void {
-    let cyclesToAdvance = t - currentTapeTime;
+function updateTapePulses(targetTime:u32): void {
+    let cyclesToAdvance = targetTime - currentTapeTime;
     while (cyclesToAdvance > 0) {
-        const pulseLength = u32(tapePulses[tapePulseIndex] & 0x7fff);
-        if (pulseLength == 0) return;
+        if (tapePulseReadIndex == tapePulseWriteIndex) {
+            // reached end of pulse buffer
+            tapeLevel = 0;
+            return;
+        }
+        const pulseLength = u32(tapePulses[tapePulseReadIndex] & 0x7fff);
         const remainingPulseCycles = pulseLength - tapePulseCyclesElapsed;
         if (cyclesToAdvance < remainingPulseCycles) {
             // new tape position is within this pulse
@@ -694,11 +707,12 @@ function updateTapePulses(): void {
         } else {
             // move to next pulse
             cyclesToAdvance -= remainingPulseCycles;
-            tapePulseIndex++;
+            tapePulseReadIndex++;
             tapePulseCyclesElapsed = 0;
         }
     }
-    currentTapeTime = t;
+    currentTapeTime = targetTime;
+    tapeLevel = u8((tapePulses[tapePulseReadIndex] & 0x8000) >> 9);
 }
 
 export function keyDown(row:u8, mask:u8):void {
@@ -747,8 +761,6 @@ export function runFrame():i16 {
     }
 
     currentTapeTime = 0;
-    tapePulseIndex = 0;
-    tapePulseCyclesElapsed = 0;
 
     return resumeFrame();
 }
@@ -767,6 +779,22 @@ export function resumeFrame():i16 {
 
     updateFramebuffer();
     updateAudioBuffer();
+    updateTapePulses(t);
+
+    // copy excess from tape pulse buffer to start of buffer
+    const excessPulses:u16 = tapePulseWriteIndex - tapePulseReadIndex;
+    for (let i:u16 = 0; i < excessPulses; i++) {
+        if (i == 0) {
+            tapePulses[0] = tapePulses[tapePulseReadIndex] - u16(tapePulseCyclesElapsed);
+            tapePulseCyclesElapsed = 0;
+        } else {
+            tapePulses[i] = tapePulses[tapePulseReadIndex + i];
+        }
+    }
+    tapePulseReadIndex = 0;
+    tapePulseWriteIndex = excessPulses;
+    tapePulseBufferTstateCount -= t;
+
     t -= frameCycleCount;
     lastAudioT -= frameCycleCount;
     audioBufferPointer -= samplesPerFrame;
