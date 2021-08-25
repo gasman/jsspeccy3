@@ -80,26 +80,21 @@ class PulseGenerator {
         this.segments.push(segment);
     }
     emitPulses(buffer, startIndex, cycleCount) {
-        let cyclesRemaining = cycleCount;
+        let cyclesEmitted = 0;
         let index = startIndex;
         let isFinished = false;
-        while (cyclesRemaining > 0) {
+        while (cyclesEmitted < cycleCount) {
             if (this.pendingCycles > 0) {
-                if (this.pendingCycles < 0x8000 && this.pendingCycles < cyclesRemaining) {
-                    // emit the remainder of the pulse in full
-                    buffer[index++] = this.level | this.pendingCycles;
-                    cyclesRemaining -= this.pendingCycles;
-                    this.pendingCycles = 0;
-                } else if (this.pendingCycles >= 0x8000 && cyclesRemaining >= 0x8000) {
+                if (this.pendingCycles >= 0x8000) {
                     // emit a pulse of length 0x7fff
                     buffer[index++] = this.level | 0x7fff;
-                    cyclesRemaining -= 0x7fff;
+                    cyclesEmitted += 0x7fff;
                     this.pendingCycles -= 0x7fff;
                 } else {
-                    // emit a pulse up to end of frame
-                    buffer[index++] = this.level | cyclesRemaining;
-                    this.pendingCycles -= cyclesRemaining;
-                    cyclesRemaining = 0;
+                    // emit a the remainder of this pulse in full
+                    buffer[index++] = this.level | this.pendingCycles;
+                    cyclesEmitted += this.pendingCycles;
+                    this.pendingCycles = 0;
                 }
             } else if (this.segments.length === 0) {
                 if (this.tapeIsFinished) {
@@ -119,7 +114,7 @@ class PulseGenerator {
                 this.level ^= 0x8000;
             }
         }
-        return [index, cycleCount, isFinished];
+        return [index, cyclesEmitted, isFinished];
     }
 }
 
