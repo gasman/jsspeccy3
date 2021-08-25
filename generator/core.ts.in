@@ -795,19 +795,26 @@ export function resumeFrame():i16 {
     updateFramebuffer();
     updateAudioBuffer(t);
 
-    // copy excess from tape pulse buffer to start of buffer
-    const excessPulses:u16 = tapePulseWriteIndex - tapePulseReadIndex;
-    for (let i:u16 = 0; i < excessPulses; i++) {
-        if (i == 0) {
-            tapePulses[0] = tapePulses[tapePulseReadIndex] - u16(tapePulseCyclesElapsed);
-            tapePulseCyclesElapsed = 0;
-        } else {
-            tapePulses[i] = tapePulses[tapePulseReadIndex + i];
+    if (tapePulseWriteIndex > tapePulseReadIndex) {
+        // copy excess from tape pulse buffer to start of buffer
+        const excessPulses:u16 = tapePulseWriteIndex - tapePulseReadIndex;
+        for (let i:u16 = 0; i < excessPulses; i++) {
+            if (i == 0) {
+                tapePulses[0] = tapePulses[tapePulseReadIndex] - u16(tapePulseCyclesElapsed);
+                tapePulseCyclesElapsed = 0;
+            } else {
+                tapePulses[i] = tapePulses[tapePulseReadIndex + i];
+            }
         }
+        tapePulseReadIndex = 0;
+        tapePulseWriteIndex = excessPulses;
+        tapePulseBufferTstateCount -= t;
+    } else {
+        tapePulseReadIndex = 0;
+        tapePulseWriteIndex = 0;
+        tapePulseCyclesElapsed = 0;
+        tapePulseBufferTstateCount = 0;
     }
-    tapePulseReadIndex = 0;
-    tapePulseWriteIndex = excessPulses;
-    tapePulseBufferTstateCount -= t;
 
     t -= frameCycleCount;
     lastAudioT -= frameCycleCount;
