@@ -278,7 +278,10 @@ export class TZXFile {
                 case 0x13:
                     (() => {
                         const pulseCount = tzx.getUint8(offset); offset += 1;
-                        const pulseLengths = new Uint16Array(data, offset, pulseCount);
+                        const pulseLengths = [];
+                        for (let i = 0; i < pulseCount; i++) {
+                            pulseLengths[i] = tzx.getUint16(offset + i*2, true);
+                        }
                         this.blocks.push({
                             'type': 'PulseSequence',
                             'pulseLengths': pulseLengths,
@@ -388,9 +391,13 @@ export class TZXFile {
                 case 0x26:
                     (() => {
                         const callCount = tzx.getUint16(offset, true); offset += 2;
+                        const offsets = [];
+                        for (let i = 0; i < callCount; i++) {
+                            offsets[i] = tzx.getUint16(offset + i*2, true);
+                        }
                         this.blocks.push({
                             'type': 'CallSequence',
-                            'offsets': new Uint16Array(data, offset, callCount)
+                            'offsets': offsets
                         });
                         offset += (callCount * 2);
                     })();
