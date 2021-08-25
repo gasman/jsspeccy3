@@ -207,10 +207,23 @@ export class TZXFile {
                         offset += 2;
                         const dataLength = tzx.getUint16(offset, true);
                         offset += 2;
+                        const blockData = new Uint8Array(data, offset, dataLength);
                         this.blocks.push({
                             'type': 'StandardSpeedData',
                             'pause': pause,
-                            'data': new Uint8Array(data, offset, dataLength)
+                            'data': blockData,
+                            'generatePulses': (generator) => {
+                                if (blockData[0] & 0x80) {
+                                    // add short leader tone for data block
+                                    generator.addSegment(new ToneSegment(2168, 3223));
+                                } else {
+                                    // add long leader tone for header block
+                                    generator.addSegment(new ToneSegment(2168, 8063));
+                                }
+                                generator.addSegment(new PulseSequenceSegment([667, 735]));
+                                generator.addSegment(new DataSegment(blockData, 855, 1710, 8));
+                                if (pause) generator.addSegment(new PauseSegment(pause));
+                            }
                         });
                         offset += dataLength;
                     })();
@@ -226,6 +239,7 @@ export class TZXFile {
                         const lastByteMask = tzx.getUint8(offset); offset += 1;
                         const pause = tzx.getUint16(offset, true); offset += 2;
                         const dataLength = tzx.getUint16(offset, true) | (tzx.getUint8(offset+2) << 16); offset += 3;
+                        const blockData = new Uint8Array(data, offset, dataLength);
                         this.blocks.push({
                             'type': 'TurboSpeedData',
                             'pilotPulseLength': pilotPulseLength,
@@ -236,7 +250,13 @@ export class TZXFile {
                             'pilotPulseCount': pilotPulseCount,
                             'lastByteMask': lastByteMask,
                             'pause': pause,
-                            'data': new Uint8Array(data, offset, dataLength)
+                            'data': blockData,
+                            'generatePulses': (generator) => {
+                                generator.addSegment(new ToneSegment(pilotPulseLength, pilotPulseCount));
+                                generator.addSegment(new PulseSequenceSegment([syncPulse1Length, syncPulse2Length]));
+                                generator.addSegment(new DataSegment(blockData, zeroBitLength, oneBitLength, lastByteMask));
+                                if (pause) generator.addSegment(new PauseSegment(pause));
+                            }
                         });
                         offset += dataLength;
                     })();
@@ -248,16 +268,23 @@ export class TZXFile {
                         this.blocks.push({
                             'type': 'PureTone',
                             'pulseLength': pulseLength,
-                            'pulseCount': pulseCount
+                            'pulseCount': pulseCount,
+                            'generatePulses': (generator) => {
+                                generator.addSegment(new ToneSegment(pulseLength, pulseCount));
+                            }
                         });
                     })();
                     break;
                 case 0x13:
                     (() => {
                         const pulseCount = tzx.getUint8(offset); offset += 1;
+                        const pulseLengths = new Uint16Array(data, offset, pulseCount);
                         this.blocks.push({
                             'type': 'PulseSequence',
-                            'pulseLengths': new Uint16Array(data, offset, pulseCount)
+                            'pulseLengths': pulseLengths,
+                            'generatePulses': (generator) => {
+                                generator.addSegment(new PulseSequenceSegment(pulseLengths));
+                            }
                         });
                         offset += (pulseCount * 2);
                     })();
@@ -269,13 +296,18 @@ export class TZXFile {
                         const lastByteMask = tzx.getUint8(offset); offset += 1;
                         const pause = tzx.getUint16(offset, true); offset += 2;
                         const dataLength = tzx.getUint16(offset, true) | (tzx.getUint8(offset+2) << 16); offset += 3;
+                        const blockData = new Uint8Array(data, offset, dataLength);
                         this.blocks.push({
                             'type': 'PureData',
                             'zeroBitLength': zeroBitLength,
                             'oneBitLength': oneBitLength,
                             'lastByteMask': lastByteMask,
                             'pause': pause,
-                            'data': new Uint8Array(data, offset, dataLength)
+                            'data': blockData,
+                            'generatePulses': (generator) => {
+                                generator.addSegment(new DataSegment(blockData, zeroBitLength, oneBitLength, lastByteMask));
+                                if (pause) generator.addSegment(new PauseSegment(pause));
+                            }
                         });
                         offset += dataLength;
                     })();
@@ -298,10 +330,14 @@ export class TZXFile {
                     break;
                 case 0x20:
                     (() => {
+                        // TODO: handle pause length of 0 (= stop tape)
                         const pause = tzx.getUint16(offset, true); offset += 2;
                         this.blocks.push({
                             'type': 'Pause',
-                            'pause': pause
+                            'pause': pause,
+                            'generatePulses': (generator) => {
+                                generator.addSegment(new PauseSegment(pause));
+                            }
                         });
                     })();
                     break;
@@ -463,13 +499,20 @@ export class TZXFile {
         this.loopToBlockIndex;
         this.repeatCount;
         this.callStack = [];
+
+        this.pulseGenerator = new PulseGenerator((generator) => {
+            const block = this.getNextMeaningfulBlock(false);
+            if (!block) return false;
+            block.generatePulses(generator);
+            return true;
+        });
     }
 
-    getNextMeaningfulBlock() {
+    getNextMeaningfulBlock(wrapAtEnd) {
         let startedAtZero = (this.nextBlockIndex === 0);
         while (true) {
             if (this.nextBlockIndex >= this.blocks.length) {
-                if (startedAtZero) return null; /* have looped around; quit now */
+                if (startedAtZero || !wrapAtEnd) return null; /* have looped around; quit now */
                 this.nextBlockIndex = 0;
                 startedAtZero = true;
             }
@@ -524,7 +567,7 @@ export class TZXFile {
 
     getNextLoadableBlock() {
         while (true) {
-            var block = this.getNextMeaningfulBlock();
+            var block = this.getNextMeaningfulBlock(true);
             if (!block) return null;
             if (block.type == 'StandardSpeedData' || block.type == 'TurboSpeedData') {
                 return block.data;
