@@ -531,7 +531,7 @@ export function writePort(addr:u16, val:u8):void {
     if (!(addr & 0x0001)) {
         /* border colour / speaker */
         updateFramebuffer();  // apply all screen upates up to this point
-        updateAudioBuffer();
+        updateAudioBuffer(t);
         borderColour = val & 0x07;
         speakerState = (val & 0x10) >> 4;
     } else if (!(addr & 0x8002)) {
@@ -549,7 +549,7 @@ export function writePort(addr:u16, val:u8):void {
     } else if ((addr & 0xc002) == 0xc000) {
         selectedAYRegister = val;
     } else if ((addr & 0xc002) == 0x8000) {
-        updateAudioBuffer();
+        updateAudioBuffer(t);
         writeAYRegister(selectedAYRegister, val);
     }
 
@@ -601,10 +601,21 @@ function updateFramebuffer():void {
     }
 }
 
-function updateAudioBuffer():void {
-    microslicesSinceLastSample += (t - lastAudioT) * samplesPerFrame;
+function updateAudioBuffer(targetTime:u32):void {
+    /* Fill the audio buffer up to the given target tstate number, using the current state
+    of the speaker and AY, and fetching new tape pulses as required. */
+
+    updateTapePulses(targetTime);
+    updateAudioBufferInner(targetTime);
+}
+
+function updateAudioBufferInner(targetTime:u32):void {
+    /* Fill the audio buffer up to the given target tstate number, using the current state
+    of the speaker, AY and tape. targetTime is chosen to be a small enough increment that
+    no changes of state (including new tape pulses) occur in this timespan. */
+    microslicesSinceLastSample += (targetTime - lastAudioT) * samplesPerFrame;
     while (microslicesSinceLastSample >= frameCycleCount) {
-        const speakerLevel:f32 = speakerState ? 0.5 : 0.0;
+        const speakerLevel:f32 = (speakerState ? 0.5 : 0.0) + (tapeLevel ? 0.25 : 0.0);
 
         toneGeneratorACounter -= ayCyclesPerSample;
         while (toneGeneratorACounter < 0) {
@@ -687,32 +698,36 @@ function updateAudioBuffer():void {
         audioBufferPointer = (audioBufferPointer + 1) & 0x03ff;
         microslicesSinceLastSample -= frameCycleCount;
     }
-    lastAudioT = t;
+    lastAudioT = targetTime;
 }
 
 function updateTapePulses(targetTime:u32): void {
-    let cyclesToAdvance = targetTime - currentTapeTime;
-    while (cyclesToAdvance > 0) {
+    while (targetTime > currentTapeTime) {
         if (tapePulseReadIndex == tapePulseWriteIndex) {
-            // reached end of pulse buffer
+            updateAudioBufferInner(currentTapeTime);
             tapeLevel = 0;
+            currentTapeTime = targetTime;
             return;
         }
-        const pulseLength = u32(tapePulses[tapePulseReadIndex] & 0x7fff);
+
+        const pulseData = tapePulses[tapePulseReadIndex];
+        tapeLevel = u8((pulseData & 0x8000) >> 9);
+        const pulseLength = u32(pulseData & 0x7fff);
         const remainingPulseCycles = pulseLength - tapePulseCyclesElapsed;
-        if (cyclesToAdvance < remainingPulseCycles) {
-            // new tape position is within this pulse
-            tapePulseCyclesElapsed += cyclesToAdvance;
-            cyclesToAdvance = 0;
-        } else {
-            // move to next pulse
-            cyclesToAdvance -= remainingPulseCycles;
+        const pulseEndTime = currentTapeTime + remainingPulseCycles;
+        if (pulseEndTime <= targetTime) {
+            // finish this pulse and move to next
+            updateAudioBufferInner(pulseEndTime);
+            currentTapeTime = pulseEndTime;
             tapePulseReadIndex++;
             tapePulseCyclesElapsed = 0;
+        } else {
+            // target time is within this pulse; update cycles elapsed accordingly
+            const cyclesToAdvance = targetTime - currentTapeTime;
+            tapePulseCyclesElapsed += cyclesToAdvance;
+            currentTapeTime = targetTime;
         }
     }
-    currentTapeTime = targetTime;
-    tapeLevel = u8((tapePulses[tapePulseReadIndex] & 0x8000) >> 9);
 }
 
 export function keyDown(row:u8, mask:u8):void {
@@ -778,8 +793,7 @@ export function resumeFrame():i16 {
     }
 
     updateFramebuffer();
-    updateAudioBuffer();
-    updateTapePulses(t);
+    updateAudioBuffer(t);
 
     // copy excess from tape pulse buffer to start of buffer
     const excessPulses:u16 = tapePulseWriteIndex - tapePulseReadIndex;
