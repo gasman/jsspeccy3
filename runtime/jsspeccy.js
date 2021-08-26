@@ -399,7 +399,7 @@ window.JSSpeccy = (container, opts) => {
         const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
             emu.setAutoLoadTapes(!emu.autoLoadTapes);
         });
-        const tapeTrapsMenuItem = fileMenu.addItem('Enable tape traps', () => {
+        const tapeTrapsMenuItem = fileMenu.addItem('Instant tape loading', () => {
             emu.setTapeTraps(!emu.tapeTrapsEnabled);
         });
 
