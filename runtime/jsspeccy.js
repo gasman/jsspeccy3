@@ -388,8 +388,8 @@ window.JSSpeccy = (container, opts) => {
     });
     const ui = new UIController(container, emu, {zoom: opts.zoom || 1, sandbox: opts.sandbox});
 
+    const fileMenu = ui.menuBar.addMenu('File');
     if (!opts.sandbox) {
-        const fileMenu = ui.menuBar.addMenu('File');
         fileMenu.addItem('Open...', () => {
             openFileDialog();
         });
@@ -399,10 +399,6 @@ window.JSSpeccy = (container, opts) => {
         const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
             emu.setAutoLoadTapes(!emu.autoLoadTapes);
         });
-        const tapeTrapsMenuItem = fileMenu.addItem('Instant tape loading', () => {
-            emu.setTapeTraps(!emu.tapeTrapsEnabled);
-        });
-
         const updateAutoLoadTapesCheckbox = () => {
             if (emu.autoLoadTapes) {
                 autoLoadTapesMenuItem.setCheckbox();
@@ -412,17 +408,21 @@ window.JSSpeccy = (container, opts) => {
         }
         emu.on('setAutoLoadTapes', updateAutoLoadTapesCheckbox);
         updateAutoLoadTapesCheckbox();
-
-        const updateTapeTrapsCheckbox = () => {
-            if (emu.tapeTrapsEnabled) {
-                tapeTrapsMenuItem.setCheckbox();
-            } else {
-                tapeTrapsMenuItem.unsetCheckbox();
-            }
-        }
-        emu.on('setTapeTraps', updateTapeTrapsCheckbox);
-        updateTapeTrapsCheckbox();
     }
+
+    const tapeTrapsMenuItem = fileMenu.addItem('Instant tape loading', () => {
+        emu.setTapeTraps(!emu.tapeTrapsEnabled);
+    });
+
+    const updateTapeTrapsCheckbox = () => {
+        if (emu.tapeTrapsEnabled) {
+            tapeTrapsMenuItem.setCheckbox();
+        } else {
+            tapeTrapsMenuItem.unsetCheckbox();
+        }
+    }
+    emu.on('setTapeTraps', updateTapeTrapsCheckbox);
+    updateTapeTrapsCheckbox();
 
     const machineMenu = ui.menuBar.addMenu('Machine');
     const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
