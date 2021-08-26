@@ -1,3 +1,11 @@
+3.1 (2021-08-26)
+----------------
+
+* Real-time tape loading, including turbo loaders (except for direct recording, CSW and generalized data TZX blocks)
+* Emulate floating bus behaviour
+* Fix typo in docs (`openURL` -> `openUrl`)
+
+
 3.0.1 (2021-08-16)
 ------------------
 

@@ -1,6 +1,6 @@
 {
   "name": "jsspeccy",
-  "version": "3.0.1",
+  "version": "3.1",
   "description": "a ZX Spectrum emulator in the browser",
   "main": "jsspeccy.js",
   "type": "module",
