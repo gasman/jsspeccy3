@@ -90,6 +90,9 @@ class Emulator extends EventEmitter {
                             '5': {'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx'},
                         };
                         this.openUrl(new URL(TAPE_LOADERS_BY_MACHINE[this.machineType][this.tapeAutoLoadMode], scriptUrl));
+                        if (!this.tapeTrapsEnabled) {
+                            this.playTape();
+                        }
                     }
                     this.fileOpenPromiseResolutions[e.data.id]({
                         mediaType: e.data.mediaType,
