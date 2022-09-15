@@ -14,7 +14,50 @@
             }
         </style>
     </head>
-    <body onload="emu = JSSpeccy(document.getElementById('jsspeccy'), {zoom: 2, sandbox: false})">
+    <body onload="onload()">
         <div id="jsspeccy"></div>
     </body>
+    <script>
+        function parseQuery() {
+            const parsedQuery = {};
+
+            let queryString = document.location.search.substring(1) + "&" + window.location.hash.substring(1);
+
+            queryString.split("&").forEach(function (keyval) {
+                const keyAndVal = keyval.split("=");
+                const key = decodeURIComponent(keyAndVal[0]);
+
+                let val = null;
+                if (keyAndVal.length > 1) val = decodeURIComponent(keyAndVal[1]);
+                parsedQuery[key] = val;
+            });
+
+            return parsedQuery;
+        }
+
+        function onload() {
+            let speccy;
+
+            const emudiv = document.getElementById('jsspeccy');
+
+            const parsedQuery = parseQuery();
+
+            if (parsedQuery['b64tape']) {
+                speccy = JSSpeccy(emudiv, {
+                    zoom: 2,
+                    sandbox: true,
+                    openFile: {
+                        filename: 'b64tape.tap',
+                        b64data: parsedQuery['b64tape']
+                    },
+                    autoStart: true
+                });
+            } else {
+                speccy = JSSpeccy(emudiv, {
+                    zoom: 2,
+                    sandbox: false
+                });
+            }
+        }
+    </script>
 </html>

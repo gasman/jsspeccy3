@@ -18,6 +18,8 @@ import exitFullscreenIcon from './icons/exitfullscreen.svg';
 import tapePlayIcon from './icons/tape_play.svg';
 import tapePauseIcon from './icons/tape_pause.svg';
 
+import {base64DecToArr} from './b64utils.js';
+
 const scriptUrl = document.currentScript.src;
 
 class Emulator extends EventEmitter {
@@ -56,6 +58,17 @@ class Emulator extends EventEmitter {
                             }).then(() => {
                                 if (opts.autoStart) this.start();
                             });
+                        } else if (opts.openFile) {
+                            const opener = this.getFileOpener(opts.openFile.filename);
+                            if (opts.openFile.b64data) {
+                                opener(base64DecToArr(opts.openFile.b64data).buffer).then(() => {
+                                    if (opts.autoStart) this.start();
+                                });
+                            } else {
+                                opener(opts.openFile.data).then(() => {
+                                    if (opts.autoStart) this.start();
+                                });
+                            }
                         } else if (opts.autoStart) {
                             this.start();
                         }
@@ -384,6 +397,7 @@ window.JSSpeccy = (container, opts) => {
         autoLoadTapes: opts.autoLoadTapes || false,
         tapeAutoLoadMode: opts.tapeAutoLoadMode || 'default',
         openUrl: opts.openUrl,
+        openFile: opts.openFile,
         tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
     });
     const ui = new UIController(container, emu, {zoom: opts.zoom || 1, sandbox: opts.sandbox});
