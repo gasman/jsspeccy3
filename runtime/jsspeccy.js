@@ -407,6 +407,7 @@ window.JSSpeccy = (container, opts) => {
     canvas.height = 240;
 
     const keyboardEnabled = ('keyboardEnabled' in opts) ? opts.keyboardEnabled : true;
+    const uiEnabled = ('uiEnabled' in opts) ? opts.uiEnabled : true;
 
     const emu = new Emulator(canvas, {
         machine: opts.machine || 128,
@@ -417,7 +418,11 @@ window.JSSpeccy = (container, opts) => {
         tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
         keyboardEnabled: keyboardEnabled,
     });
-    const ui = new UIController(container, emu, {zoom: opts.zoom || 1, sandbox: opts.sandbox});
+    const ui = new UIController(container, emu, {
+        zoom: opts.zoom || 1,
+        sandbox: opts.sandbox,
+        uiEnabled: uiEnabled,
+    });
 
     if (keyboardEnabled) {
         if (ui.appContainer.tabIndex == -1) {
@@ -426,164 +431,166 @@ window.JSSpeccy = (container, opts) => {
         emu.setKeyboardEventRoot(ui.appContainer);
     }
 
-    const fileMenu = ui.menuBar.addMenu('File');
-    if (!opts.sandbox) {
-        fileMenu.addItem('Open...', () => {
-            openFileDialog();
-        });
-        fileMenu.addItem('Find games...', () => {
-            openGameBrowser();
-        });
-        const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
-            emu.setAutoLoadTapes(!emu.autoLoadTapes);
+    if (uiEnabled) {
+        const fileMenu = ui.menuBar.addMenu('File');
+        if (!opts.sandbox) {
+            fileMenu.addItem('Open...', () => {
+                openFileDialog();
+            });
+            fileMenu.addItem('Find games...', () => {
+                openGameBrowser();
+            });
+            const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
+                emu.setAutoLoadTapes(!emu.autoLoadTapes);
+                emu.focus();
+            });
+            const updateAutoLoadTapesCheckbox = () => {
+                if (emu.autoLoadTapes) {
+                    autoLoadTapesMenuItem.setCheckbox();
+                } else {
+                    autoLoadTapesMenuItem.unsetCheckbox();
+                }
+            }
+            emu.on('setAutoLoadTapes', updateAutoLoadTapesCheckbox);
+            updateAutoLoadTapesCheckbox();
+        }
+
+        const tapeTrapsMenuItem = fileMenu.addItem('Instant tape loading', () => {
+            emu.setTapeTraps(!emu.tapeTrapsEnabled);
             emu.focus();
         });
-        const updateAutoLoadTapesCheckbox = () => {
-            if (emu.autoLoadTapes) {
-                autoLoadTapesMenuItem.setCheckbox();
+
+        const updateTapeTrapsCheckbox = () => {
+            if (emu.tapeTrapsEnabled) {
+                tapeTrapsMenuItem.setCheckbox();
             } else {
-                autoLoadTapesMenuItem.unsetCheckbox();
+                tapeTrapsMenuItem.unsetCheckbox();
             }
         }
-        emu.on('setAutoLoadTapes', updateAutoLoadTapesCheckbox);
-        updateAutoLoadTapesCheckbox();
-    }
+        emu.on('setTapeTraps', updateTapeTrapsCheckbox);
+        updateTapeTrapsCheckbox();
 
-    const tapeTrapsMenuItem = fileMenu.addItem('Instant tape loading', () => {
-        emu.setTapeTraps(!emu.tapeTrapsEnabled);
-        emu.focus();
-    });
+        const machineMenu = ui.menuBar.addMenu('Machine');
+        const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
+            emu.setMachine(48);
+            emu.focus();
+        });
+        const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
+            emu.setMachine(128);
+            emu.focus();
+        });
+        const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
+            emu.setMachine(5);
+            emu.focus();
+        });
+        const displayMenu = ui.menuBar.addMenu('Display');
 
-    const updateTapeTrapsCheckbox = () => {
-        if (emu.tapeTrapsEnabled) {
-            tapeTrapsMenuItem.setCheckbox();
-        } else {
-            tapeTrapsMenuItem.unsetCheckbox();
+        const zoomItemsBySize = {
+            1: displayMenu.addItem('100%', () => {ui.setZoom(1); emu.focus();}),
+            2: displayMenu.addItem('200%', () => {ui.setZoom(2); emu.focus();}),
+            3: displayMenu.addItem('300%', () => {ui.setZoom(3); emu.focus();}),
         }
-    }
-    emu.on('setTapeTraps', updateTapeTrapsCheckbox);
-    updateTapeTrapsCheckbox();
-
-    const machineMenu = ui.menuBar.addMenu('Machine');
-    const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
-        emu.setMachine(48);
-        emu.focus();
-    });
-    const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
-        emu.setMachine(128);
-        emu.focus();
-    });
-    const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
-        emu.setMachine(5);
-        emu.focus();
-    });
-    const displayMenu = ui.menuBar.addMenu('Display');
-
-    const zoomItemsBySize = {
-        1: displayMenu.addItem('100%', () => {ui.setZoom(1); emu.focus();}),
-        2: displayMenu.addItem('200%', () => {ui.setZoom(2); emu.focus();}),
-        3: displayMenu.addItem('300%', () => {ui.setZoom(3); emu.focus();}),
-    }
-    const fullscreenItem = displayMenu.addItem('Fullscreen', () => {
-        ui.enterFullscreen();
-    })
-    const setZoomCheckbox = (factor) => {
-        if (factor == 'fullscreen') {
-            fullscreenItem.setBullet();
-            for (let i in zoomItemsBySize) {
-                zoomItemsBySize[i].unsetBullet();
-            }
-        } else {
-            fullscreenItem.unsetBullet();
-            for (let i in zoomItemsBySize) {
-                if (parseInt(i) == factor) {
-                    zoomItemsBySize[i].setBullet();
-                } else {
+        const fullscreenItem = displayMenu.addItem('Fullscreen', () => {
+            ui.enterFullscreen();
+        })
+        const setZoomCheckbox = (factor) => {
+            if (factor == 'fullscreen') {
+                fullscreenItem.setBullet();
+                for (let i in zoomItemsBySize) {
                     zoomItemsBySize[i].unsetBullet();
+                }
+            } else {
+                fullscreenItem.unsetBullet();
+                for (let i in zoomItemsBySize) {
+                    if (parseInt(i) == factor) {
+                        zoomItemsBySize[i].setBullet();
+                    } else {
+                        zoomItemsBySize[i].unsetBullet();
+                    }
                 }
             }
         }
-    }
 
-    ui.on('setZoom', setZoomCheckbox);
-    setZoomCheckbox(ui.zoom);
+        ui.on('setZoom', setZoomCheckbox);
+        setZoomCheckbox(ui.zoom);
 
-    emu.on('setMachine', (type) => {
-        if (type == 48) {
-            machine48Item.setBullet();
-            machine128Item.unsetBullet();
-            machinePentagonItem.unsetBullet();
-        } else if (type == 128) {
-            machine48Item.unsetBullet();
-            machine128Item.setBullet();
-            machinePentagonItem.unsetBullet();
-        } else { // pentagon
-            machine48Item.unsetBullet();
-            machine128Item.unsetBullet();
-            machinePentagonItem.setBullet();
+        emu.on('setMachine', (type) => {
+            if (type == 48) {
+                machine48Item.setBullet();
+                machine128Item.unsetBullet();
+                machinePentagonItem.unsetBullet();
+            } else if (type == 128) {
+                machine48Item.unsetBullet();
+                machine128Item.setBullet();
+                machinePentagonItem.unsetBullet();
+            } else { // pentagon
+                machine48Item.unsetBullet();
+                machine128Item.unsetBullet();
+                machinePentagonItem.setBullet();
+            }
+        });
+
+        if (!opts.sandbox) {
+            ui.toolbar.addButton(openIcon, {label: 'Open file'}, () => {
+                openFileDialog();
+            });
         }
-    });
+        ui.toolbar.addButton(resetIcon, {label: 'Reset'}, () => {
+            emu.reset();
+        });
+        const pauseButton = ui.toolbar.addButton(playIcon, {label: 'Unpause'}, () => {
+            if (emu.isRunning) {
+                emu.pause();
+            } else {
+                emu.start();
+            }
+        });
+        emu.on('pause', () => {
+            pauseButton.setIcon(playIcon);
+            pauseButton.setLabel('Unpause');
+        });
+        emu.on('start', () => {
+            pauseButton.setIcon(pauseIcon);
+            pauseButton.setLabel('Pause');
+        });
+        const tapeButton = ui.toolbar.addButton(tapePlayIcon, {label: 'Start tape'}, () => {
+            if (emu.tapeIsPlaying) {
+                emu.stopTape();
+            } else {
+                emu.playTape();
+            }
+        });
+        tapeButton.disable();
+        emu.on('openedTapeFile', () => {
+            tapeButton.enable();
+        });
+        emu.on('playingTape', () => {
+            tapeButton.setIcon(tapePauseIcon);
+            tapeButton.setLabel('Stop tape');
+        });
+        emu.on('stoppedTape', () => {
+            tapeButton.setIcon(tapePlayIcon);
+            tapeButton.setLabel('Start tape');
+        });
 
-    if (!opts.sandbox) {
-        ui.toolbar.addButton(openIcon, {label: 'Open file'}, () => {
-            openFileDialog();
+        const fullscreenButton = ui.toolbar.addButton(
+            fullscreenIcon,
+            {label: 'Enter full screen mode', align: 'right'},
+            () => {
+                ui.toggleFullscreen();
+            }
+        )
+
+        ui.on('setZoom', (factor) => {
+            if (factor == 'fullscreen') {
+                fullscreenButton.setIcon(exitFullscreenIcon);
+                fullscreenButton.setLabel('Exit full screen mode');
+            } else {
+                fullscreenButton.setIcon(fullscreenIcon);
+                fullscreenButton.setLabel('Enter full screen mode');
+            }
         });
     }
-    ui.toolbar.addButton(resetIcon, {label: 'Reset'}, () => {
-        emu.reset();
-    });
-    const pauseButton = ui.toolbar.addButton(playIcon, {label: 'Unpause'}, () => {
-        if (emu.isRunning) {
-            emu.pause();
-        } else {
-            emu.start();
-        }
-    });
-    emu.on('pause', () => {
-        pauseButton.setIcon(playIcon);
-        pauseButton.setLabel('Unpause');
-    });
-    emu.on('start', () => {
-        pauseButton.setIcon(pauseIcon);
-        pauseButton.setLabel('Pause');
-    });
-    const tapeButton = ui.toolbar.addButton(tapePlayIcon, {label: 'Start tape'}, () => {
-        if (emu.tapeIsPlaying) {
-            emu.stopTape();
-        } else {
-            emu.playTape();
-        }
-    });
-    tapeButton.disable();
-    emu.on('openedTapeFile', () => {
-        tapeButton.enable();
-    });
-    emu.on('playingTape', () => {
-        tapeButton.setIcon(tapePauseIcon);
-        tapeButton.setLabel('Stop tape');
-    });
-    emu.on('stoppedTape', () => {
-        tapeButton.setIcon(tapePlayIcon);
-        tapeButton.setLabel('Start tape');
-    });
-
-    const fullscreenButton = ui.toolbar.addButton(
-        fullscreenIcon,
-        {label: 'Enter full screen mode', align: 'right'},
-        () => {
-            ui.toggleFullscreen();
-        }
-    )
-
-    ui.on('setZoom', (factor) => {
-        if (factor == 'fullscreen') {
-            fullscreenButton.setIcon(exitFullscreenIcon);
-            fullscreenButton.setLabel('Exit full screen mode');
-        } else {
-            fullscreenButton.setIcon(fullscreenIcon);
-            fullscreenButton.setLabel('Enter full screen mode');
-        }
-    });
 
     const openFileDialog = () => {
         fileDialog().then(files => {

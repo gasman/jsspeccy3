@@ -219,36 +219,43 @@ export class UIController extends EventEmitter {
     constructor(container, emulator, opts) {
         super();
         this.canvas = emulator.canvas;
+        this.uiEnabled = ('uiEnabled' in opts) ? opts.uiEnabled : true;
 
         /* build UI elements */
-        this.dialog = document.createElement('div');
-        this.dialog.style.display = 'none';
-        container.appendChild(this.dialog);
-        const dialogCloseButton = document.createElement('button');
-        dialogCloseButton.innerHTML = closeIcon;
-        dialogCloseButton.style.float = 'right';
-        dialogCloseButton.style.border = 'none';
-        dialogCloseButton.firstChild.style.height = '20px';
-        dialogCloseButton.firstChild.style.verticalAlign = 'middle';
-        this.dialog.appendChild(dialogCloseButton);
-        dialogCloseButton.addEventListener('click', () => {
-            this.hideDialog();
-        })
-        this.dialogBody = document.createElement('div');
-        this.dialogBody.style.clear = 'both';
-        this.dialog.appendChild(this.dialogBody);
+        if (this.uiEnabled) {
+            this.dialog = document.createElement('div');
+            this.dialog.style.display = 'none';
+            container.appendChild(this.dialog);
+            const dialogCloseButton = document.createElement('button');
+            dialogCloseButton.innerHTML = closeIcon;
+            dialogCloseButton.style.float = 'right';
+            dialogCloseButton.style.border = 'none';
+            dialogCloseButton.firstChild.style.height = '20px';
+            dialogCloseButton.firstChild.style.verticalAlign = 'middle';
+            this.dialog.appendChild(dialogCloseButton);
+            dialogCloseButton.addEventListener('click', () => {
+                this.hideDialog();
+            })
+            this.dialogBody = document.createElement('div');
+            this.dialogBody.style.clear = 'both';
+            this.dialog.appendChild(this.dialogBody);
+        }
 
         this.appContainer = document.createElement('div');
         container.appendChild(this.appContainer);
         this.appContainer.style.position = 'relative';
         this.appContainer.style.outline = 'none';
 
-        this.menuBar = new MenuBar(this.appContainer);
+        if (this.uiEnabled) {
+            this.menuBar = new MenuBar(this.appContainer);
+        }
         this.appContainer.appendChild(this.canvas);
         this.canvas.style.objectFit = 'contain';
         this.canvas.style.display = 'block';
 
-        this.toolbar = new Toolbar(this.appContainer);
+        if (this.uiEnabled) {
+            this.toolbar = new Toolbar(this.appContainer);
+        }
 
         this.startButton = document.createElement('button');
         this.startButton.innerHTML = playIcon;
@@ -304,35 +311,40 @@ export class UIController extends EventEmitter {
                 this.isFullscreen = true;
                 this.canvas.style.width = '100%';
                 this.canvas.style.height = '100%';
-                document.addEventListener('mousemove', fullscreenMouseMove);
-                /* a bogus mousemove event is emitted on entering fullscreen, so ignore it */
-                this.ignoreNextMouseMove = true;
 
-                this.menuBar.enterFullscreen();
-                this.menuBar.onmouseenter(() => {this.allowUIHiding = false;});
-                this.menuBar.onmouseout(() => {this.allowUIHiding = true;});
+                if (this.uiEnabled) {
+                    document.addEventListener('mousemove', fullscreenMouseMove);
+                    /* a bogus mousemove event is emitted on entering fullscreen, so ignore it */
+                    this.ignoreNextMouseMove = true;
 
-                this.toolbar.enterFullscreen();
-                this.toolbar.onmouseenter(() => {this.allowUIHiding = false;});
-                this.toolbar.onmouseout(() => {this.allowUIHiding = true;});
+                    this.menuBar.enterFullscreen();
+                    this.menuBar.onmouseenter(() => {this.allowUIHiding = false;});
+                    this.menuBar.onmouseout(() => {this.allowUIHiding = true;});
 
-                this.hideUI();
+                    this.toolbar.enterFullscreen();
+                    this.toolbar.onmouseenter(() => {this.allowUIHiding = false;});
+                    this.toolbar.onmouseout(() => {this.allowUIHiding = true;});
+
+                    this.hideUI();
+                }
                 this.emit('setZoom', 'fullscreen');
                 emulator.focus();
             } else {
                 this.isFullscreen = false;
-                if (this.hideUITimeout) clearTimeout(this.hideUITimeout);
-                this.showUI();
+                if (this.uiEnabled) {
+                    if (this.hideUITimeout) clearTimeout(this.hideUITimeout);
+                    this.showUI();
 
-                this.menuBar.exitFullscreen();
-                this.menuBar.onmouseenter(null);
-                this.menuBar.onmouseout(null);
+                    this.menuBar.exitFullscreen();
+                    this.menuBar.onmouseenter(null);
+                    this.menuBar.onmouseout(null);
 
-                this.toolbar.exitFullscreen();
-                this.toolbar.onmouseenter(null);
-                this.toolbar.onmouseout(null);
+                    this.toolbar.exitFullscreen();
+                    this.toolbar.onmouseenter(null);
+                    this.toolbar.onmouseout(null);
 
-                document.removeEventListener('mousemove', fullscreenMouseMove);
+                    document.removeEventListener('mousemove', fullscreenMouseMove);
+                }
                 this.setZoom(this.zoom);
             }
         })
@@ -404,7 +416,7 @@ export class UIController extends EventEmitter {
     }
 
     hideUI() {
-        if (this.allowUIHiding && !this.uiIsHidden) {
+        if (this.uiEnabled && this.allowUIHiding && !this.uiIsHidden) {
             this.uiIsHidden = true;
             this.appContainer.style.cursor = 'none';
             this.menuBar.hide();
@@ -412,7 +424,7 @@ export class UIController extends EventEmitter {
         }
     }
     showUI() {
-        if (this.uiIsHidden) {
+        if (this.uiEnabled && this.uiIsHidden) {
             this.uiIsHidden = false;
             this.appContainer.style.cursor = 'default';
             this.menuBar.show();
@@ -440,7 +452,9 @@ export class UIController extends EventEmitter {
         this.dialogBody.innerHTML = '';
     }
     unload() {
-        this.dialog.remove();
+        if (this.uiEnabled) {
+            this.dialog.remove();
+        }
         this.appContainer.remove();
     }
 }

@@ -59,6 +59,7 @@ The available configuration options are:
 * `sandbox`: if true, all UI options for opening a new file are disabled - useful if you're showcasing a specific bit of Spectrum software on your page.
 * `tapeTrapsEnabled`: if true (the default), the emulator will recognise when the tape loading routine in the ROM is called, and load tape files instantly instead.
 * `keyboardEnabled`: True by default; if false, the emulator will not respond to keypresses.
+* `uiEnabled`: True by default; if false, the menu bar and toolbar will not be shown.
 
 For additional JavaScript hackery, the return value of the JSSpeccy function call is an object exposing a number of functions for controlling the running emulator:
 
