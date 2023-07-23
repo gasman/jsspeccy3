@@ -29,6 +29,7 @@ class Emulator extends EventEmitter {
         this.displayHandler = new DisplayHandler(this.canvas);
         this.audioHandler = new AudioHandler();
         this.isRunning = false;
+        this.isReady = false;
         this.isInitiallyPaused = (!opts.autoStart);
         this.autoLoadTapes = opts.autoLoadTapes || false;
         this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default';  // or usr0
@@ -44,6 +45,8 @@ class Emulator extends EventEmitter {
         this.nextFileOpenID = 0;
         this.fileOpenPromiseResolutions = {};
 
+        this.onReadyHandlers = [];
+
         this.worker.onmessage = (e) => {
             switch(e.data.message) {
                 case 'ready':
@@ -58,6 +61,11 @@ class Emulator extends EventEmitter {
                             });
                         } else if (opts.autoStart) {
                             this.start();
+                        }
+
+                        this.isReady = true;
+                        for (let i=0; i < this.onReadyHandlers.length; i++) {
+                            this.onReadyHandlers[i]();
                         }
                     });
                     break;
@@ -660,6 +668,16 @@ window.JSSpeccy = (container, opts) => {
         openFileDialog: () => {openFileDialog();},
         openUrl: (url) => {
             emu.openUrl(url).catch((err) => {alert(err);});
+        },
+        loadSnapshotFromStruct: (snapshot) => {
+            emu.loadSnapshot(snapshot);
+        },
+        onReady: (callback) => {
+            if (emu.isReady) {
+                callback();
+            } else {
+                emu.onReadyHandlers.push(callback);
+            }
         },
         exit: () => {exit();},
     };

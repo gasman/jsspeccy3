@@ -75,6 +75,8 @@ For additional JavaScript hackery, the return value of the JSSpeccy function cal
 * `emu.setMachine(machine)` - set the emulated machine type
 * `emu.openFileDialog()` - open the file chooser dialog
 * `emu.openUrl(url)` - open the file at the given URL
+* `emu.loadSnapshotFromStruct(snapshot)` - load a snapshot from the given data structure; the data format is currently undocumented but runtime/snapshot.js should give you a decent idea of it...
+* `emu.onReady(callback)` - call the given callback once the emulator is fully initialised
 * `emu.exit()` - immediately stop the emulator and remove it from the document
 
 
