@@ -25,7 +25,7 @@ class Emulator extends EventEmitter {
         super();
         this.canvas = canvas;
         this.worker = new Worker(new URL('jsspeccy-worker.js', scriptUrl));
-        this.keyboardHandler = new KeyboardHandler(this.worker);
+        this.keyboardHandler = new KeyboardHandler(this.worker, opts.keyboardEventRoot || document);
         this.displayHandler = new DisplayHandler(this.canvas);
         this.audioHandler = new AudioHandler();
         this.isRunning = false;
@@ -134,11 +134,22 @@ class Emulator extends EventEmitter {
             this.nextFrameTime = performance.now();
             this.keyboardHandler.start();
             this.audioHandler.start();
+            this.focus();
             this.emit('start');
             window.requestAnimationFrame((t) => {
                 this.runAnimationFrame(t);
             });
         }
+    }
+
+    focus() {
+        if (this.keyboardHandler.rootElement.focus) {
+            this.keyboardHandler.rootElement.focus();
+        }
+    }
+
+    setKeyboardEventRoot(newRootElement) {
+        this.keyboardHandler.setRootElement(newRootElement);
     }
 
     pause() {
@@ -396,6 +407,11 @@ window.JSSpeccy = (container, opts) => {
     });
     const ui = new UIController(container, emu, {zoom: opts.zoom || 1, sandbox: opts.sandbox});
 
+    if (ui.appContainer.tabIndex == -1) {
+        ui.appContainer.tabIndex = 0;  // allow receiving focus for keyboard events
+    }
+    emu.setKeyboardEventRoot(ui.appContainer);
+
     const fileMenu = ui.menuBar.addMenu('File');
     if (!opts.sandbox) {
         fileMenu.addItem('Open...', () => {
@@ -406,6 +422,7 @@ window.JSSpeccy = (container, opts) => {
         });
         const autoLoadTapesMenuItem = fileMenu.addItem('Auto-load tapes', () => {
             emu.setAutoLoadTapes(!emu.autoLoadTapes);
+            emu.focus();
         });
         const updateAutoLoadTapesCheckbox = () => {
             if (emu.autoLoadTapes) {
@@ -420,6 +437,7 @@ window.JSSpeccy = (container, opts) => {
 
     const tapeTrapsMenuItem = fileMenu.addItem('Instant tape loading', () => {
         emu.setTapeTraps(!emu.tapeTrapsEnabled);
+        emu.focus();
     });
 
     const updateTapeTrapsCheckbox = () => {
@@ -435,19 +453,22 @@ window.JSSpeccy = (container, opts) => {
     const machineMenu = ui.menuBar.addMenu('Machine');
     const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
         emu.setMachine(48);
+        emu.focus();
     });
     const machine128Item = machineMenu.addItem('Spectrum 128K', () => {
         emu.setMachine(128);
+        emu.focus();
     });
     const machinePentagonItem = machineMenu.addItem('Pentagon 128', () => {
         emu.setMachine(5);
+        emu.focus();
     });
     const displayMenu = ui.menuBar.addMenu('Display');
 
     const zoomItemsBySize = {
-        1: displayMenu.addItem('100%', () => ui.setZoom(1)),
-        2: displayMenu.addItem('200%', () => ui.setZoom(2)),
-        3: displayMenu.addItem('300%', () => ui.setZoom(3)),
+        1: displayMenu.addItem('100%', () => {ui.setZoom(1); emu.focus();}),
+        2: displayMenu.addItem('200%', () => {ui.setZoom(2); emu.focus();}),
+        3: displayMenu.addItem('300%', () => {ui.setZoom(3); emu.focus();}),
     }
     const fullscreenItem = displayMenu.addItem('Fullscreen', () => {
         ui.enterFullscreen();
@@ -555,6 +576,7 @@ window.JSSpeccy = (container, opts) => {
             const file = files[0];
             emu.openFile(file).then(() => {
                 if (emu.isInitiallyPaused) emu.start();
+                emu.focus();
             }).catch((err) => {alert(err);});
         });
     }
@@ -631,6 +653,7 @@ window.JSSpeccy = (container, opts) => {
                                     alert(err);
                                 }).then(() => {
                                     ui.hideDialog();
+                                    emu.focus();
                                     emu.start();
                                 });
                             }

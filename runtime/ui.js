@@ -241,6 +241,7 @@ export class UIController extends EventEmitter {
         this.appContainer = document.createElement('div');
         container.appendChild(this.appContainer);
         this.appContainer.style.position = 'relative';
+        this.appContainer.style.outline = 'none';
 
         this.menuBar = new MenuBar(this.appContainer);
         this.appContainer.appendChild(this.canvas);
@@ -317,6 +318,7 @@ export class UIController extends EventEmitter {
 
                 this.hideUI();
                 this.emit('setZoom', 'fullscreen');
+                emulator.focus();
             } else {
                 this.isFullscreen = false;
                 if (this.hideUITimeout) clearTimeout(this.hideUITimeout);

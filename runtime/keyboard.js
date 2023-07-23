@@ -54,8 +54,10 @@ const KEY_CODES = {
 
 
 export class KeyboardHandler {
-    constructor(worker) {
+    constructor(worker, rootElement) {
         this.worker = worker;
+        this.rootElement = rootElement;  // where we attach keyboard event listeners
+        this.eventsAreBound = false;
 
         this.keydownHandler = (evt) => {
             const keyCode = KEY_CODES[evt.keyCode];
@@ -93,14 +95,26 @@ export class KeyboardHandler {
     }
 
     start() {
-        document.addEventListener('keydown', this.keydownHandler);
-        document.addEventListener('keyup', this.keyupHandler);
-        document.addEventListener('keypress', this.keypressHandler);
+        this.rootElement.addEventListener('keydown', this.keydownHandler);
+        this.rootElement.addEventListener('keyup', this.keyupHandler);
+        this.rootElement.addEventListener('keypress', this.keypressHandler);
+        this.eventsAreBound = true;
     }
 
     stop() {
-        document.removeEventListener('keydown', this.keydownHandler);
-        document.removeEventListener('keyup', this.keyupHandler);
-        document.removeEventListener('keypress', this.keypressHandler);
+        this.rootElement.removeEventListener('keydown', this.keydownHandler);
+        this.rootElement.removeEventListener('keyup', this.keyupHandler);
+        this.rootElement.removeEventListener('keypress', this.keypressHandler);
+        this.eventsAreBound = false;
+    }
+
+    setRootElement(newRootElement) {
+        if (this.eventsAreBound) {
+            this.stop();
+            this.rootElement = newRootElement;
+            this.start();
+        } else {
+            this.rootElement = newRootElement;
+        }
     }
 }
