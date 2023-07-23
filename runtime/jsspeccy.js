@@ -25,7 +25,10 @@ class Emulator extends EventEmitter {
         super();
         this.canvas = canvas;
         this.worker = new Worker(new URL('jsspeccy-worker.js', scriptUrl));
-        this.keyboardHandler = new KeyboardHandler(this.worker, opts.keyboardEventRoot || document);
+        this.keyboardEnabled = ('keyboardEnabled' in opts) ? opts.keyboardEnabled : true;
+        if (this.keyboardEnabled) {
+            this.keyboardHandler = new KeyboardHandler(this.worker, opts.keyboardEventRoot || document);
+        }
         this.displayHandler = new DisplayHandler(this.canvas);
         this.audioHandler = new AudioHandler();
         this.isRunning = false;
@@ -132,7 +135,9 @@ class Emulator extends EventEmitter {
             this.isRunning = true;
             this.isInitiallyPaused = false;
             this.nextFrameTime = performance.now();
-            this.keyboardHandler.start();
+            if (this.keyboardEnabled) {
+                this.keyboardHandler.start();
+            }
             this.audioHandler.start();
             this.focus();
             this.emit('start');
@@ -143,19 +148,23 @@ class Emulator extends EventEmitter {
     }
 
     focus() {
-        if (this.keyboardHandler.rootElement.focus) {
+        if (this.keyboardEnabled && this.keyboardHandler.rootElement.focus) {
             this.keyboardHandler.rootElement.focus();
         }
     }
 
     setKeyboardEventRoot(newRootElement) {
-        this.keyboardHandler.setRootElement(newRootElement);
+        if (this.keyboardEnabled) {
+            this.keyboardHandler.setRootElement(newRootElement);
+        }
     }
 
     pause() {
         if (this.isRunning) {
             this.isRunning = false;
-            this.keyboardHandler.stop();
+            if (this.keyboardEnabled) {
+                this.keyboardHandler.stop();
+            }
             this.audioHandler.stop();
             this.emit('pause');
         }
@@ -397,6 +406,8 @@ window.JSSpeccy = (container, opts) => {
     canvas.width = 320;
     canvas.height = 240;
 
+    const keyboardEnabled = ('keyboardEnabled' in opts) ? opts.keyboardEnabled : true;
+
     const emu = new Emulator(canvas, {
         machine: opts.machine || 128,
         autoStart: opts.autoStart || false,
@@ -404,13 +415,16 @@ window.JSSpeccy = (container, opts) => {
         tapeAutoLoadMode: opts.tapeAutoLoadMode || 'default',
         openUrl: opts.openUrl,
         tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
+        keyboardEnabled: keyboardEnabled,
     });
     const ui = new UIController(container, emu, {zoom: opts.zoom || 1, sandbox: opts.sandbox});
 
-    if (ui.appContainer.tabIndex == -1) {
-        ui.appContainer.tabIndex = 0;  // allow receiving focus for keyboard events
+    if (keyboardEnabled) {
+        if (ui.appContainer.tabIndex == -1) {
+            ui.appContainer.tabIndex = 0;  // allow receiving focus for keyboard events
+        }
+        emu.setKeyboardEventRoot(ui.appContainer);
     }
-    emu.setKeyboardEventRoot(ui.appContainer);
 
     const fileMenu = ui.menuBar.addMenu('File');
     if (!opts.sandbox) {
