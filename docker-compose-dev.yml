@@ -1,10 +1,15 @@
 services:
-  jsspeccy:
-    build: ./
-    entrypoint: ['/bin/sh','-c', 'NODE_OPTIONS=--openssl-legacy-provider npm run build && NODE_OPTIONS=--openssl-legacy-provider npm run watch']
-    # command: npm run serve
+  my-caddy:
+    image: caddy:2
+    volumes:
+      - "./Caddyfile:/etc/caddy/Caddyfile:ro"
+      - "./dist:/usr/src/app/dist:ro"
     ports:
       - 8080:8080
+
+  jsspeccy:
+    build: ./
+    entrypoint: ['/bin/sh','-c', 'NODE_OPTIONS=--openssl-legacy-provider npm run watch']
     volumes:
       - "./generator:/usr/src/app/generator"
       - "./build:/usr/src/app/build"

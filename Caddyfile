@@ -1,0 +1,7 @@
+:8080 {
+    route {
+        root * /usr/src/app/dist
+        try_files {path} {path}/ /index.html
+        file_server
+    }
+}
