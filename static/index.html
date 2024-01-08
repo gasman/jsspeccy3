@@ -14,7 +14,14 @@
             }
         </style>
     </head>
-    <body onload="emu = JSSpeccy(document.getElementById('jsspeccy'), {zoom: 2, sandbox: false})">
+    <body onload="emu = JSSpeccy(document.getElementById('jsspeccy'), {
+        zoom: 2,
+        // autoStart: true,
+        // machine: 5,
+        // uiEnabled: false,
+        // autoLoadTapes: true,
+        openUrl: 'https://zxwanderer.github.io/release/cell3326.tap'
+        })">
         <div id="jsspeccy"></div>
     </body>
 </html>
