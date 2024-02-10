@@ -1,3 +1,49 @@
+const SPECCY = {
+    ONE: {row: 3, mask: 0x01}, /* 1 */
+    TWO: {row: 3, mask: 0x02}, /* 2 */
+    THREE: {row: 3, mask: 0x04}, /* 3 */
+    FOUR: {row: 3, mask: 0x08}, /* 4 */
+    FIVE: {row: 3, mask: 0x10}, /* 5 */
+    SIX: {row: 4, mask: 0x10}, /* 6 */
+    SEVEN: {row: 4, mask: 0x08}, /* 7 */
+    EIGHT: {row: 4, mask: 0x04}, /* 8 */
+    NINE: {row: 4, mask: 0x02}, /* 9 */
+    ZERO: {row: 4, mask: 0x01}, /* 0 */
+
+    Q: {row: 2, mask: 0x01}, /* Q */
+    W: {row: 2, mask: 0x02}, /* W */
+    E: {row: 2, mask: 0x04}, /* E */
+    R: {row: 2, mask: 0x08}, /* R */
+    T: {row: 2, mask: 0x10}, /* T */
+    Y: {row: 5, mask: 0x10}, /* Y */
+    U: {row: 5, mask: 0x08}, /* U */
+    I: {row: 5, mask: 0x04}, /* I */
+    O: {row: 5, mask: 0x02}, /* O */
+    P: {row: 5, mask: 0x01}, /* P */
+
+    A: {row: 1, mask: 0x01}, /* A */
+    S: {row: 1, mask: 0x02}, /* S */
+    D: {row: 1, mask: 0x04}, /* D */
+    F: {row: 1, mask: 0x08}, /* F */
+    G: {row: 1, mask: 0x10}, /* G */
+    H: {row: 6, mask: 0x10}, /* H */
+    J: {row: 6, mask: 0x08}, /* J */
+    K: {row: 6, mask: 0x04}, /* K */
+    L: {row: 6, mask: 0x02}, /* L */
+    ENTER: {row: 6, mask: 0x01}, /* enter */
+
+    CAPS_SHIFT: {row: 0, mask: 0x01}, /* caps */
+    Z: {row: 0, mask: 0x02}, /* Z */
+    X: {row: 0, mask: 0x04}, /* X */
+    C: {row: 0, mask: 0x08}, /* C */
+    V: {row: 0, mask: 0x10}, /* V */
+    B: {row: 7, mask: 0x10}, /* B */
+    N: {row: 7, mask: 0x08}, /* N */
+    M: {row: 7, mask: 0x04}, /* M */
+    SYMBOL_SHIFT: {row: 7, mask: 0x02}, /* sym - gah, firefox screws up ctrl+key too */
+    BREAK_SPACE: {row: 7, mask: 0x01}, /* space */
+}
+
 const KEY_CODES = {
     49: {row: 3, mask: 0x01}, /* 1 */
     50: {row: 3, mask: 0x02}, /* 2 */
@@ -116,5 +162,84 @@ export class KeyboardHandler {
         } else {
             this.rootElement = newRootElement;
         }
+    }
+}
+
+const RECREATED_SPECTRUM_GAME_LAYER = {
+    "ab": SPECCY.ONE,
+    "cd": SPECCY.TWO,
+    "ef": SPECCY.THREE,
+    "gh": SPECCY.FOUR,
+    "ij": SPECCY.FIVE,
+    "kl": SPECCY.SIX,
+    "mn": SPECCY.SEVEN,
+    "op": SPECCY.EIGHT,
+    "qr": SPECCY.NINE,
+    "st": SPECCY.ZERO,
+
+    "uv": SPECCY.Q,
+    "wx": SPECCY.W,
+    "yz": SPECCY.E,
+    "AB": SPECCY.R,
+    "CD": SPECCY.T,
+    "EF": SPECCY.Y,
+    "GH": SPECCY.U,
+    "IJ": SPECCY.I,
+    "KL": SPECCY.O,
+    "MN": SPECCY.P,
+
+    "OP": SPECCY.A,
+    "QR": SPECCY.S,
+    "ST": SPECCY.D,
+    "UV": SPECCY.F,
+    "WX": SPECCY.G,
+    "YZ": SPECCY.H,
+    "01": SPECCY.J,
+    "23": SPECCY.K,
+    "45": SPECCY.L,
+    "67": SPECCY.ENTER,
+
+    "89": SPECCY.CAPS_SHIFT,
+    "<>": SPECCY.Z,
+    "-=": SPECCY.X,
+    "[]": SPECCY.C,
+    ";:": SPECCY.V,
+    ",.": SPECCY.B,
+    "/?": SPECCY.N,
+    "{}": SPECCY.M,
+    "!$": SPECCY.SYMBOL_SHIFT,
+    "%^": SPECCY.BREAK_SPACE,
+}
+let recreatedUpDown = {}
+
+for (const [pair, key] of Object.entries(RECREATED_SPECTRUM_GAME_LAYER)) {
+    recreatedUpDown[pair.charAt(0)] = { ...key, message: "keyDown" }
+    recreatedUpDown[pair.charAt(1)] = { ...key, message: "keyUp" }
+}
+
+export class RecreatedZXSpectrumHandler extends KeyboardHandler {
+    constructor(worker, rootElement) {
+        super()
+        this.worker = worker;
+        this.rootElement = rootElement;  // where we attach keyboard event listeners
+        this.eventsAreBound = false;
+
+        this.keydownHandler = (evt) => {
+            const specialCode = recreatedUpDown[evt.key]
+            if (specialCode) {
+                this.worker.postMessage({
+                    message: specialCode.message, row: specialCode.row, mask: specialCode.mask,
+                })
+            }
+            if (!evt.metaKey) evt.preventDefault();
+        };
+
+        this.keyupHandler = (evt) => {
+            if (!evt.metaKey) evt.preventDefault();
+        };
+
+        this.keypressHandler = (evt) => {
+            if (!evt.metaKey) evt.preventDefault();
+        };
     }
 }
