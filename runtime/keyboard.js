@@ -1,4 +1,4 @@
-const SPECCY = {
+﻿const SPECCY = {
     ONE: {row: 3, mask: 0x01}, /* 1 */
     TWO: {row: 3, mask: 0x02}, /* 2 */
     THREE: {row: 3, mask: 0x04}, /* 3 */
@@ -32,7 +32,7 @@ const SPECCY = {
     L: {row: 6, mask: 0x02}, /* L */
     ENTER: {row: 6, mask: 0x01}, /* enter */
 
-    CAPS_SHIFT: {row: 0, mask: 0x01}, /* caps */
+    CAPS_SHIFT: {row: 0, mask: 0x01, isCaps: true}, /* caps */
     Z: {row: 0, mask: 0x02}, /* Z */
     X: {row: 0, mask: 0x04}, /* X */
     C: {row: 0, mask: 0x08}, /* C */
@@ -40,100 +40,100 @@ const SPECCY = {
     B: {row: 7, mask: 0x10}, /* B */
     N: {row: 7, mask: 0x08}, /* N */
     M: {row: 7, mask: 0x04}, /* M */
-    SYMBOL_SHIFT: {row: 7, mask: 0x02}, /* sym - gah, firefox screws up ctrl+key too */
+    SYMBOL_SHIFT: {row: 7, mask: 0x02, isSymbol: true}, /* sym - gah, firefox screws up ctrl+key too */
     BREAK_SPACE: {row: 7, mask: 0x01}, /* space */
 }
 
+function sym(speccyKey) {
+    return {...speccyKey, sym: true}
+}
+
+function caps(speccyKey) {
+    return {...speccyKey, caps: true}
+}
+
 const KEY_CODES = {
-    49: {row: 3, mask: 0x01}, /* 1 */
-    50: {row: 3, mask: 0x02}, /* 2 */
-    51: {row: 3, mask: 0x04}, /* 3 */
-    52: {row: 3, mask: 0x08}, /* 4 */
-    53: {row: 3, mask: 0x10}, /* 5 */
-    54: {row: 4, mask: 0x10}, /* 6 */
-    55: {row: 4, mask: 0x08}, /* 7 */
-    56: {row: 4, mask: 0x04}, /* 8 */
-    57: {row: 4, mask: 0x02}, /* 9 */
-    48: {row: 4, mask: 0x01}, /* 0 */
+    49: SPECCY.ONE,
+    50: SPECCY.TWO,
+    51: SPECCY.THREE,
+    52: SPECCY.FOUR,
+    53: SPECCY.FIVE,
+    54: SPECCY.SIX,
+    55: SPECCY.SEVEN,
+    56: SPECCY.EIGHT,
+    57: SPECCY.NINE,
+    48: SPECCY.ZERO,
 
-    81: {row: 2, mask: 0x01}, /* Q */
-    87: {row: 2, mask: 0x02}, /* W */
-    69: {row: 2, mask: 0x04}, /* E */
-    82: {row: 2, mask: 0x08}, /* R */
-    84: {row: 2, mask: 0x10}, /* T */
-    89: {row: 5, mask: 0x10}, /* Y */
-    85: {row: 5, mask: 0x08}, /* U */
-    73: {row: 5, mask: 0x04}, /* I */
-    79: {row: 5, mask: 0x02}, /* O */
-    80: {row: 5, mask: 0x01}, /* P */
+    81: SPECCY.Q,
+    87: SPECCY.W,
+    69: SPECCY.E,
+    82: SPECCY.R,
+    84: SPECCY.T,
+    89: SPECCY.Y,
+    85: SPECCY.U,
+    73: SPECCY.I,
+    79: SPECCY.O,
+    80: SPECCY.P,
 
-    65: {row: 1, mask: 0x01}, /* A */
-    83: {row: 1, mask: 0x02}, /* S */
-    68: {row: 1, mask: 0x04}, /* D */
-    70: {row: 1, mask: 0x08}, /* F */
-    71: {row: 1, mask: 0x10}, /* G */
-    72: {row: 6, mask: 0x10}, /* H */
-    74: {row: 6, mask: 0x08}, /* J */
-    75: {row: 6, mask: 0x04}, /* K */
-    76: {row: 6, mask: 0x02}, /* L */
-    13: {row: 6, mask: 0x01}, /* enter */
+    65: SPECCY.A,
+    83: SPECCY.S,
+    68: SPECCY.D,
+    70: SPECCY.F,
+    71: SPECCY.G,
+    72: SPECCY.H,
+    74: SPECCY.J,
+    75: SPECCY.K,
+    76: SPECCY.L,
+    13: SPECCY.ENTER,
 
-    16: {row: 0, mask: 0x01}, /* caps */
-    192: {row: 0, mask: 0x01}, /* backtick as caps - because firefox screws up a load of key codes when pressing shift */
-    90: {row: 0, mask: 0x02}, /* Z */
-    88: {row: 0, mask: 0x04}, /* X */
-    67: {row: 0, mask: 0x08}, /* C */
-    86: {row: 0, mask: 0x10}, /* V */
-    66: {row: 7, mask: 0x10}, /* B */
-    78: {row: 7, mask: 0x08}, /* N */
-    77: {row: 7, mask: 0x04}, /* M */
-    17: {row: 7, mask: 0x02}, /* sym - gah, firefox screws up ctrl+key too */
-    32: {row: 7, mask: 0x01}, /* space */
+    16: SPECCY.CAPS_SHIFT, /* caps */
+    192: SPECCY.CAPS_SHIFT, /* backtick as caps - because firefox screws up a load of key codes when pressing shift */
+    90: SPECCY.Z,
+    88: SPECCY.X,
+    67: SPECCY.C,
+    86: SPECCY.V,
+    66: SPECCY.B,
+    78: SPECCY.N,
+    77: SPECCY.M,
+    17: SPECCY.SYMBOL_SHIFT, /* sym - gah, firefox screws up ctrl+key too */
+    32: SPECCY.BREAK_SPACE, /* space */
 
     /* shifted combinations */
-    8: {row: 4, mask: 0x01, caps: true}, /* backspace => caps + 0 */
-    37: {row: 3, mask: 0x10, caps: true}, /* left arrow => caps + 5 */
-    38: {row: 4, mask: 0x08, caps: true}, /* up arrow => caps + 7 */
-    39: {row: 4, mask: 0x04, caps: true}, /* right arrow => caps + 8 */
-    40: {row: 4, mask: 0x10, caps: true}, /* down arrow => caps + 6 */
+    8: caps(SPECCY.ZERO), /* backspace */
+    37: caps(SPECCY.FIVE), /* left arrow */
+    38: caps(SPECCY.SEVEN), /* up arrow */
+    39: caps(SPECCY.EIGHT), /* right arrow */
+    40: caps(SPECCY.SIX), /* down arrow */
+
+    /* symbol keys */
+    '-': sym(SPECCY.J),
+    '_': sym(SPECCY.ZERO),
+    '=': sym(SPECCY.L),
+    '+': sym(SPECCY.K),
+    ';': sym(SPECCY.O),
+    ':': sym(SPECCY.Z),
+    '\'': sym(SPECCY.SEVEN),
+    '"': sym(SPECCY.P),
+    ',': sym(SPECCY.N),
+    '<': sym(SPECCY.R),
+    '.': sym(SPECCY.M),
+    '>': sym(SPECCY.T),
+    '/': sym(SPECCY.V),
+    '?': sym(SPECCY.C),
+    '*': sym(SPECCY.B),
+    '@': sym(SPECCY.TWO),
+    '#': sym(SPECCY.THREE),
 };
+KEY_CODES[String.fromCharCode(0x2264)] = sym(SPECCY.Q) // LESS_THAN_EQUAL symbol (≤)
+KEY_CODES[String.fromCharCode(0x2265)] = sym(SPECCY.E) // GREATER_THAN_EQUAL symbol (≥)
+KEY_CODES[String.fromCharCode(0x2260)] = sym(SPECCY.W) // NOT_EQUAL symbol (≠)
 
 
-export class KeyboardHandler {
+export class BaseKeyboardHandler {
     constructor(worker, rootElement) {
         this.worker = worker;
         this.rootElement = rootElement;  // where we attach keyboard event listeners
         this.eventsAreBound = false;
-
-        this.keydownHandler = (evt) => {
-            const keyCode = KEY_CODES[evt.keyCode];
-            if (keyCode) {
-                this.worker.postMessage({
-                    message: 'keyDown', row: keyCode.row, mask: keyCode.mask,
-                })
-                if (keyCode.caps) {
-                    this.worker.postMessage({
-                        message: 'keyDown', row: 0, mask: 0x01,
-                    })
-                }
-            }
-            if (!evt.metaKey) evt.preventDefault();
-        };
-
-        this.keyupHandler = (evt) => {
-            const keyCode = KEY_CODES[evt.keyCode];
-            if (keyCode) {
-                this.worker.postMessage({
-                    message: 'keyUp', row: keyCode.row, mask: keyCode.mask,
-                })
-                if (keyCode.caps) {
-                    this.worker.postMessage({
-                        message: 'keyUp', row: 0, mask: 0x01,
-                    })
-                }
-            }
-            if (!evt.metaKey) evt.preventDefault();
-        };
 
         this.keypressHandler = (evt) => {
             if (!evt.metaKey) evt.preventDefault();
@@ -161,6 +161,69 @@ export class KeyboardHandler {
             this.start();
         } else {
             this.rootElement = newRootElement;
+        }
+    }
+}
+
+export class StandardKeyboardHandler extends BaseKeyboardHandler {
+    constructor(worker, rootElement) {
+        super(worker, rootElement)
+
+        this.symbolIsShifted = false
+        this.capsIsShifted = false
+        
+        this.keydownHandler = (evt) => {
+            const keyCode = KEY_CODES[evt.keyCode] ?? KEY_CODES[evt.key];
+            if (keyCode) {
+                this.keyDown(keyCode)
+            }
+            if (!evt.metaKey) evt.preventDefault();
+        };
+
+        this.keyupHandler = (evt) => {
+            const keyCode = KEY_CODES[evt.keyCode] ?? KEY_CODES[evt.key];
+            if (keyCode) {
+                this.keyUp(keyCode)
+            }
+            if (!evt.metaKey) evt.preventDefault();
+        };
+    }
+
+    keyRaw(speccyKey, downNotUp) {
+        this.worker.postMessage({
+            message: downNotUp ? 'keyDown' : 'keyUp', row: speccyKey.row, mask: speccyKey.mask,
+        })
+    }
+
+    symbolShift(trueOrFalse) {
+        this.keyRaw(SPECCY.SYMBOL_SHIFT, trueOrFalse)
+    }
+
+    capsShift(trueOrFalse) {
+        this.keyRaw(SPECCY.CAPS_SHIFT, trueOrFalse)
+    }
+
+    keyDown(speccyKey) {
+        this.keyRaw(speccyKey, true)
+        if ('caps' in speccyKey || 'sym' in speccyKey) {
+            this.capsShift('caps' in speccyKey)
+            this.symbolShift('sym' in speccyKey)
+        } else if (speccyKey.isCaps) {
+            this.capsIsShifted = true
+        } else if (speccyKey.isSymbol) {
+            this.symbolIsShifted = true
+        }
+    }
+
+    keyUp(speccyKey) {
+        this.keyRaw(speccyKey, false)
+        if ('caps' in speccyKey || 'sym' in speccyKey) {
+            this.capsShift(this.capsIsShifted)
+            this.symbolShift(this.symbolIsShifted)
+        } else if (speccyKey.isCaps) {
+            this.capsIsShifted = false
+        } else if (speccyKey.isSymbol) {
+            this.symbolIsShifted = false
         }
     }
 }
@@ -217,12 +280,9 @@ for (const [pair, key] of Object.entries(RECREATED_SPECTRUM_GAME_LAYER)) {
     recreatedUpDown[pair.charAt(1)] = { ...key, message: "keyUp" }
 }
 
-export class RecreatedZXSpectrumHandler extends KeyboardHandler {
+export class RecreatedZXSpectrumHandler extends BaseKeyboardHandler {
     constructor(worker, rootElement) {
-        super()
-        this.worker = worker;
-        this.rootElement = rootElement;  // where we attach keyboard event listeners
-        this.eventsAreBound = false;
+        super(worker, rootElement)
 
         this.keydownHandler = (evt) => {
             const specialCode = recreatedUpDown[evt.key]
@@ -235,10 +295,6 @@ export class RecreatedZXSpectrumHandler extends KeyboardHandler {
         };
 
         this.keyupHandler = (evt) => {
-            if (!evt.metaKey) evt.preventDefault();
-        };
-
-        this.keypressHandler = (evt) => {
             if (!evt.metaKey) evt.preventDefault();
         };
     }
