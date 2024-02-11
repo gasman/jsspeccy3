@@ -6,7 +6,7 @@ import { DisplayHandler } from './render.js';
 import { UIController } from './ui.js';
 import { parseSNAFile, parseZ80File, parseSZXFile } from './snapshot.js';
 import { TAPFile, TZXFile } from './tape.js';
-import { KeyboardHandler } from './keyboard.js';
+import { StandardKeyboardHandler, RecreatedZXSpectrumHandler } from './keyboard.js';
 import { AudioHandler } from './audio.js';
 
 import openIcon from './icons/open.svg';
@@ -27,7 +27,9 @@ class Emulator extends EventEmitter {
         this.worker = new Worker(new URL('jsspeccy-worker.js', scriptUrl));
         this.keyboardEnabled = ('keyboardEnabled' in opts) ? opts.keyboardEnabled : true;
         if (this.keyboardEnabled) {
-            this.keyboardHandler = new KeyboardHandler(this.worker, opts.keyboardEventRoot || document);
+            this.keyboardHandler = (opts.keyboardMap == 'recreated')
+                ? new RecreatedZXSpectrumHandler(this.worker, opts.keyboardEventRoot || document)
+                : new StandardKeyboardHandler(this.worker, opts.keyboardEventRoot || document);
         }
         this.displayHandler = new DisplayHandler(this.canvas);
         this.audioHandler = new AudioHandler();
@@ -417,6 +419,7 @@ window.JSSpeccy = (container, opts) => {
         openUrl: opts.openUrl,
         tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
         keyboardEnabled: keyboardEnabled,
+        keyboardMap: opts.keyboardMap || 'standard',
     });
     const ui = new UIController(container, emu, {
         zoom: opts.zoom || 1,
