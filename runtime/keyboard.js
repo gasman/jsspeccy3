@@ -1,47 +1,47 @@
 ﻿const SPECCY = {
-    ONE: {row: 3, mask: 0x01}, /* 1 */
-    TWO: {row: 3, mask: 0x02}, /* 2 */
-    THREE: {row: 3, mask: 0x04}, /* 3 */
-    FOUR: {row: 3, mask: 0x08}, /* 4 */
-    FIVE: {row: 3, mask: 0x10}, /* 5 */
-    SIX: {row: 4, mask: 0x10}, /* 6 */
-    SEVEN: {row: 4, mask: 0x08}, /* 7 */
-    EIGHT: {row: 4, mask: 0x04}, /* 8 */
-    NINE: {row: 4, mask: 0x02}, /* 9 */
-    ZERO: {row: 4, mask: 0x01}, /* 0 */
+    ONE: {row: 3, mask: 0x01},
+    TWO: {row: 3, mask: 0x02},
+    THREE: {row: 3, mask: 0x04},
+    FOUR: {row: 3, mask: 0x08},
+    FIVE: {row: 3, mask: 0x10},
+    SIX: {row: 4, mask: 0x10},
+    SEVEN: {row: 4, mask: 0x08},
+    EIGHT: {row: 4, mask: 0x04},
+    NINE: {row: 4, mask: 0x02},
+    ZERO: {row: 4, mask: 0x01},
 
-    Q: {row: 2, mask: 0x01}, /* Q */
-    W: {row: 2, mask: 0x02}, /* W */
-    E: {row: 2, mask: 0x04}, /* E */
-    R: {row: 2, mask: 0x08}, /* R */
-    T: {row: 2, mask: 0x10}, /* T */
-    Y: {row: 5, mask: 0x10}, /* Y */
-    U: {row: 5, mask: 0x08}, /* U */
-    I: {row: 5, mask: 0x04}, /* I */
-    O: {row: 5, mask: 0x02}, /* O */
-    P: {row: 5, mask: 0x01}, /* P */
+    Q: {row: 2, mask: 0x01},
+    W: {row: 2, mask: 0x02},
+    E: {row: 2, mask: 0x04},
+    R: {row: 2, mask: 0x08},
+    T: {row: 2, mask: 0x10},
+    Y: {row: 5, mask: 0x10},
+    U: {row: 5, mask: 0x08},
+    I: {row: 5, mask: 0x04},
+    O: {row: 5, mask: 0x02},
+    P: {row: 5, mask: 0x01},
 
-    A: {row: 1, mask: 0x01}, /* A */
-    S: {row: 1, mask: 0x02}, /* S */
-    D: {row: 1, mask: 0x04}, /* D */
-    F: {row: 1, mask: 0x08}, /* F */
-    G: {row: 1, mask: 0x10}, /* G */
-    H: {row: 6, mask: 0x10}, /* H */
-    J: {row: 6, mask: 0x08}, /* J */
-    K: {row: 6, mask: 0x04}, /* K */
-    L: {row: 6, mask: 0x02}, /* L */
-    ENTER: {row: 6, mask: 0x01}, /* enter */
+    A: {row: 1, mask: 0x01},
+    S: {row: 1, mask: 0x02},
+    D: {row: 1, mask: 0x04},
+    F: {row: 1, mask: 0x08},
+    G: {row: 1, mask: 0x10},
+    H: {row: 6, mask: 0x10},
+    J: {row: 6, mask: 0x08},
+    K: {row: 6, mask: 0x04},
+    L: {row: 6, mask: 0x02},
+    ENTER: {row: 6, mask: 0x01},
 
-    CAPS_SHIFT: {row: 0, mask: 0x01, isCaps: true}, /* caps */
-    Z: {row: 0, mask: 0x02}, /* Z */
-    X: {row: 0, mask: 0x04}, /* X */
-    C: {row: 0, mask: 0x08}, /* C */
-    V: {row: 0, mask: 0x10}, /* V */
-    B: {row: 7, mask: 0x10}, /* B */
-    N: {row: 7, mask: 0x08}, /* N */
-    M: {row: 7, mask: 0x04}, /* M */
-    SYMBOL_SHIFT: {row: 7, mask: 0x02, isSymbol: true}, /* sym - gah, firefox screws up ctrl+key too */
-    BREAK_SPACE: {row: 7, mask: 0x01}, /* space */
+    CAPS_SHIFT: {row: 0, mask: 0x01, isCaps: true},
+    Z: {row: 0, mask: 0x02},
+    X: {row: 0, mask: 0x04},
+    C: {row: 0, mask: 0x08},
+    V: {row: 0, mask: 0x10},
+    B: {row: 7, mask: 0x10},
+    N: {row: 7, mask: 0x08},
+    M: {row: 7, mask: 0x04},
+    SYMBOL_SHIFT: {row: 7, mask: 0x02, isSymbol: true},
+    BREAK_SPACE: {row: 7, mask: 0x01},
 }
 
 function sym(speccyKey) {
