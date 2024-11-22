@@ -1,3 +1,4 @@
+﻿// Mapping from Spectrum key identifiers to keyboard matrix info
 const SPECCY = {
     ONE: {row: 3, mask: 0x01},
     TWO: {row: 3, mask: 0x02},
@@ -45,13 +46,16 @@ const SPECCY = {
 }
 
 function sym(speccyKey) {
+    // patch key definition to indicate that symbol shift should be activated
     return {...speccyKey, sym: true}
 }
 
 function caps(speccyKey) {
+    // patch key definition to indicate that caps shift should be activated
     return {...speccyKey, caps: true}
 }
 
+// Mapping from JS key codes to Spectrum key definitions
 const KEY_CODES = {
     49: SPECCY.ONE,
     50: SPECCY.TWO,
@@ -169,7 +173,12 @@ export class StandardKeyboardHandler extends BaseKeyboardHandler {
     constructor(worker, rootElement) {
         super(worker, rootElement)
 
+        // if true, the real symbol shift key is being held (as opposed to being active
+        // through a virtual key combination)
         this.symbolIsShifted = false
+
+        // if true, the real caps shift key is being held (as opposed to being active
+        // through a virtual key combination)
         this.capsIsShifted = false
         
         this.keydownHandler = (evt) => {
@@ -189,22 +198,22 @@ export class StandardKeyboardHandler extends BaseKeyboardHandler {
         };
     }
 
-    keyRaw(speccyKey, downNotUp) {
+    sendKeyMessage(speccyKey, downNotUp) {
         this.worker.postMessage({
             message: downNotUp ? 'keyDown' : 'keyUp', row: speccyKey.row, mask: speccyKey.mask,
         })
     }
 
-    symbolShift(trueOrFalse) {
-        this.keyRaw(SPECCY.SYMBOL_SHIFT, trueOrFalse)
+    symbolShift(downNotUp) {
+        this.sendKeyMessage(SPECCY.SYMBOL_SHIFT, downNotUp)
     }
 
-    capsShift(trueOrFalse) {
-        this.keyRaw(SPECCY.CAPS_SHIFT, trueOrFalse)
+    capsShift(downNotUp) {
+        this.sendKeyMessage(SPECCY.CAPS_SHIFT, downNotUp)
     }
 
     keyDown(speccyKey) {
-        this.keyRaw(speccyKey, true)
+        this.sendKeyMessage(speccyKey, true)
         if ('caps' in speccyKey || 'sym' in speccyKey) {
             this.capsShift('caps' in speccyKey)
             this.symbolShift('sym' in speccyKey)
@@ -216,7 +225,7 @@ export class StandardKeyboardHandler extends BaseKeyboardHandler {
     }
 
     keyUp(speccyKey) {
-        this.keyRaw(speccyKey, false)
+        this.sendKeyMessage(speccyKey, false)
         if ('caps' in speccyKey || 'sym' in speccyKey) {
             this.capsShift(this.capsIsShifted)
             this.symbolShift(this.symbolIsShifted)
