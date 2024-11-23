@@ -60,6 +60,7 @@ The available configuration options are:
 * `tapeTrapsEnabled`: if true (the default), the emulator will recognise when the tape loading routine in the ROM is called, and load tape files instantly instead.
 * `keyboardEnabled`: True by default; if false, the emulator will not respond to keypresses.
 * `uiEnabled`: True by default; if false, the menu bar and toolbar will not be shown.
+* `keyboardMap`: if this is set to the value `"recreated"`, the emulator will accept keypresses in the encoded format emitted by the [Recreated ZX Spectrum](https://recreatedzxspectrum.com/) keyboard in "game mode". If it is unset or set to any other value, the emulator will accept keypresses as normal.
 
 For additional JavaScript hackery, the return value of the JSSpeccy function call is an object exposing a number of functions for controlling the running emulator:
 
