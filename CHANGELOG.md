@@ -1,3 +1,16 @@
+3.2 (2024-11-23)
+----------------
+
+* Add mappings from keyboard symbol keys to equivalent Spectrum keypresses (Andrew Forrest)
+* Add support for the Recreated ZX Spectrum's "game mode" (Andrew Forrest)
+* Add `keyboardEnabled` configuration option
+* Add `uiEnabled` configuration option
+* Add `loadSnapshotFromStruct` API endpoint
+* Add `onReady` API endpoint
+* Enable 'instant tape loading' option in sandbox mode
+* Make keyboard event listeners play better with other interactive elements on the page
+
+
 3.1 (2021-08-26)
 ----------------
 
