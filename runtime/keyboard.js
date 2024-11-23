@@ -43,7 +43,7 @@ const SPECCY = {
     M: {row: 7, mask: 0x04},
     SYMBOL_SHIFT: {row: 7, mask: 0x02, isSymbol: true},
     BREAK_SPACE: {row: 7, mask: 0x01},
-}
+};
 
 function sym(speccyKey) {
     // patch key definition to indicate that symbol shift should be activated
@@ -128,9 +128,9 @@ const KEY_CODES = {
     '@': sym(SPECCY.TWO),
     '#': sym(SPECCY.THREE),
 };
-KEY_CODES[String.fromCharCode(0x2264)] = sym(SPECCY.Q) // LESS_THAN_EQUAL symbol (≤)
-KEY_CODES[String.fromCharCode(0x2265)] = sym(SPECCY.E) // GREATER_THAN_EQUAL symbol (≥)
-KEY_CODES[String.fromCharCode(0x2260)] = sym(SPECCY.W) // NOT_EQUAL symbol (≠)
+KEY_CODES[String.fromCharCode(0x2264)] = sym(SPECCY.Q); // LESS_THAN_EQUAL symbol (≤)
+KEY_CODES[String.fromCharCode(0x2265)] = sym(SPECCY.E); // GREATER_THAN_EQUAL symbol (≥)
+KEY_CODES[String.fromCharCode(0x2260)] = sym(SPECCY.W); // NOT_EQUAL symbol (≠)
 
 
 export class BaseKeyboardHandler {
@@ -171,28 +171,54 @@ export class BaseKeyboardHandler {
 
 export class StandardKeyboardHandler extends BaseKeyboardHandler {
     constructor(worker, rootElement) {
-        super(worker, rootElement)
+        super(worker, rootElement);
 
-        // if true, the real symbol shift key is being held (as opposed to being active
-        // through a virtual key combination)
-        this.symbolIsShifted = false
+        // if true, the real symbol shift key is being held (as opposed to being active through a
+        // virtual key combination)
+        this.symbolIsShifted = false;
 
-        // if true, the real caps shift key is being held (as opposed to being active
-        // through a virtual key combination)
-        this.capsIsShifted = false
-        
+        // if true, the real caps shift key is being held (as opposed to being active through a
+        // virtual key combination)
+        this.capsIsShifted = false;
+
+        // When a keypress is recognised by its character rather than its numeric key code, store
+        // the resolved key info struct here, indexed by key code. If the state of shift keys
+        // changes while that key is held down, we will see subsequent keydown events with a
+        // different character but the same key code. For example, if the user holds the semicolon
+        // key and then presses shift, we will see a keydown event with {keyCode: 186, key: ';'},
+        // and then another keydown event with {keyCode: 186, key=':'}. In this case, we would need
+        // to simulate a keyup event for the semicolon before registering the colon as a new
+        // keypress. This table allows us to recognise when changes like this happen.
+        this.seenKeyCodes = {};
+
         this.keydownHandler = (evt) => {
-            const keyCode = KEY_CODES[evt.keyCode] ?? KEY_CODES[evt.key];
-            if (keyCode) {
-                this.keyDown(keyCode)
+            let keyInfo = KEY_CODES[evt.keyCode];
+            if (keyInfo) {
+                this.keyDown(keyInfo);
+            } else {
+                keyInfo = KEY_CODES[evt.key];
+                if (keyInfo) {
+                    const lastKeyInfo = this.seenKeyCodes[evt.keyCode];
+                    if (lastKeyInfo && lastKeyInfo !== keyInfo) {
+                        this.keyUp(lastKeyInfo);
+                    }
+                    this.seenKeyCodes[evt.keyCode] = keyInfo;
+                    this.keyDown(keyInfo);
+                }
             }
             if (!evt.metaKey) evt.preventDefault();
         };
 
         this.keyupHandler = (evt) => {
-            const keyCode = KEY_CODES[evt.keyCode] ?? KEY_CODES[evt.key];
-            if (keyCode) {
-                this.keyUp(keyCode)
+            const keyInfo = KEY_CODES[evt.keyCode];
+            if (keyInfo) {
+                this.keyUp(keyInfo);
+            } else {
+                const lastKeyInfo = this.seenKeyCodes[evt.keyCode];
+                if (lastKeyInfo) {
+                    this.seenKeyCodes[evt.keyCode] = null;
+                    this.keyUp(lastKeyInfo);
+                }
             }
             if (!evt.metaKey) evt.preventDefault();
         };
@@ -201,38 +227,30 @@ export class StandardKeyboardHandler extends BaseKeyboardHandler {
     sendKeyMessage(speccyKey, downNotUp) {
         this.worker.postMessage({
             message: downNotUp ? 'keyDown' : 'keyUp', row: speccyKey.row, mask: speccyKey.mask,
-        })
-    }
-
-    symbolShift(downNotUp) {
-        this.sendKeyMessage(SPECCY.SYMBOL_SHIFT, downNotUp)
-    }
-
-    capsShift(downNotUp) {
-        this.sendKeyMessage(SPECCY.CAPS_SHIFT, downNotUp)
+        });
     }
 
     keyDown(speccyKey) {
-        this.sendKeyMessage(speccyKey, true)
+        this.sendKeyMessage(speccyKey, true);
         if ('caps' in speccyKey || 'sym' in speccyKey) {
-            this.capsShift('caps' in speccyKey)
-            this.symbolShift('sym' in speccyKey)
+            this.sendKeyMessage(SPECCY.CAPS_SHIFT, 'caps' in speccyKey);
+            this.sendKeyMessage(SPECCY.SYMBOL_SHIFT, 'sym' in speccyKey);
         } else if (speccyKey.isCaps) {
-            this.capsIsShifted = true
+            this.capsIsShifted = true;
         } else if (speccyKey.isSymbol) {
-            this.symbolIsShifted = true
+            this.symbolIsShifted = true;
         }
     }
 
     keyUp(speccyKey) {
-        this.sendKeyMessage(speccyKey, false)
+        this.sendKeyMessage(speccyKey, false);
         if ('caps' in speccyKey || 'sym' in speccyKey) {
-            this.capsShift(this.capsIsShifted)
-            this.symbolShift(this.symbolIsShifted)
+            this.sendKeyMessage(SPECCY.CAPS_SHIFT, this.capsIsShifted);
+            this.sendKeyMessage(SPECCY.SYMBOL_SHIFT, this.symbolIsShifted);
         } else if (speccyKey.isCaps) {
-            this.capsIsShifted = false
+            this.capsIsShifted = false;
         } else if (speccyKey.isSymbol) {
-            this.symbolIsShifted = false
+            this.symbolIsShifted = false;
         }
     }
 }
@@ -281,24 +299,24 @@ const RECREATED_SPECTRUM_GAME_LAYER = {
     "{}": SPECCY.M,
     "!$": SPECCY.SYMBOL_SHIFT,
     "%^": SPECCY.BREAK_SPACE,
-}
-let recreatedUpDown = {}
+};
+let recreatedUpDown = {};
 
 for (const [pair, key] of Object.entries(RECREATED_SPECTRUM_GAME_LAYER)) {
-    recreatedUpDown[pair.charAt(0)] = { ...key, message: "keyDown" }
-    recreatedUpDown[pair.charAt(1)] = { ...key, message: "keyUp" }
+    recreatedUpDown[pair.charAt(0)] = { ...key, message: "keyDown" };
+    recreatedUpDown[pair.charAt(1)] = { ...key, message: "keyUp" };
 }
 
 export class RecreatedZXSpectrumHandler extends BaseKeyboardHandler {
     constructor(worker, rootElement) {
-        super(worker, rootElement)
+        super(worker, rootElement);
 
         this.keydownHandler = (evt) => {
-            const specialCode = recreatedUpDown[evt.key]
+            const specialCode = recreatedUpDown[evt.key];
             if (specialCode) {
                 this.worker.postMessage({
                     message: specialCode.message, row: specialCode.row, mask: specialCode.mask,
-                })
+                });
             }
             if (!evt.metaKey) evt.preventDefault();
         };
