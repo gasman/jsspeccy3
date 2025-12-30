@@ -7,6 +7,7 @@ let memoryData = null;
 let workerFrameData = null;
 let registerPairs = null;
 let tapePulses = null;
+let ulaPlusPalette = null;
 
 let stopped = false;
 let tape = null;
@@ -22,6 +23,7 @@ const loadCore = (baseUrl) => {
         workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
         registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
         tapePulses = new Uint16Array(core.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
+        ulaPlusPalette = new Uint8Array(core.memory.buffer, core.ULA_PLUS_PALETTE, 64);
 
         postMessage({
             'message': 'ready',
@@ -52,6 +54,12 @@ const loadSnapshot = (snapshot) => {
     core.writePort(0x00fe, snapshot.ulaState.borderColour);
     if (snapshot.model != 48) {
         core.writePort(0x7ffd, snapshot.ulaState.pagingFlags);
+    }
+    const palette = snapshot.palette;
+    if (palette) {
+        ulaPlusPalette.set(palette.entries, 0);
+        core.setUlaPlusPaletteMode(palette.isEnabled)
+        core.setUlaPlusGroupAndSubgroup(palette.currentGroup, palette.currentIndex)
     }
 
     core.setTStates(snapshot.tstates);
@@ -197,6 +205,9 @@ onmessage = (e) => {
             break;
         case 'setMachineType':
             core.setMachineType(e.data.type);
+            break;
+        case 'setUlaPlusEnabled':
+            core.setUlaPlusEnabled(e.data.value);
             break;
         case 'reset':
             core.reset();

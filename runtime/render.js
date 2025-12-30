@@ -7,43 +7,9 @@ export class CanvasRenderer {
         this.ctx = this.canvas.getContext('2d');
         this.imageData = this.ctx.getImageData(0, 0, 320, 240);
         this.pixels = new Uint32Array(this.imageData.data.buffer);
-        this.flashPhase = 0;
-
-        this.palette = new Uint32Array([
-            /* RGBA dark */
-            0x000000ff,
-            0x2030c0ff,
-            0xc04010ff,
-            0xc040c0ff,
-            0x40b010ff,
-            0x50c0b0ff,
-            0xe0c010ff,
-            0xc0c0c0ff,
-            /* RGBA bright */
-            0x000000ff,
-            0x3040ffff,
-            0xff4030ff,
-            0xff70f0ff,
-            0x50e010ff,
-            0x50e0ffff,
-            0xffe850ff,
-            0xffffffff
-        ]);
 
         const testUint8 = new Uint8Array(new Uint16Array([0x8000]).buffer);
-        const isLittleEndian = (testUint8[0] === 0);
-        if (isLittleEndian) {
-            /* need to reverse the byte ordering of palette */
-            for (let i = 0; i < 16; i++) {
-                const color = this.palette[i];
-                this.palette[i] = (
-                    (color << 24) & 0xff000000)
-                    | ((color << 8) & 0xff0000)
-                    | ((color >>> 8) & 0xff00)
-                    | ((color >>> 24) & 0xff
-                );
-            }
-        }
+        this.isLittleEndian = (testUint8[0] === 0);
     }
 
     showFrame(frameBuffer) {
@@ -53,7 +19,7 @@ export class CanvasRenderer {
         /* top border */
         for (let y = 0; y < 24; y++) {
             for (let x = 0; x < 160; x++) {
-                let border = this.palette[frameBytes[bufferPtr++]]
+                let border = this.rgbaFromGrb8(frameBytes[bufferPtr++])
                 this.pixels[pixelPtr++] = border;
                 this.pixels[pixelPtr++] = border;
             }
@@ -62,23 +28,17 @@ export class CanvasRenderer {
         for (let y = 0; y < 192; y++) {
             /* left border */
             for (let x = 0; x < 16; x++) {
-                let border = this.palette[frameBytes[bufferPtr++]]
+                let border = this.rgbaFromGrb8(frameBytes[bufferPtr++])
                 this.pixels[pixelPtr++] = border;
                 this.pixels[pixelPtr++] = border;
             }
             /* main screen */
             for (let x = 0; x < 32; x++) {
                 let bitmap = frameBytes[bufferPtr++];
-                const attr = frameBytes[bufferPtr++];
-                let ink, paper;
-                if ((attr & 0x80) && (this.flashPhase & 0x10)) {
-                    // reverse ink and paper
-                    paper = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
-                    ink = this.palette[(attr & 0x78) >> 3];
-                } else {
-                    ink = this.palette[((attr & 0x40) >> 3) | (attr & 0x07)];
-                    paper = this.palette[(attr & 0x78) >> 3];
-                }
+                const paper8 = frameBytes[bufferPtr++];
+                const ink8 = frameBytes[bufferPtr++];
+                const paper = this.rgbaFromGrb8(paper8)
+                const ink = this.rgbaFromGrb8(ink8)
                 for (let i = 0; i < 8; i++) {
                     this.pixels[pixelPtr++] = (bitmap & 0x80) ? ink : paper;
                     bitmap <<= 1;
@@ -86,7 +46,7 @@ export class CanvasRenderer {
             }
             /* right border */
             for (let x = 0; x < 16; x++) {
-                let border = this.palette[frameBytes[bufferPtr++]]
+                let border = this.rgbaFromGrb8(frameBytes[bufferPtr++])
                 this.pixels[pixelPtr++] = border;
                 this.pixels[pixelPtr++] = border;
             }
@@ -94,13 +54,37 @@ export class CanvasRenderer {
         /* bottom border */
         for (let y = 0; y < 24; y++) {
             for (let x = 0; x < 160; x++) {
-                let border = this.palette[frameBytes[bufferPtr++]]
+                let border = this.rgbaFromGrb8(frameBytes[bufferPtr++])
                 this.pixels[pixelPtr++] = border;
                 this.pixels[pixelPtr++] = border;
             }
         }
         this.ctx.putImageData(this.imageData, 0, 0);
         this.flashPhase = (this.flashPhase + 1) & 0x1f;
+    }
+
+    rgbaFromGrb8(grb8) {
+        const g3 = (grb8 >> 5) & 7;
+        const r3 = (grb8 >> 2) & 7;
+        const b2 = (grb8 >> 0) & 3;
+        const b3 = (b2 << 1) + (b2 === 0 ? 0 : 1)
+
+        if (this.isLittleEndian) {
+            // That last bit of integer maths ("+ 0xff000000") is to avoid signed-32-bit arithmetic
+            // in JavaScript bit operations. (It puts the 0xff in the high 8 bits, for the alpha channel.)
+            return (
+                (((b3 << 21) | (b3 << 18) | (b3 << 15)) & 0xff0000) |
+                (((g3 << 13) | (g3 << 10) | (g3 << 7)) & 0x00ff00) |
+                (((r3 << 5) | (r3 << 2) | (r3 >>> 1)) & 0x0000ff)) +
+                0xff000000;
+        } else {
+            // That last bit of integer maths ("* 256 + 255") is to avoid signed-32-bit arithmetic
+            // in JavaScript bit operations. (It puts the 0xff in the low 8 bits, for the alpha channel.)
+            return (
+                (((r3 << 21) | (r3 << 18) | (r3 << 15)) & 0xff0000) |
+                (((g3 << 13) | (g3 << 10) | (g3 << 7)) & 0x00ff00) |
+                (((b3 << 5) | (b3 << 2) | (b3 >>> 1)) & 0x0000ff)) * 256 + 255;
+        }
     }
 }
 

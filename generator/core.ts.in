@@ -1,4 +1,4 @@
-#alloc frameBuffer[0x6600]: u8
+#alloc frameBuffer[0x7e00]: u8
 export const FRAME_BUFFER:usize = (&frameBuffer);
 
 // allocate memory for 8 RAM, 8 ROM pages
@@ -95,6 +95,22 @@ let rom1Page:u8 = 9;
 let betadiskEnabled:bool = false;
 let betadiskROMActive:bool = false;
 let tapeTrapsEnabled:bool = true;
+
+// Screen normal colour palette:
+#alloc standardPalette[16]:u8
+standardPalette = [0x00, 0x26, 0x54, 0x56, 0xa8, 0xaa, 0xb8, 0xb6, 0x00, 0x47, 0x5d, 0x7f, 0xc8, 0xcb, 0xdd, 0xff];
+let flashPhase:u8 = 0
+
+// ULAplus functionality:
+// (We only support palettes, not Timex video mode selection.)
+#const ULAPLUS_PALETTE_GROUP 0x00
+#const ULAPLUS_MODE_GROUP 0x01
+let ulaPlusEnabled:bool = true;
+let ulaPlusSelectedGroup:u8 = 0;
+let ulaPlusSelectedSubgroup:u8 = 0;
+let ulaPlusPaletteMode:bool = false;
+#alloc ulaPlusPalette[64]: u8
+export const ULA_PLUS_PALETTE:usize = (&ulaPlusPalette);
 
 let i:u8 = 0;
 while (true) {
@@ -292,6 +308,10 @@ export function reset():void {
     halted = false;
     opcodePrefix = 0;
     framebufferIndex = 0;
+    ulaPlusPaletteMode = 0
+    for(let i = 0; i < 64; i++) {
+        ulaPlusPalette[i] = 0;
+    }
 }
 setMachineType(48);
 
@@ -352,6 +372,23 @@ export function getHalted():bool {
 }
 export function setTapeTraps(val:bool):void {
     tapeTrapsEnabled = val;
+}
+
+export function getUlaPlusEnabled():bool {
+    return ulaPlusEnabled
+}
+export function setUlaPlusEnabled(val:bool):void {
+    ulaPlusEnabled = val;
+}
+export function getUlaPlusPaletteMode():bool {
+    return ulaPlusPaletteMode;
+}
+export function setUlaPlusPaletteMode(val:bool):void {
+    ulaPlusPaletteMode = val;
+}
+export function setUlaPlusGroupAndSubgroup(group:u8, subgroup:u8):void {
+    ulaPlusSelectedGroup = group & 3;
+    ulaPlusSelectedSubgroup = subgroup & 0x3f;
 }
 
 function log(time:u32, type:u16, addr:u16, val:u8):void {
@@ -457,9 +494,13 @@ export function poke(addr:u16, val:u8):void {
 }
 
 export function readPort(addr:u16):u8 {
-    /* apply pre-read contention */
+    const isUlaPort = !(addr & 0x0001)
+    const isUlaPlusPort = ulaPlusEnabled && (addr == 0xff3b || addr == 0xbf3b)
+
     const page:u8 = memoryPageReadMap[addr >> 14];
     const addressIsContended:u8 = pageIsContended[page];
+
+    /* apply pre-read contention */
     if (addressIsContended) {
         if (loggingEnabled) log(t, 6, addr, 0);
         t += contentionTable[t % frameCycleCount];
@@ -475,13 +516,31 @@ export function readPort(addr:u16):u8 {
         result = u8(addr >> 8);
     } else {
 
-        if (!(addr & 0x0001)) {
+        if (isUlaPort) {
             /* poll keyboard */
             result = pollKeyboard(u8(addr >> 8));
             updateTapePulses(t);
             result |= tapeLevel;
         } else if ((addr & 0xc002) == 0xc000) {
             result = readAYRegister(selectedAYRegister);
+
+        } else if (isUlaPlusPort) {
+            if (addr == 0xff3b) {
+                // ULAplus data port:
+
+                switch(ulaPlusSelectedGroup) {
+                    case ULAPLUS_MODE_GROUP:
+                        result = ulaPlusPaletteMode ? 1 : 0;
+                        break;
+                    case ULAPLUS_PALETTE_GROUP:
+                        result = ulaPlusPalette[ulaPlusSelectedSubgroup];
+                        break;
+                    default:
+                        // Do nothing
+                        break;
+                }
+            }
+
         } else if (!(addr & 0x00e0)) {
             /* kempston joystick */
             result = 0;
@@ -494,23 +553,23 @@ export function readPort(addr:u16):u8 {
     if (loggingEnabled) log(t, 4, addr, result);
 
     /* apply post-read contention */
-    if (addr & 0x0001) {
-        if (addressIsContended) {
-            if (loggingEnabled) log(t, 6, addr, 0);
-            t += contentionTable[t % frameCycleCount];
-            t++;
-            if (loggingEnabled) log(t, 6, addr, 0);
-            t += contentionTable[t % frameCycleCount];
-            t++;
-            if (loggingEnabled) log(t, 6, addr, 0);
-            t += contentionTable[t % frameCycleCount];
-            t++;
-        } else {
-            t += 3;
-        }
-    } else {
+    if (isUlaPort || isUlaPlusPort) {
         if (loggingEnabled) log(t, 6, addr, 0);
         t += contentionTable[t % frameCycleCount];
+        t += 3;
+
+    } else if (addressIsContended) {
+        if (loggingEnabled) log(t, 6, addr, 0);
+        t += contentionTable[t % frameCycleCount];
+        t++;
+        if (loggingEnabled) log(t, 6, addr, 0);
+        t += contentionTable[t % frameCycleCount];
+        t++;
+        if (loggingEnabled) log(t, 6, addr, 0);
+        t += contentionTable[t % frameCycleCount];
+        t++;
+        
+    } else {
         t += 3;
     }
 
@@ -518,9 +577,13 @@ export function readPort(addr:u16):u8 {
 }
 
 export function writePort(addr:u16, val:u8):void {
-    /* apply pre-write contention */
-    const page:u8 = memoryPageWriteMap[addr >> 14];
+    const isUlaPort = !(addr & 0x0001)
+    const isUlaPlusPort = ulaPlusEnabled && (addr == 0xff3b || addr == 0xbf3b)
+
+    const page:u8 = memoryPageReadMap[addr >> 14];
     const addressIsContended:u8 = pageIsContended[page];
+
+    /* apply pre-read contention */
     if (addressIsContended) {
         if (loggingEnabled) log(t, 6, addr, 0);
         t += contentionTable[t % frameCycleCount];
@@ -528,12 +591,13 @@ export function writePort(addr:u16, val:u8):void {
     t++;
 
     if (loggingEnabled) log(t, 5, addr, val);
-    if (!(addr & 0x0001)) {
+    if (isUlaPort) {
         /* border colour / speaker */
         updateFramebuffer();  // apply all screen upates up to this point
         updateAudioBuffer(t);
         borderColour = val & 0x07;
         speakerState = (val & 0x10) >> 4;
+
     } else if (!(addr & 0x8002)) {
         /* 128/+2 paging */
         if (!pagingLocked) {
@@ -551,29 +615,52 @@ export function writePort(addr:u16, val:u8):void {
     } else if ((addr & 0xc002) == 0x8000) {
         updateAudioBuffer(t);
         writeAYRegister(selectedAYRegister, val);
+
+    } else if (isUlaPlusPort) {
+        if (addr == 0xbf3b) {
+            // ULAplus control port (write-only):
+            ulaPlusSelectedGroup = (val >> 6) & 0x3
+            ulaPlusSelectedSubgroup = val & 0x3f
+
+        } else {
+            // ULAplus data port:
+
+            switch(ulaPlusSelectedGroup) {
+                case ULAPLUS_MODE_GROUP:
+                    updateFramebuffer();  // So that dynamic palette switching works.
+                    ulaPlusPaletteMode = (val & 1) != 0;
+                    break;
+                case ULAPLUS_PALETTE_GROUP:
+                    updateFramebuffer();  // So that dynamic palette switching works.
+                    ulaPlusPalette[ulaPlusSelectedSubgroup] = val;
+                    break;
+                default:
+                    // Do nothing
+                    break;
+            }
+        }
     }
 
     /* apply post-write contention */
-    if (addr & 0x0001) {
-        if (addressIsContended) {
-            if (loggingEnabled) log(t, 6, addr, 0);
-            t += contentionTable[t % frameCycleCount];
-            t++;
-            if (loggingEnabled) log(t, 6, addr, 0);
-            t += contentionTable[t % frameCycleCount];
-            t++;
-            if (loggingEnabled) log(t, 6, addr, 0);
-            t += contentionTable[t % frameCycleCount];
-            t++;
-        } else {
-            t += 3;
-        }
-    } else {
+    if (isUlaPort || isUlaPlusPort) {
         if (loggingEnabled) log(t, 6, addr, 0);
         t += contentionTable[t % frameCycleCount];
         t += 3;
-    }
 
+    } else if (addressIsContended) {
+        if (loggingEnabled) log(t, 6, addr, 0);
+        t += contentionTable[t % frameCycleCount];
+        t++;
+        if (loggingEnabled) log(t, 6, addr, 0);
+        t += contentionTable[t % frameCycleCount];
+        t++;
+        if (loggingEnabled) log(t, 6, addr, 0);
+        t += contentionTable[t % frameCycleCount];
+        t++;
+
+    } else {
+        t += 3;
+    }
 }
 
 let screenEventPointer:u32 = 0;
@@ -582,20 +669,44 @@ function updateFramebuffer():void {
     /* process all of the screen bytes that are due up to the current tstate */
     const screenBaseAddr:u32 = screenPageIndex << 14;
 
+    const isUlaPlusPalette = ulaPlusEnabled && ulaPlusPaletteMode;
+    const border = isUlaPlusPalette ? ulaPlusPalette[borderColour + 0x08] : standardPalette[borderColour];
+
     // end marker is 0xffffffff, which will always be greater than t
     while (screenEvents[screenEventPointer] <= t) {
         const addressWord:u32 = screenEvents[screenEventPointer + 1];
         if (addressWord == 0xffffffff) {
-            frameBuffer[framebufferIndex++] = borderColour;
+            frameBuffer[framebufferIndex++] = border;
             floatingBusValue = 0xff;
         } else {
             const screenAddr:u32 = screenBaseAddr | (addressWord & 0xffff);
             const attributeAddr:u32 = screenBaseAddr | (addressWord >> 16);
-            frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
-            frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
-            frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
-            floatingBusValue = machineMemory[attributeAddr + 1];
-            frameBuffer[framebufferIndex++] = floatingBusValue;
+
+            for (let i = 0; i < 2; i++) {
+                const pixels:u8 = machineMemory[screenAddr + i];
+                const attr:u8 = machineMemory[attributeAddr + i];
+
+                let ink:u8, paper:u8;
+                if (isUlaPlusPalette) {
+                    const quadrant = (attr >> 2) & 0x30;
+                    ink = ulaPlusPalette[quadrant | 0x00 | (attr & 0x07)]
+                    paper = ulaPlusPalette[quadrant | 0x08 | ((attr >> 3) & 0x07)]
+
+                } else {
+                    if ((attr & 0x80) && (flashPhase & 0x10)) {
+                        // reverse ink and paper
+                        paper = standardPalette[((attr & 0x40) >> 3) | (attr & 0x07)];
+                        ink = standardPalette[(attr & 0x78) >> 3];
+                    } else {
+                        ink = standardPalette[((attr & 0x40) >> 3) | (attr & 0x07)];
+                        paper = standardPalette[(attr & 0x78) >> 3];
+                    }
+                }
+                frameBuffer[framebufferIndex++] = pixels;
+                frameBuffer[framebufferIndex++] = paper;
+                frameBuffer[framebufferIndex++] = ink;
+                floatingBusValue = attr
+            }
         }
         screenEventPointer += 2;
     }
@@ -761,6 +872,7 @@ function recalculateAYCyclesPerSample():void {
 export function runFrame():i16 {
     screenEventPointer = 0;
     framebufferIndex = 0;
+    flashPhase = (flashPhase + 1) & 0xff
 
     if (requestedSamplesPerFrame != samplesPerFrame) {
         samplesPerFrame = requestedSamplesPerFrame;

@@ -308,6 +308,17 @@ export function parseSZXFile(data) {
                     snapshot.memoryPages[pageNumber] = pageData;
                 }
                 break;
+            case 'PLTT':
+                if (blockLen >= 66) {
+                    snapshot.palette = {
+                        isEnabled: !!(file.getUint8(offset) & 1),
+                        entries: new Uint8Array(data, offset + 2, 64),
+
+                        // This isn’t documented ("current register" high bits contain selected ‘group’, but how else is that state stored?)
+                        currentGroup: (file.getInt8(offset + 1) >> 6) & 3,
+                        currentIndex: file.getInt8(offset + 1) & 0x3f,
+                    }
+                }
             // default:
             //     console.log('skipping block', blockId);
         }

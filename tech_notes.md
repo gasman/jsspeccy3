@@ -46,23 +46,33 @@ The gencore.js preprocessor recognises the following directives:
 Frame buffer format
 -------------------
 
-The frame buffer data structure (as written by the WebAssembly core and passed to the UI thread in the `frameCompleted` message) is essentially a log of all border, screen and attribute bytes in the order that they would be read to build the video output. This is based on a 320x240 output image consisting of 24 lines of upper border, 192 lines of main screen (each consisting of 32px left border, 256px main screen, and 32px right border), and 24 lines of lower border. This results in a 0x6600 byte buffer, breaking down as follows:
+The frame buffer data structure (as written by the WebAssembly core and passed to the UI thread in the `frameCompleted` message) is essentially a log of all border, screen pixel, and paper & ink colours in the order that they would be read to build the video output. This is based on a 320x240 output image consisting of 24 lines of upper border, 192 lines of main screen (each consisting of 32px left border, 256px main screen, and 32px right border), and 24 lines of lower border.
+
+Colours (ink, paper, border) are each specified as a single byte in GRB8 format: 
+
+   Bits
+   76543210
+   GggRrrBb
+
+The blue component is further decoded to a 3-bit value as follows: `b3 = (b2 << 1) | (b2 == 0 ? 0 : 1)`. (Then each 3-bit colour component value may be scaled to 8 bits to generate a standard 24/32-bit RGB value.) The GRB8 format is the same as the colour format used in ULAplus palette entries, (not by accident).
+
+This results in a 0x7e00 byte buffer, breaking down as follows:
 
 * 0x0000..0x009f: line 0 of the upper border. 160 bytes, each one being a border colour (0..7) and contributing two pixels to the final image. (This corresponds to the maximum resolution at which border colour changes happen on the Pentagon; these take effect on every cycle, and one cycle equals two pixels.)
 * 0x00a0..0x013f: line 1 of the upper border
 * ...
 * 0x0e60..0x0eff: line 23 of the upper border
 * 0x0f00..0x0f0f: left border of main screen line 0. 16 bytes, each contributing two pixels of border as before
-* 0x0f10..0x0f4f: main screen line 0. 32*2 bytes, consisting of the pixel byte and attribute byte for each of the 32 character cells
-* 0x0f50..0x0f5f: right border of main screen line 0. 16 bytes, each contributing two pixels of border as before
-* 0x0f60..0x0f6f: left border of main screen line 1
-* 0x0f70..0x0faf: main screen line 1. (Again, since the data here is in the order that the video output would be generated, this is the data pulled from address 0x4100 onward, not 0x4020.)
-* 0x0fb0..0x0fbf: right border of main screen line 2
+* 0x0f10..0x0f6f: main screen line 0. 32*3 bytes, consisting of < pixel-byte, paper-grb8, ink-grb8 >, for each of the 32 character cells
+* 0x0f70..0x0f7f: right border of main screen line 0. 16 bytes, each contributing two pixels of border as before
+* 0x0f80..0x0f8f: left border of main screen line 1
+* 0x0f90..0x0fef: main screen line 1. (Again, since the data here is in the order that the video output would be generated, this is the data pulled from address 0x4100 onward, not 0x4020.)
+* 0x0ff0..0x0fff: right border of main screen line 1
 * ...
-* 0x56a0..0x56af: left border of main screen line 191
-* 0x56b0..0x56ef: main screen line 191
-* 0x56f0..0x56ff: right border of main screen line 191
-* 0x5700..0x579f: line 0 of the lower border. 160 bytes, as per upper border
-* 0x57a0..0x583f: line 1 of the lower border
+* 0x6e80..0x6e8f: left border of main screen line 191
+* 0x6e90..0x6eef: main screen line 191
+* 0x6ef0..0x6eff: right border of main screen line 191
+* 0x6f00..0x6f9f: line 0 of the lower border. 160 bytes, as per upper border
+* 0x6fa0..0x703f: line 1 of the lower border
 * ...
-* 0x6560..0x65ff: line 23 of the lower border
+* 0x7d60..0x7dff: line 23 of the lower border
