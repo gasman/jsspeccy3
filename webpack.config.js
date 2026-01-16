@@ -1,4 +1,4 @@
-export default [
+module.exports = [
     {
         output: {
             filename: 'jsspeccy/jsspeccy.js',
