@@ -38,7 +38,10 @@
         "runtime/icons/*.svg",
         "build/*.js"
       ],
-      "extensions": ["js", "svg"]
+      "extensions": [
+        "js",
+        "svg"
+      ]
     },
     "build:static": {
       "patterns": [
@@ -57,7 +60,7 @@
     "assemblyscript": "^0.19.6",
     "npm-watch": "^0.10.0",
     "svg-inline-loader": "^0.8.2",
-    "webpack": "^5.44.0",
+    "webpack": "^5.90.1",
     "webpack-cli": "^4.7.2"
   },
   "dependencies": {
