@@ -53,8 +53,13 @@ The available configuration options are:
 * `autoStart`: if true, the emulator will start immediately with no need to press the play button. Bear in mind that browser policies usually don't allow enabling audio without a user interaction, so if you enable this option (and don't put the `JSSpeccy` call behind an onclick event or similar), expect things to be silent.
 * `autoLoadTapes`: if true, any tape files opened (either manually or through the openUrl option) will be loaded automatically without the user having to enter LOAD "" or select the Tape Loader menu option.
 * `tapeAutoLoadMode`: specifies the mode that the machine should be set to before auto-loading tape files. When set to 'default' (the default), this is equivalent to selecting the Tape Loader menu option on machines that support it; when set to 'usr0', this is equivalent to entering 'usr0' in 128 BASIC then LOAD "" from the resulting 48K BASIC prompt (which leaves 128K memory paging available without the extra housekeeping of the 128K ROM - this mode is commonly used for launching demos).
-* `machine`: specifies the machine to emulate. Can be `48` (for a 48K Spectrum), `128` (for a 128K Spectrum), or `5` (for a Pentagon 128).
+* `machine`: specifies the machine to emulate. Can be `16` (for a 16K Spectrum), `48` (for a 48K Spectrum), `128` (for a 128K Spectrum), or `5` (for a Pentagon 128).
 * `openUrl`: specifies a URL, or an array of URLs, to a file (or files) to load on startup, in any supported snapshot, tape or archive format. Standard browser security restrictions apply for loading remote files: if the URL being loaded is not on the same domain as the calling page, it must serve [CORS HTTP headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) to be loadable.
+* `roms`: a JS struct which provides an optional map of logical ROM names to ROM file URLs. (May be omitted or partial.) The keys are listed below, and each value is a URL (CORS comments above apply here too). JSSpeccy3 has default values for each of these:
+   * `Spectrum48K`: Single 16K ROM used when machine type is `48`
+   * `Spectrum128K_0` & `Spectrum128K_1`: The two ROMs to use when machine type is `128`
+   * `Pentagon_0`: The first ROM to use when machine type is `5`. (The Pentagon also uses `Spectrum128K_1` as its second ROM.)
+   * `BetaDisk`: The TRDOS ROM to use when machine type is `5`, and the BetaDisk ROM is paged in.
 * `zoom`: specifies the size of the emulator window; 1 for 100% size (one Spectrum pixel per screen pixel), 2 for 200% size and so on.
 * `sandbox`: if true, all UI options for opening a new file are disabled - useful if you're showcasing a specific bit of Spectrum software on your page.
 * `tapeTrapsEnabled`: if true (the default), the emulator will recognise when the tape loading routine in the ROM is called, and load tape files instantly instead.

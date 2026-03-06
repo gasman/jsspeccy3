@@ -1,19 +1,23 @@
 #alloc frameBuffer[0x6600]: u8
 export const FRAME_BUFFER:usize = (&frameBuffer);
 
-// allocate memory for 8 RAM, 8 ROM pages
+// allocate memory for 8 RAM, 4 ROM pages
 // 0..7 - 128K RAM pages;
-// 8 = 128 rom 0, 9 = 128 rom 1
-// 10 = 48 rom, 11 = scratch area for ROM writes
-// 12 = Pentagon rom 0 (Pentagon ROM 1 is identical to 128 rom 1)
-// 13 = TRDOS rom
-#alloc machineMemory[0x40000]: u8
+// 8 = Primary ROM
+// 9 = Secondary ROM
+// 10 = TRDOS ROM
+// 11 = scratch area for ROM writes
+#alloc machineMemory[0x30000]: u8
 export const MACHINE_MEMORY:usize = (&machineMemory);
 
 #alloc memoryPageReadMap[4]: u8
 #alloc memoryPageWriteMap[4]: u8
 export const MEMORY_PAGE_READ_MAP:usize = (&memoryPageReadMap);
 export const MEMORY_PAGE_WRITE_MAP:usize = (&memoryPageWriteMap);
+export const ROM_PAGE_0:u8 = 8;
+export const ROM_PAGE_1:u8 = 9;
+export const ROM_PAGE_DOS:u8 = 10;
+export const ROM_PAGE_SCRATCH:u8 = 11;
 
 #alloc pageIsContended[12]: u8
 pageIsContended = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0];
@@ -88,13 +92,12 @@ let lastAudioT:u32 = 0;  // the t on which we last called updateAudioBuffer
 let microslicesSinceLastSample:u32 = 0;
 let audioBufferPointer:u32 = 0;
 
-// which pages in memory bank correspond to roms 0 and 1 in paging
-let rom0Page:u8 = 8;
-let rom1Page:u8 = 9;
-
 let betadiskEnabled:bool = false;
 let betadiskROMActive:bool = false;
-let tapeTrapsEnabled:bool = true;
+#alloc romTraps[6]: u16
+let trapsEnabled:bool = false;
+let trapAddress0:u16 = 0xffff;
+let trapAddress1:u16 = 0xffff;
 
 let i:u8 = 0;
 while (true) {
@@ -202,6 +205,16 @@ function clearContentionTable(frameCycleCount:u32):void {
 }
 
 
+function missingRam(pageSlot:u8):void {
+    const pageStart:u32 = memoryPageReadMap[pageSlot] * 0x4000;
+    for (let p:u32 = pageStart, n:u16 = 0x4000; n > 0; n--,p++) {
+        machineMemory[p] = 255;
+    }
+    // Mark page as not-writeable:
+    memoryPageWriteMap[pageSlot] = ROM_PAGE_SCRATCH;
+}
+
+
 let frameCycleCount:u32 = 69888;
 let screenPageIndex:u32 = 5;
 let pagingLocked:bool = 0;
@@ -231,55 +244,62 @@ let willTrap:bool = true;
 let loggingEnabled:bool = false;
 let logPtr = 0;
 
-let machineType:u32 = 48;
+let isTestMachine:bool = 0;
+let hasFloatingBus:bool = 0;
+let hasMemoryPagingHardware:bool = 0;
+let installedRam = 48;
+
 export function setMachineType(type:u32):void {
-    machineType = type;
-    if (type == 48 || type == 1212) {
+    memoryPageReadMap = [ROM_PAGE_0, 5, 2, 0];
+    memoryPageWriteMap = [ROM_PAGE_SCRATCH, 5, 2, 0];
+
+    isTestMachine = (type == 1212);
+    if (type == 48 || type == 16 || isTestMachine) {
         frameCycleCount = 69888;
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(14335, 224, 0xfc);
         buildContentionTable(14335, 224, frameCycleCount);
+        hasMemoryPagingHardware = false;
         betadiskEnabled = false;
+        hasFloatingBus = !isTestMachine;
+        installedRam = (type == 16) ? 16 : 48;
+        if (isTestMachine) {
+            // Test machine type has writeable ROM:
+            memoryPageWriteMap[0] = ROM_PAGE_0;
+        }
+
     } else if (type == 5) {  // pentagon
         frameCycleCount = 71680;
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(17988, 224, 0xff);
         clearContentionTable(frameCycleCount);
-        rom0Page = 12;
-        rom1Page = 9;
+        hasMemoryPagingHardware = true;
         betadiskEnabled = true;
         betadiskROMActive = false;
+        hasFloatingBus = false;
+        installedRam = 128;
+
     } else {  // 128
         frameCycleCount = 70908;
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(14361, 228, 0xfc);
         buildContentionTable(14361, 228, frameCycleCount);
-        rom0Page = 8;
-        rom1Page = 9;
+        hasMemoryPagingHardware = true;
         betadiskEnabled = false;
+        hasFloatingBus = true;
+        installedRam = 128;
     }
+
+    if (installedRam < 48) missingRam(3);
+    if (installedRam < 32) missingRam(2);
+    if (installedRam < 16) missingRam(1);
     reset();
 }
 export function reset():void {
-    if (machineType == 48) {
-        memoryPageReadMap = [10, 5, 2, 0];
-        memoryPageWriteMap = [11, 5, 2, 0];
-        pagingLocked = 1;
-    } else if (machineType == 1212) {
-        // 1212 = test machine type with writeable ROM
-        memoryPageReadMap = [10, 5, 2, 0];
-        memoryPageWriteMap = [10, 5, 2, 0];
-        pagingLocked = 1;
-    } else if (machineType == 5) {
-        // Pentagon
-        memoryPageReadMap = [12, 5, 2, 0];
-        memoryPageWriteMap = [11, 5, 2, 0];
-        pagingLocked = 0;
-    } else {  // 128
-        memoryPageReadMap = [8, 5, 2, 0];
-        memoryPageWriteMap = [11, 5, 2, 0];
-        pagingLocked = 0;
-    }
+    setActiveRom(ROM_PAGE_0);
+    setActiveRamPage(0);
+    pagingLocked = !hasMemoryPagingHardware;
+
     for (let i:u8 = 0; i < 14; i++) {
         writeAYRegister(i, 0);
     }
@@ -291,8 +311,10 @@ export function reset():void {
     interruptible = false;
     halted = false;
     opcodePrefix = 0;
+
     framebufferIndex = 0;
 }
+clearAllTraps();
 setMachineType(48);
 
 for (let i=0; i < 8; i++) {
@@ -350,8 +372,53 @@ export function setHalted(val:bool):void {
 export function getHalted():bool {
     return halted;
 }
-export function setTapeTraps(val:bool):void {
-    tapeTrapsEnabled = val;
+
+// Given the currently paged-in ROM, set trapAddress0/trapAddress1 to appropriate values.
+// If no traps are set for the current ROM, trapsEnabled is false.
+function updateRomTraps():void {
+    const romIndex = memoryPageReadMap[0] - ROM_PAGE_0;
+    if (romIndex > 2) {
+        trapsEnabled = false;
+        return;
+    }
+
+    const p = romIndex * 2
+    trapAddress0 = romTraps[p+0];
+    trapAddress1 = romTraps[p+1];
+
+    if (trapAddress0 == 0xffff) trapAddress0 = trapAddress1;
+    if (trapAddress1 == 0xffff) trapAddress1 = trapAddress0;
+    trapsEnabled = (trapAddress0 != 0xffff);
+}
+
+// Tries to add a single trap address for the given ROM, and returns boolean success.
+// Up to 2 traps may be added. Adding more than 2 fails. If the page is not a ROM page,
+// also fails. If address is outside ROM range (0–16K), fails.
+export function addAddressTrap(physicalPage:u8, address: u16):boolean {
+    const romPage = physicalPage - ROM_PAGE_0;
+    if (romPage > 2) return false; // We only have 3 ROM pages defined.
+    if (address > 0x3fff) return false; // Must be in ROM range (low 16 KB)
+    const p = romPage * 2;
+
+    // Put the provided trap address in first available slot:
+    for(let slot = 0; slot < 2; slot++) {
+        if (romTraps[p + slot] == 0xffff) {
+            romTraps[p + slot] = address;
+            updateRomTraps();
+            return true;
+        }
+    }
+
+    // Couldn’t find a free slot, so fail:
+    return false;
+}
+
+// Removes all ROM traps for all ROMs.
+export function clearAllTraps():void {
+    for(let i = 0; i < 6; i++) {
+        romTraps[i] = 0xffff;
+    }
+    updateRomTraps();
 }
 
 function log(time:u32, type:u16, addr:u16, val:u8):void {
@@ -386,6 +453,15 @@ export function getTapePulseBufferTstateCount():u32 {
 export function setTapePulseBufferState(writeIndex: u16, tstateCount:u32):void {
     tapePulseWriteIndex = writeIndex;
     tapePulseBufferTstateCount = tstateCount;
+}
+
+function setActiveRom(page:u8):void {
+    memoryPageReadMap[0] = page;
+    updateRomTraps();
+}
+function setActiveRamPage(page:u8):void {
+    memoryPageReadMap[3] = page;
+    memoryPageWriteMap[3] = page;
 }
 
 function readMem(addr:u16):u8 {
@@ -467,7 +543,7 @@ export function readPort(addr:u16):u8 {
     t++;
 
     let result:u8 = 0xff;
-    if (machineType == 1212) {
+    if (isTestMachine) {
         /*
         on port reads, the test machine just responds with the high byte of the port address.
         That's a thing now, I decided. (Well, Phil Kendall decided it to be exact.)
@@ -485,8 +561,8 @@ export function readPort(addr:u16):u8 {
         } else if (!(addr & 0x00e0)) {
             /* kempston joystick */
             result = 0;
-        } else if (machineType == 48 || machineType == 128) {
-            /* floating bus */
+
+        } else if (hasFloatingBus) {
             updateFramebuffer();
             result = floatingBusValue;
         }
@@ -540,10 +616,9 @@ export function writePort(addr:u16, val:u8):void {
 
             updateFramebuffer();  // so that screen switching happens at the right position
 
-            memoryPageReadMap[3] = val & 0x07;
-            memoryPageWriteMap[3] = val & 0x07;
+            setActiveRamPage(val & 0x07)
             screenPageIndex = (val & 0x08) ? 7 : 5;
-            memoryPageReadMap[0] = (val & 0x10) ? rom1Page : rom0Page;
+            setActiveRom((val & 0x10) ? ROM_PAGE_1 : ROM_PAGE_0);
             pagingLocked = bool(val & 0x20);
         }
     } else if ((addr & 0xc002) == 0xc000) {
@@ -859,23 +934,19 @@ export function runUntil(maxT:u32):i16 {
             }
         }
 
-        if (
-            (pc == 0x056b || pc == 0x0111)
-            && (memoryPageReadMap[0] == 9 || memoryPageReadMap[0] == 10)
-            && tapeTrapsEnabled && willTrap
-        ) {
-            // tape loading trap
+        if (trapsEnabled && willTrap && (pc == trapAddress0 || pc == trapAddress1)) {
+            // ROM trap (typically for fast tape loading code)
             return 2;
         }
         willTrap = true;
 
         if (betadiskEnabled) {
-            if ((pc & 0xff00) == 0x3d00 && !betadiskROMActive && memoryPageReadMap[0] == rom1Page) {
+            if ((pc & 0xff00) == 0x3d00 && !betadiskROMActive && memoryPageReadMap[0] == ROM_PAGE_1) {
                 betadiskROMActive = true;
-                memoryPageReadMap[0] = 13;
+                setActiveRom(ROM_PAGE_DOS);
             } else if (pc >= 0x4000 && betadiskROMActive) {
                 betadiskROMActive = false;
-                memoryPageReadMap[0] = rom1Page;
+                setActiveRom(ROM_PAGE_1);
             }
         }
 

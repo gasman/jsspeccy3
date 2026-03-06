@@ -241,6 +241,8 @@ export function parseSZXFile(data) {
 
     const machineId = file.getUint8(6);
     switch (machineId) {
+        case 0:
+            snapshot.model = 16;
         case 1:
             snapshot.model = 48;
             break;

@@ -122,13 +122,13 @@ export class Menu {
             button.addEventListener('click', onClick);
         }
         li.appendChild(button);
+        const setBullet = () => { button.innerText = String.fromCharCode(0x2022) + ' ' + title; };
+        const unsetBullet = () => { button.innerText = title; };
+        const setBulletIf = (isSet) => { if (isSet) setBullet(); else unsetBullet(); };
         return {
-            setBullet: () => {
-                button.innerText = String.fromCharCode(0x2022) + ' ' + title;
-            },
-            unsetBullet: () => {
-                button.innerText = title;
-            },
+            setBulletIf,
+            setBullet,
+            unsetBullet,
             setCheckbox: () => {
                 button.innerText = String.fromCharCode(0x2713) + ' ' + title;
             },

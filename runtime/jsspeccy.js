@@ -17,14 +17,25 @@ import fullscreenIcon from './icons/fullscreen.svg';
 import exitFullscreenIcon from './icons/exitfullscreen.svg';
 import tapePlayIcon from './icons/tape_play.svg';
 import tapePauseIcon from './icons/tape_pause.svg';
+import { ROM_128K_0, ROM_128K_1, ROM_48K, ROM_BetaDisk, ROM_Pentagon_0 } from './constants.js';
 
 const scriptUrl = document.currentScript.src;
+function relativeUrl(path) {
+    return new URL(path, scriptUrl);
+}
+
+const romUrls = {};
+romUrls[ROM_128K_0] = relativeUrl('roms/128-0.rom');
+romUrls[ROM_128K_1] = relativeUrl('roms/128-1.rom');
+romUrls[ROM_48K] = relativeUrl('roms/48.rom');
+romUrls[ROM_Pentagon_0] = relativeUrl('roms/pentagon-0.rom');
+romUrls[ROM_BetaDisk] = relativeUrl('roms/trdos.rom');
 
 class Emulator extends EventEmitter {
     constructor(canvas, opts) {
         super();
         this.canvas = canvas;
-        this.worker = new Worker(new URL('jsspeccy-worker.js', scriptUrl));
+        this.worker = new Worker(relativeUrl('jsspeccy-worker.js'));
         this.keyboardEnabled = ('keyboardEnabled' in opts) ? opts.keyboardEnabled : true;
         if (this.keyboardEnabled) {
             this.keyboardHandler = (opts.keyboardMap == 'recreated')
@@ -55,7 +66,7 @@ class Emulator extends EventEmitter {
         this.worker.onmessage = (e) => {
             switch(e.data.message) {
                 case 'ready':
-                    this.loadRoms().then(() => {
+                    this.fetchRoms({...romUrls, ...opts.roms}).then(() => {
                         this.setMachine(opts.machine || 128);
                         this.setTapeTraps(this.tapeTrapsEnabled);
                         if (opts.openUrl) {
@@ -102,7 +113,7 @@ class Emulator extends EventEmitter {
                             '128': {'default': 'tapeloaders/tape_128.szx', 'usr0': 'tapeloaders/tape_128_usr0.szx'},
                             '5': {'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx'},
                         };
-                        this.openUrl(new URL(TAPE_LOADERS_BY_MACHINE[this.machineType][this.tapeAutoLoadMode], scriptUrl));
+                        this.openUrl(relativeUrl(TAPE_LOADERS_BY_MACHINE[this.machineType][this.tapeAutoLoadMode]));
                         if (!this.tapeTrapsEnabled) {
                             this.playTape();
                         }
@@ -172,24 +183,21 @@ class Emulator extends EventEmitter {
         }
     }
 
-    async loadRom(url, page) {
-        const response = await fetch(new URL(url, scriptUrl));
+    async fetchRom(romName, url) {
+        const response = await fetch(url);
         const data = new Uint8Array(await response.arrayBuffer());
         this.worker.postMessage({
-            message: 'loadMemory',
+            message: 'loadRom',
             data,
-            page: page,
+            name: romName,
         });
     }
 
-    async loadRoms() {
-        await this.loadRom('roms/128-0.rom', 8);
-        await this.loadRom('roms/128-1.rom', 9);
-        await this.loadRom('roms/48.rom', 10);
-        await this.loadRom('roms/pentagon-0.rom', 12);
-        await this.loadRom('roms/trdos.rom', 13);
+    async fetchRoms(romUrls) {
+        for(const [key, value] of Object.entries(romUrls)) {
+            await this.fetchRom(key, value)
+        }
     }
-
 
     runFrame() {
         this.isExecutingFrame = true;
@@ -229,7 +237,7 @@ class Emulator extends EventEmitter {
     };
 
     setMachine(type) {
-        if (type != 128 && type != 5) type = 48;
+        if (type !== 128 && type !== 5 && type !== 16) type = 48;
         this.worker.postMessage({
             message: 'setMachineType',
             type,
@@ -420,6 +428,7 @@ window.JSSpeccy = (container, opts) => {
         tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
         keyboardEnabled: keyboardEnabled,
         keyboardMap: opts.keyboardMap || 'standard',
+        roms: opts.roms || {},
     });
     const ui = new UIController(container, emu, {
         zoom: opts.zoom || 1,
@@ -474,6 +483,10 @@ window.JSSpeccy = (container, opts) => {
         updateTapeTrapsCheckbox();
 
         const machineMenu = ui.menuBar.addMenu('Machine');
+        const machine16Item = machineMenu.addItem('Spectrum 16K', () => {
+            emu.setMachine(16);
+            emu.focus();
+        });
         const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
             emu.setMachine(48);
             emu.focus();
@@ -518,19 +531,10 @@ window.JSSpeccy = (container, opts) => {
         setZoomCheckbox(ui.zoom);
 
         emu.on('setMachine', (type) => {
-            if (type == 48) {
-                machine48Item.setBullet();
-                machine128Item.unsetBullet();
-                machinePentagonItem.unsetBullet();
-            } else if (type == 128) {
-                machine48Item.unsetBullet();
-                machine128Item.setBullet();
-                machinePentagonItem.unsetBullet();
-            } else { // pentagon
-                machine48Item.unsetBullet();
-                machine128Item.unsetBullet();
-                machinePentagonItem.setBullet();
-            }
+            machine16Item.setBulletIf(type === 16);
+            machine48Item.setBulletIf(type === 48);
+            machine128Item.setBulletIf(type === 128);
+            machinePentagonItem.setBulletIf(type === 5);
         });
 
         if (!opts.sandbox) {

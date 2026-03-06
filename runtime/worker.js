@@ -1,4 +1,4 @@
-import { FRAME_BUFFER_SIZE } from './constants.js';
+import { FRAME_BUFFER_SIZE, ROM_128K_0, ROM_128K_1, ROM_48K, ROM_BetaDisk, ROM_Pentagon_0 } from './constants.js';
 import { TAPFile, TZXFile } from './tape.js';
 
 let core = null;
@@ -11,6 +11,12 @@ let tapePulses = null;
 let stopped = false;
 let tape = null;
 let tapeIsPlaying = false;
+let romPageContainingTapeCode = -1;
+let tapeTrapsEnabled = true;
+
+const PAGE_SIZE = 16 * 1024;
+let roms = {};
+let emptyRomPage = new ArrayBuffer(PAGE_SIZE);
 
 const loadCore = (baseUrl) => {
     WebAssembly.instantiateStreaming(
@@ -34,7 +40,7 @@ const loadMemoryPage = (page, data) => {
 };
 
 const loadSnapshot = (snapshot) => {
-    core.setMachineType(snapshot.model);
+    setMachineType(snapshot.model);
     for (let page in snapshot.memoryPages) {
         loadMemoryPage(page, snapshot.memoryPages[page]);
     }
@@ -56,6 +62,45 @@ const loadSnapshot = (snapshot) => {
 
     core.setTStates(snapshot.tstates);
 };
+
+const setTapeTrapsEnabled = (isEnabled) => {
+    tapeTrapsEnabled = isEnabled;
+    core.clearAllTraps();
+    if (tapeTrapsEnabled) {
+        core.addAddressTrap(romPageContainingTapeCode, 0x0111);
+        core.addAddressTrap(romPageContainingTapeCode, 0x056b);
+    }
+}
+
+const setMachineType = (modelCode) => {
+    core.setMachineType(modelCode);
+    switch (modelCode) {
+        case 16:
+        case 48:
+        case 1221:
+            setRoms(ROM_48K);
+            romPageContainingTapeCode = core.ROM_PAGE_0;
+            break;
+        case 5:
+            setRoms(ROM_Pentagon_0, ROM_128K_1, ROM_BetaDisk);
+            romPageContainingTapeCode = core.ROM_PAGE_1;
+            break;
+        case 128:
+            setRoms(ROM_128K_0, ROM_128K_1);
+            romPageContainingTapeCode = core.ROM_PAGE_1;
+            break;
+        default:
+            romPageContainingTapeCode = -1;
+            console.error('Unrecognised machine type:', modelCode);
+    }
+    setTapeTrapsEnabled(tapeTrapsEnabled)
+}
+
+const setRoms = (rom0Name, rom1Name, dosRomName) => {
+    loadMemoryPage(core.ROM_PAGE_0, roms[rom0Name] || emptyRomPage)
+    loadMemoryPage(core.ROM_PAGE_1, roms[rom1Name] || emptyRomPage)
+    loadMemoryPage(core.ROM_PAGE_DOS, roms[dosRomName] || emptyRomPage)
+}
 
 const trapTapeLoad = () => {
     if (!tape) return;
@@ -196,10 +241,13 @@ onmessage = (e) => {
             core.keyUp(e.data.row, e.data.mask);
             break;
         case 'setMachineType':
-            core.setMachineType(e.data.type);
+            setMachineType(e.data.type);
             break;
         case 'reset':
             core.reset();
+            break;
+        case 'loadRom':
+            roms[e.data.name] = e.data.data
             break;
         case 'loadMemory':
             loadMemoryPage(e.data.page, e.data.data);
@@ -248,7 +296,7 @@ onmessage = (e) => {
             }
             break;
         case 'setTapeTraps':
-            core.setTapeTraps(e.data.value);
+            setTapeTrapsEnabled(e.data.value);
             break;
         default:
             console.log('message received by worker:', e.data);
