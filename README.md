@@ -8,6 +8,7 @@ A ZX Spectrum emulator for the browser
 * Handles all Z80 instructions, documented and undocumented
 * Cycle-accurate emulation of scanline / multicolour effects
 * AY and beeper audio
+* Play using a joystick / gamepad connected to your PC (Kempston, Cursor and Sinclair)
 * Loads SZX, Z80 and SNA snapshots
 * Loads TZX and TAP tape images (via traps only)
 * Loads any of the above files from inside a ZIP file
@@ -61,6 +62,9 @@ The available configuration options are:
 * `keyboardEnabled`: True by default; if false, the emulator will not respond to keypresses.
 * `uiEnabled`: True by default; if false, the menu bar and toolbar will not be shown.
 * `keyboardMap`: if this is set to the value `"recreated"`, the emulator will accept keypresses in the encoded format emitted by the [Recreated ZX Spectrum](https://recreatedzxspectrum.com/) keyboard in "game mode". If it is unset or set to any other value, the emulator will accept keypresses as normal.
+* `joystickEnabled`: True by default; if false, the emulator will ignore any joystick / gamepad connected to the host PC. When enabled, a physical joystick connected to the PC (and recognised by the browser's [Gamepad API](https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API)) is read and translated into the emulated machine's joystick input. The stick / d-pad controls direction, and any other button acts as fire.
+* `joystickType`: selects how the PC joystick is presented to the emulated machine. Can be `"kempston"` (the default, reported on the Kempston port), `"cursor"` (mapped to the Cursor / Protek keys), `"sinclair1"` (Sinclair Interface 2 joystick 1, keys 6-0), `"sinclair2"` (Sinclair Interface 2 joystick 2, keys 1-5), or `"none"` (ignore the joystick). This can also be changed at runtime through the Joystick menu.
+* `joystickDevice`: when more than one controller is connected, selects which one drives the emulator. The value is matched (case-insensitively) as a substring against the controller's name, so `"Wireless"` would pick a "Wireless Controller". If unset (the default), the first available controller is used. This can also be changed at runtime through the Controller menu. (Note: the browser's Gamepad API does not honour the Windows "default controller" setting, and only reveals a controller once a button has been pressed on it.)
 
 For additional JavaScript hackery, the return value of the JSSpeccy function call is an object exposing a number of functions for controlling the running emulator:
 
@@ -76,6 +80,9 @@ For additional JavaScript hackery, the return value of the JSSpeccy function cal
 * `emu.exitFullscreen()` - exit full-screen mode
 * `emu.toggleFullscreen()` - enter or exit full-screen mode
 * `emu.setMachine(machine)` - set the emulated machine type
+* `emu.setJoystickType(type)` - set the joystick type used for a PC joystick (`"kempston"`, `"cursor"`, `"sinclair1"`, `"sinclair2"` or `"none"`)
+* `emu.setJoystickDevice(device)` - choose which physical controller drives the emulator, matched as a substring of its name (or `null` for the first available)
+* `emu.getJoystickDevices()` - return the list of currently connected controllers as `{id, label}` objects
 * `emu.openFileDialog()` - open the file chooser dialog
 * `emu.openUrl(url)` - open the file at the given URL
 * `emu.loadSnapshotFromStruct(snapshot)` - load a snapshot from the given data structure; the data format is currently undocumented but runtime/snapshot.js should give you a decent idea of it...

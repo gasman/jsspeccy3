@@ -195,6 +195,9 @@ onmessage = (e) => {
         case 'keyUp':
             core.keyUp(e.data.row, e.data.mask);
             break;
+        case 'setKempstonState':
+            core.setKempstonState(e.data.state);
+            break;
         case 'setMachineType':
             core.setMachineType(e.data.type);
             break;

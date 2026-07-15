@@ -7,6 +7,7 @@ import { UIController } from './ui.js';
 import { parseSNAFile, parseZ80File, parseSZXFile } from './snapshot.js';
 import { TAPFile, TZXFile } from './tape.js';
 import { StandardKeyboardHandler, RecreatedZXSpectrumHandler } from './keyboard.js';
+import { JoystickHandler } from './joystick.js';
 import { AudioHandler } from './audio.js';
 
 import openIcon from './icons/open.svg';
@@ -30,6 +31,12 @@ class Emulator extends EventEmitter {
             this.keyboardHandler = (opts.keyboardMap == 'recreated')
                 ? new RecreatedZXSpectrumHandler(this.worker, opts.keyboardEventRoot || document)
                 : new StandardKeyboardHandler(this.worker, opts.keyboardEventRoot || document);
+        }
+        this.joystickEnabled = ('joystickEnabled' in opts) ? opts.joystickEnabled : true;
+        this.joystickType = opts.joystickType || 'kempston';
+        this.joystickDevice = opts.joystickDevice || null;
+        if (this.joystickEnabled) {
+            this.joystickHandler = new JoystickHandler(this.worker, this.joystickType, this.joystickDevice);
         }
         this.displayHandler = new DisplayHandler(this.canvas);
         this.audioHandler = new AudioHandler();
@@ -140,6 +147,9 @@ class Emulator extends EventEmitter {
             if (this.keyboardEnabled) {
                 this.keyboardHandler.start();
             }
+            if (this.joystickEnabled) {
+                this.joystickHandler.start();
+            }
             this.audioHandler.start();
             this.focus();
             this.emit('start');
@@ -161,11 +171,34 @@ class Emulator extends EventEmitter {
         }
     }
 
+    setJoystickType(type) {
+        this.joystickType = type;
+        if (this.joystickEnabled) {
+            this.joystickHandler.setType(type);
+        }
+        this.emit('setJoystickType', type);
+    }
+
+    setJoystickDevice(deviceSelector) {
+        this.joystickDevice = deviceSelector || null;
+        if (this.joystickEnabled) {
+            this.joystickHandler.setDevice(this.joystickDevice);
+        }
+        this.emit('setJoystickDevice', this.joystickDevice);
+    }
+
+    getJoystickDevices() {
+        return this.joystickEnabled ? this.joystickHandler.getDevices() : [];
+    }
+
     pause() {
         if (this.isRunning) {
             this.isRunning = false;
             if (this.keyboardEnabled) {
                 this.keyboardHandler.stop();
+            }
+            if (this.joystickEnabled) {
+                this.joystickHandler.stop();
             }
             this.audioHandler.stop();
             this.emit('pause');
@@ -420,6 +453,9 @@ window.JSSpeccy = (container, opts) => {
         tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
         keyboardEnabled: keyboardEnabled,
         keyboardMap: opts.keyboardMap || 'standard',
+        joystickEnabled: ('joystickEnabled' in opts) ? opts.joystickEnabled : true,
+        joystickType: opts.joystickType || 'kempston',
+        joystickDevice: opts.joystickDevice || null,
     });
     const ui = new UIController(container, emu, {
         zoom: opts.zoom || 1,
@@ -486,6 +522,79 @@ window.JSSpeccy = (container, opts) => {
             emu.setMachine(5);
             emu.focus();
         });
+        const joystickMenu = ui.menuBar.addMenu('Joystick');
+        const joystickItemsByType = {
+            'none': joystickMenu.addItem('None', () => {
+                emu.setJoystickType('none');
+                emu.focus();
+            }),
+            'kempston': joystickMenu.addItem('Kempston', () => {
+                emu.setJoystickType('kempston');
+                emu.focus();
+            }),
+            'cursor': joystickMenu.addItem('Cursor', () => {
+                emu.setJoystickType('cursor');
+                emu.focus();
+            }),
+            'sinclair1': joystickMenu.addItem('Sinclair 1', () => {
+                emu.setJoystickType('sinclair1');
+                emu.focus();
+            }),
+            'sinclair2': joystickMenu.addItem('Sinclair 2', () => {
+                emu.setJoystickType('sinclair2');
+                emu.focus();
+            }),
+        };
+        emu.on('setJoystickType', (type) => {
+            for (const t in joystickItemsByType) {
+                if (t == type) {
+                    joystickItemsByType[t].setBullet();
+                } else {
+                    joystickItemsByType[t].unsetBullet();
+                }
+            }
+        });
+        // reflect the initial joystick type in the menu
+        if (joystickItemsByType[emu.joystickType]) {
+            joystickItemsByType[emu.joystickType].setBullet();
+        }
+
+        // Controller menu: choose which physical gamepad drives the emulator when
+        // more than one is connected. The list is rebuilt as controllers connect /
+        // disconnect - note a controller only shows up once a button is pressed on
+        // it (a browser Gamepad API requirement).
+        if (emu.joystickEnabled) {
+            const controllerMenu = ui.menuBar.addMenu('Controller');
+            const rebuildControllerMenu = () => {
+                controllerMenu.list.innerHTML = '';
+                const autoItem = controllerMenu.addItem('Automatic', () => {
+                    emu.setJoystickDevice(null);
+                    emu.focus();
+                });
+                if (!emu.joystickDevice) autoItem.setBullet();
+
+                const devices = emu.getJoystickDevices();
+                if (devices.length == 0) {
+                    controllerMenu.addItem('(press a button on a pad)', null);
+                } else {
+                    devices.forEach((dev) => {
+                        const item = controllerMenu.addItem(dev.label, () => {
+                            emu.setJoystickDevice(dev.id);
+                            emu.focus();
+                        });
+                        if (emu.joystickDevice
+                            && dev.id.toLowerCase().includes(emu.joystickDevice.toLowerCase())) {
+                            item.setBullet();
+                        }
+                    });
+                }
+            };
+            rebuildControllerMenu();
+            window.addEventListener('gamepadconnected', rebuildControllerMenu);
+            window.addEventListener('gamepaddisconnected', rebuildControllerMenu);
+            emu.on('setJoystickDevice', rebuildControllerMenu);
+        }
+
         const displayMenu = ui.menuBar.addMenu('Display');
 
         const zoomItemsBySize = {
@@ -712,6 +821,9 @@ window.JSSpeccy = (container, opts) => {
         enterFullscreen: () => {ui.enterFullscreen();},
         exitFullscreen: () => {ui.exitFullscreen();},
         setMachine: (model) => {emu.setMachine(model);},
+        setJoystickType: (type) => {emu.setJoystickType(type);},
+        setJoystickDevice: (device) => {emu.setJoystickDevice(device);},
+        getJoystickDevices: () => emu.getJoystickDevices(),
         openFileDialog: () => {openFileDialog();},
         openUrl: (url) => {
             emu.openUrl(url).catch((err) => {alert(err);});

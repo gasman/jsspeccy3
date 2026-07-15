@@ -1,3 +1,12 @@
+Unreleased
+----------
+
+
+* Add support for a local (PC) joystick / gamepad via the browser Gamepad API, with Kempston, Cursor and Sinclair mappings selectable via the `joystickType` option, the Joystick menu, or the `setJoystickType` API endpoint
+* Add `joystickEnabled` configuration option
+* Add controller selection when more than one gamepad is connected, via the Controller menu, the `joystickDevice` option, or the `setJoystickDevice` API endpoint
+
+
 3.2 (2024-11-23)
 ----------------
 

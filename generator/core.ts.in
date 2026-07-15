@@ -225,6 +225,10 @@ let tapePulseBufferTstateCount:u32 = 0;  // total number of tstates of all pulse
 let tapePulseCyclesElapsed:u32 = 0;  // number of cycles of the current pulse that have elapsed
 let tapeLevel:u8 = 0x00;
 
+// Kempston joystick state, as returned on a read of the Kempston port.
+// Bit 0 = right, bit 1 = left, bit 2 = down, bit 3 = up, bit 4 = fire (active high).
+let kempstonState:u8 = 0x00;
+
 // whether a trap on the next instruction will be honoured
 let willTrap:bool = true;
 
@@ -484,7 +488,7 @@ export function readPort(addr:u16):u8 {
             result = readAYRegister(selectedAYRegister);
         } else if (!(addr & 0x00e0)) {
             /* kempston joystick */
-            result = 0;
+            result = kempstonState;
         } else if (machineType == 48 || machineType == 128) {
             /* floating bus */
             updateFramebuffer();
@@ -735,6 +739,10 @@ export function keyDown(row:u8, mask:u8):void {
 }
 export function keyUp(row:u8, mask:u8):void {
     keyStates[row] = keyStates[row] | mask;
+}
+
+export function setKempstonState(state:u8):void {
+    kempstonState = state;
 }
 
 function pollKeyboard(addr:u8):u8 {

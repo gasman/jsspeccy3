@@ -1,5 +1,5 @@
 ﻿// Mapping from Spectrum key identifiers to keyboard matrix info
-const SPECCY = {
+export const SPECCY = {
     ONE: {row: 3, mask: 0x01},
     TWO: {row: 3, mask: 0x02},
     THREE: {row: 3, mask: 0x04},
