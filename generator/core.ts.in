@@ -67,7 +67,7 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 #alloc audioBufferLeft[1024]: f32
 export const AUDIO_BUFFER_LEFT:usize = (&audioBufferLeft);
 #alloc audioBufferRight[1024]: f32
-export const AUDIO_BUFFER_RIGHT:usize = (&audioBufferLeft);
+export const AUDIO_BUFFER_RIGHT:usize = (&audioBufferRight);
 
 #alloc tapePulses[10000]: u16
 export const TAPE_PULSES:usize = (&tapePulses);
