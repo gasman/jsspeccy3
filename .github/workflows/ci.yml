@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22', '24']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The Z80 tests run against the compiled core, so it has to be built
+      # first -- but they do not need the webpack bundle, which the `build`
+      # job covers separately.
+      - name: Generate core.ts from core.ts.in
+        run: npm run build:core
+
+      - name: Compile the WebAssembly core
+        run: npm run build:wasm:debug
+
+      - name: Z80 instruction tests
+        run: npm run test:z80
+
+  build:
+    name: Build bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Release build
+        run: npm run build:release
+
+      - name: Check expected artifacts exist
+        run: |
+          set -e
+          for f in \
+            dist/jsspeccy/jsspeccy-core.wasm \
+            dist/jsspeccy/jsspeccy.js \
+            dist/jsspeccy/jsspeccy-worker.js \
+            dist/jsspeccy/roms/48.rom \
+            dist/jsspeccy/roms/128-0.rom \
+            dist/jsspeccy/tapeloaders/tape_48.szx \
+            dist/index.html
+          do
+            test -s "$f" || { echo "missing or empty: $f"; exit 1; }
+          done
+          echo "all expected artifacts present"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jsspeccy-dist
+          path: dist/
+          retention-days: 14
