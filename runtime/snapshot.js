@@ -282,7 +282,11 @@ export function parseSZXFile(data) {
                     'im': file.getUint8(offset + 28),
                 };
                 snapshot.tstates = file.getUint32(offset + 29, true);
-                snapshot.halted = !!(file.getUint8(offset + 37) & 0x02);
+                /* chFlags is byte 34 of the 37-byte block; byte 37 is one past
+                the end of it, and lands on the first byte of the next block's
+                ID - 'S' for SPCR, whose bit 1 is set, so every snapshot came
+                back halted. */
+                snapshot.halted = !!(file.getUint8(offset + 34) & 0x02);
                 // currently ignored:
                 // chHoldIntReqCycles, eilast, memptr
 
