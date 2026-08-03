@@ -1,5 +1,10 @@
-#alloc frameBuffer[0x6600]: u8
+/* 0x0000..0x65ff is the pixel/attr/border fetch log; 0x6600..0x69ff is the
+Timex screen-mode change log, holding up to MODE_LOG_MAX_ENTRIES records of
+[indexLo, indexHi, mode, 0] terminated by index 0xffff. */
+#alloc frameBuffer[0x6a00]: u8
 export const FRAME_BUFFER:usize = (&frameBuffer);
+#const MODE_LOG_OFFSET 0x6600
+#const MODE_LOG_MAX_ENTRIES 255
 
 // allocate memory for 8 RAM, 8 ROM pages
 // 0..7 - 128K RAM pages;
@@ -7,16 +12,23 @@ export const FRAME_BUFFER:usize = (&frameBuffer);
 // 10 = 48 rom, 11 = scratch area for ROM writes
 // 12 = Pentagon rom 0 (Pentagon ROM 1 is identical to 128 rom 1)
 // 13 = TRDOS rom
-#alloc machineMemory[0x40000]: u8
+#alloc machineMemory[0x80000]: u8
 export const MACHINE_MEMORY:usize = (&machineMemory);
 
-#alloc memoryPageReadMap[4]: u8
-#alloc memoryPageWriteMap[4]: u8
+#alloc memoryPageReadMap[8]: u8
+#alloc memoryPageWriteMap[8]: u8
+// the 2068's HOME bank, i.e. what each chunk maps to when port 0xF4 leaves
+// it switched off
+#alloc homePageReadMap[8]: u8
+#alloc homePageWriteMap[8]: u8
 export const MEMORY_PAGE_READ_MAP:usize = (&memoryPageReadMap);
 export const MEMORY_PAGE_WRITE_MAP:usize = (&memoryPageWriteMap);
 
-#alloc pageIsContended[12]: u8
-pageIsContended = [0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0];
+// NB must have an entry for every page used by any machine, including ROM
+// pages - gencore.js emits unchecked load<u8>, so a short array silently
+// reads whatever was allocated next.
+#alloc pageIsContended[64]: u8
+pageIsContended = [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1];
 
 #regpair AF A F
 export const REGISTERS:usize = (&AF);
@@ -67,7 +79,7 @@ overflowSubTable = [0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0];
 #alloc audioBufferLeft[1024]: f32
 export const AUDIO_BUFFER_LEFT:usize = (&audioBufferLeft);
 #alloc audioBufferRight[1024]: f32
-export const AUDIO_BUFFER_RIGHT:usize = (&audioBufferLeft);
+export const AUDIO_BUFFER_RIGHT:usize = (&audioBufferRight);
 
 #alloc tapePulses[10000]: u16
 export const TAPE_PULSES:usize = (&tapePulses);
@@ -89,8 +101,8 @@ let microslicesSinceLastSample:u32 = 0;
 let audioBufferPointer:u32 = 0;
 
 // which pages in memory bank correspond to roms 0 and 1 in paging
-let rom0Page:u8 = 8;
-let rom1Page:u8 = 9;
+let rom0Page:u8 = 16;
+let rom1Page:u8 = 18;
 
 let betadiskEnabled:bool = false;
 let betadiskROMActive:bool = false;
@@ -216,6 +228,22 @@ let opcodePrefix:u8 = 0;
 let framebufferIndex = 0;
 let borderColour:u8 = 0;
 let speakerState:u8 = 0;
+// Timex SCLD state. timexVideoEnabled gates every Timex-specific code path,
+// so non-Timex machines behave exactly as before.
+let timexVideoEnabled:bool = false;
+let timexScreenMode:u8 = 0;
+// highest offset within the screen page that a write must flush the
+// framebuffer for. Timex has a second display file at 0x6000..0x7aff.
+let screenDirtyLimit:u16 = 0x1b00;
+// Timex 2068 memory management. timexMMUEnabled gates it entirely, so no
+// other machine pays for it. bankEnable is port 0xF4: one bit per 8K chunk,
+// set means that chunk comes from the alternate bank rather than HOME.
+// Which alternate bank is chosen by bit 7 of the SCLD register: 0 = DOCK,
+// 1 = EXROM.
+let timexMMUEnabled:bool = false;
+let timexBankEnable:u8 = 0;
+let modeLogPointer:u32 = 0x6600;
+let modeLogCount:u32 = 0;
 let selectedAYRegister:u8 = 0;
 let floatingBusValue:u8 = 0xff;
 let currentTapeTime:u32 = 0;  // time at which tape pulse pointer was last updated
@@ -234,6 +262,9 @@ let logPtr = 0;
 let machineType:u32 = 48;
 export function setMachineType(type:u32):void {
     machineType = type;
+    timexVideoEnabled = false;
+    timexMMUEnabled = false;
+    screenDirtyLimit = 0x1b00;
     if (type == 48 || type == 1212) {
         frameCycleCount = 69888;
         recalculateAYCyclesPerSample();
@@ -245,45 +276,77 @@ export function setMachineType(type:u32):void {
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(17988, 224, 0xff);
         clearContentionTable(frameCycleCount);
-        rom0Page = 12;
-        rom1Page = 9;
+        rom0Page = 24;
+        rom1Page = 18;
         betadiskEnabled = true;
         betadiskROMActive = false;
+    } else if (type == 2048) {  // Timex TC2048 - 48K timing exactly
+        frameCycleCount = 69888;
+        recalculateAYCyclesPerSample();
+        buildScreenEventsTable(14335, 224, 0xfc);
+        buildContentionTable(14335, 224, frameCycleCount);
+        betadiskEnabled = false;
+        timexVideoEnabled = true;
+        screenDirtyLimit = 0x3b00;
+    } else if (type == 2068) {  // Timex TC2068 - PAL, 48K timing
+        frameCycleCount = 69888;
+        recalculateAYCyclesPerSample();
+        buildScreenEventsTable(14335, 224, 0xfc);
+        buildContentionTable(14335, 224, frameCycleCount);
+        betadiskEnabled = false;
+        timexVideoEnabled = true;
+        timexMMUEnabled = true;
+        screenDirtyLimit = 0x3b00;
     } else {  // 128
         frameCycleCount = 70908;
         recalculateAYCyclesPerSample();
         buildScreenEventsTable(14361, 228, 0xfc);
         buildContentionTable(14361, 228, frameCycleCount);
-        rom0Page = 8;
-        rom1Page = 9;
+        rom0Page = 16;
+        rom1Page = 18;
         betadiskEnabled = false;
     }
     reset();
 }
 export function reset():void {
     if (machineType == 48) {
-        memoryPageReadMap = [10, 5, 2, 0];
-        memoryPageWriteMap = [11, 5, 2, 0];
+        memoryPageReadMap = [20, 21, 10, 11, 4, 5, 0, 1];
+        memoryPageWriteMap = [22, 23, 10, 11, 4, 5, 0, 1];
         pagingLocked = 1;
     } else if (machineType == 1212) {
         // 1212 = test machine type with writeable ROM
-        memoryPageReadMap = [10, 5, 2, 0];
-        memoryPageWriteMap = [10, 5, 2, 0];
+        memoryPageReadMap = [20, 21, 10, 11, 4, 5, 0, 1];
+        memoryPageWriteMap = [20, 21, 10, 11, 4, 5, 0, 1];
         pagingLocked = 1;
     } else if (machineType == 5) {
         // Pentagon
-        memoryPageReadMap = [12, 5, 2, 0];
-        memoryPageWriteMap = [11, 5, 2, 0];
+        memoryPageReadMap = [24, 25, 10, 11, 4, 5, 0, 1];
+        memoryPageWriteMap = [22, 23, 10, 11, 4, 5, 0, 1];
         pagingLocked = 0;
+    } else if (machineType == 2048) {
+        // Timex TC2048 - ROM page 14, no paging
+        memoryPageReadMap = [28, 29, 10, 11, 4, 5, 0, 1];
+        memoryPageWriteMap = [22, 23, 10, 11, 4, 5, 0, 1];
+        pagingLocked = 1;
+    } else if (machineType == 2068) {
+        // Timex TC2068 - HOME ROM in the bottom 16K, 48K of RAM above it
+        memoryPageReadMap = [30, 31, 10, 11, 4, 5, 0, 1];
+        memoryPageWriteMap = [22, 23, 10, 11, 4, 5, 0, 1];
+        homePageReadMap = [30, 31, 10, 11, 4, 5, 0, 1];
+        homePageWriteMap = [22, 23, 10, 11, 4, 5, 0, 1];
+        pagingLocked = 1;
+        timexBankEnable = 0;
     } else {  // 128
-        memoryPageReadMap = [8, 5, 2, 0];
-        memoryPageWriteMap = [11, 5, 2, 0];
+        memoryPageReadMap = [16, 17, 10, 11, 4, 5, 0, 1];
+        memoryPageWriteMap = [22, 23, 10, 11, 4, 5, 0, 1];
         pagingLocked = 0;
     }
     for (let i:u8 = 0; i < 14; i++) {
         writeAYRegister(i, 0);
     }
     screenPageIndex = 5;
+    timexScreenMode = 0;
+    timexBankEnable = 0;
     t = 0;
     pc = 0;
     iff1 = iff2 = 0;
@@ -297,6 +360,12 @@ setMachineType(48);
 
 for (let i=0; i < 8; i++) {
     keyStates[i] = 0xff;
+}
+
+// 8K page 33 stands in for an empty cartridge dock: with no cartridge
+// inserted, the 2068 reads 0xff from any chunk switched over to DOCK.
+for (let i:u32 = 0; i < 0x2000; i++) {
+    machineMemory[0x42000 + i] = 0xff;
 }
 
 export function setRegisters(af:u16, bc:u16, de:u16, hl:u16, af_:u16, bc_:u16, de_:u16, hl_:u16, ix:u16, iy:u16, sp:u16, ir:u16):void {
@@ -389,39 +458,41 @@ export function setTapePulseBufferState(writeIndex: u16, tstateCount:u32):void {
 }
 
 function readMem(addr:u16):u8 {
-    const page:u8 = memoryPageReadMap[addr >> 14];
-    const pageOffset:u32 = u32(page) << 14;
+    const page:u8 = memoryPageReadMap[addr >> 13];
+    const pageOffset:u32 = u32(page) << 13;
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
     t += 3;
     if (loggingEnabled) {
-        const val:u8 = machineMemory[pageOffset | (addr & 0x3fff)];
+        const val:u8 = machineMemory[pageOffset | (addr & 0x1fff)];
         log(t, 1, addr, val);
         return val;
     } else {
-        return machineMemory[pageOffset | (addr & 0x3fff)];
+        return machineMemory[pageOffset | (addr & 0x1fff)];
     }
 }
 
 function readMemInternal(addr:u16):u8 {
-    const page:u8 = memoryPageReadMap[addr >> 14];
-    const pageStartPtr:u32 = u32(page) << 14;
+    const page:u8 = memoryPageReadMap[addr >> 13];
+    const pageStartPtr:u32 = u32(page) << 13;
     if (loggingEnabled) {
-        const val:u8 = machineMemory[pageStartPtr | (addr & 0x3fff)];
+        const val:u8 = machineMemory[pageStartPtr | (addr & 0x1fff)];
         log(t, 1, addr, val);
         return val;
     } else {
-        return machineMemory[pageStartPtr | (addr & 0x3fff)];
+        return machineMemory[pageStartPtr | (addr & 0x1fff)];
     }
 }
 
 function writeMem(addr:u16, val:u8):void {
-    const page:u8 = memoryPageWriteMap[addr >> 14];
-    const pageStartPtr:u32 = u32(page) << 14;
+    const page:u8 = memoryPageWriteMap[addr >> 13];
+    const pageStartPtr:u32 = u32(page) << 13;
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
-    const pageOffset:u16 = addr & 0x3fff;
-    if (page == screenPageIndex && pageOffset < 0x1b00) {
+    const pageOffset:u16 = addr & 0x1fff;
+    // screenPageIndex is a 16K RAM bank, so fold the 8K page back into one
+    const bankOffset:u32 = (u32(page & 1) << 13) | u32(pageOffset);
+    if ((page >> 1) == screenPageIndex && bankOffset < screenDirtyLimit) {
         updateFramebuffer();
     }
     machineMemory[pageStartPtr | pageOffset] = val;
@@ -432,33 +503,33 @@ function writeMem(addr:u16, val:u8):void {
 }
 
 function contendRead(addr:u16):void {
-    const page:u8 = memoryPageReadMap[addr >> 14];
+    const page:u8 = memoryPageReadMap[addr >> 13];
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 function contendDirtyRead(addr:u16):void {
-    const page:u8 = memoryPageReadMap[addr >> 14];
+    const page:u8 = memoryPageReadMap[addr >> 13];
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 function contendDirtyWrite(addr:u16):void {
-    const page:u8 = memoryPageWriteMap[addr >> 14];
+    const page:u8 = memoryPageWriteMap[addr >> 13];
     if (loggingEnabled) log(t, 3, addr, 0);
     if (pageIsContended[page]) t += contentionTable[t % frameCycleCount];
 }
 
 export function peek(addr:u16):u8 {
-    const pageOffset:u32 = u32(memoryPageReadMap[addr >> 14]) << 14;
-    return machineMemory[pageOffset | (addr & 0x3fff)];
+    const pageOffset:u32 = u32(memoryPageReadMap[addr >> 13]) << 13;
+    return machineMemory[pageOffset | (addr & 0x1fff)];
 }
 export function poke(addr:u16, val:u8):void {
-    const pageOffset:u32 = u32(memoryPageWriteMap[addr >> 14]) << 14;
-    machineMemory[pageOffset | (addr & 0x3fff)] = val;
+    const pageOffset:u32 = u32(memoryPageWriteMap[addr >> 13]) << 13;
+    machineMemory[pageOffset | (addr & 0x1fff)] = val;
 }
 
 export function readPort(addr:u16):u8 {
     /* apply pre-read contention */
-    const page:u8 = memoryPageReadMap[addr >> 14];
+    const page:u8 = memoryPageReadMap[addr >> 13];
     const addressIsContended:u8 = pageIsContended[page];
     if (addressIsContended) {
         if (loggingEnabled) log(t, 6, addr, 0);
@@ -475,7 +546,15 @@ export function readPort(addr:u16):u8 {
         result = u8(addr >> 8);
     } else {
 
-        if (!(addr & 0x0001)) {
+        if (timexVideoEnabled && (addr & 0x00ff) == 0x00ff) {
+            /* Timex SCLD register reads back the last value written,
+            replacing the floating bus on Timex machines. */
+            result = timexScreenMode;
+        } else if (timexMMUEnabled && (addr & 0x00ff) == 0x00f4) {
+            result = timexBankEnable;
+        } else if (timexMMUEnabled && (addr & 0x00ff) == 0x00f6) {
+            result = readAYRegister(selectedAYRegister);
+        } else if (!(addr & 0x0001)) {
             /* poll keyboard */
             result = pollKeyboard(u8(addr >> 8));
             updateTapePulses(t);
@@ -519,7 +598,7 @@ export function readPort(addr:u16):u8 {
 
 export function writePort(addr:u16, val:u8):void {
     /* apply pre-write contention */
-    const page:u8 = memoryPageWriteMap[addr >> 14];
+    const page:u8 = memoryPageWriteMap[addr >> 13];
     const addressIsContended:u8 = pageIsContended[page];
     if (addressIsContended) {
         if (loggingEnabled) log(t, 6, addr, 0);
@@ -528,7 +607,28 @@ export function writePort(addr:u16, val:u8):void {
     t++;
 
     if (loggingEnabled) log(t, 5, addr, val);
-    if (!(addr & 0x0001)) {
+    if (timexVideoEnabled && (addr & 0x00ff) == 0x00ff) {
+        /* Timex SCLD register. Decoded on the full low byte, so it can never
+        collide with the ULA at 0xfe. Tested first so that the guard short
+        circuits for every non-Timex machine. */
+        updateFramebuffer();  // apply all screen updates before the mode changes
+        writeModeLogEntry(framebufferIndex, val);
+        const bankSelectChanged:bool = bool((timexScreenMode ^ val) & 0x80);
+        timexScreenMode = val;
+        // bit 7 chooses DOCK vs EXROM for whatever port 0xF4 has switched over
+        if (bankSelectChanged) updateTimexPageMaps();
+    } else if (timexMMUEnabled && (addr & 0x00ff) == 0x00f4) {
+        /* horizontal select register: one bit per 8K chunk */
+        timexBankEnable = val;
+        updateTimexPageMaps();
+    } else if (timexMMUEnabled && (addr & 0x00ff) == 0x00f5) {
+        selectedAYRegister = val;
+    } else if (timexMMUEnabled && (addr & 0x00ff) == 0x00f6) {
+        /* AY data. NB 0xf6 has A0 low, so this must be tested before the ULA
+        branch below or an AY write would also flicker the border. */
+        updateAudioBuffer(t);
+        writeAYRegister(selectedAYRegister, val);
+    } else if (!(addr & 0x0001)) {
         /* border colour / speaker */
         updateFramebuffer();  // apply all screen upates up to this point
         updateAudioBuffer(t);
@@ -540,10 +640,15 @@ export function writePort(addr:u16, val:u8):void {
 
             updateFramebuffer();  // so that screen switching happens at the right position
 
-            memoryPageReadMap[3] = val & 0x07;
-            memoryPageWriteMap[3] = val & 0x07;
+            const ramBank:u8 = (val & 0x07) << 1;
+            memoryPageReadMap[6] = ramBank;
+            memoryPageReadMap[7] = ramBank + 1;
+            memoryPageWriteMap[6] = ramBank;
+            memoryPageWriteMap[7] = ramBank + 1;
             screenPageIndex = (val & 0x08) ? 7 : 5;
-            memoryPageReadMap[0] = (val & 0x10) ? rom1Page : rom0Page;
+            const romBank:u8 = (val & 0x10) ? rom1Page : rom0Page;
+            memoryPageReadMap[0] = romBank;
+            memoryPageReadMap[1] = romBank + 1;
             pagingLocked = bool(val & 0x20);
         }
     } else if ((addr & 0xc002) == 0xc000) {
@@ -582,6 +687,13 @@ function updateFramebuffer():void {
     /* process all of the screen bytes that are due up to the current tstate */
     const screenBaseAddr:u32 = screenPageIndex << 14;
 
+    /* The Timex test is hoisted out of the loop, so non-Timex machines pay
+    one branch per call rather than one per screen event. */
+    if (timexVideoEnabled) {
+        updateFramebufferTimex(screenBaseAddr);
+        return;
+    }
+
     // end marker is 0xffffffff, which will always be greater than t
     while (screenEvents[screenEventPointer] <= t) {
         const addressWord:u32 = screenEvents[screenEventPointer + 1];
@@ -591,6 +703,91 @@ function updateFramebuffer():void {
         } else {
             const screenAddr:u32 = screenBaseAddr | (addressWord & 0xffff);
             const attributeAddr:u32 = screenBaseAddr | (addressWord >> 16);
+            frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
+            frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
+            frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
+            floatingBusValue = machineMemory[attributeAddr + 1];
+            frameBuffer[framebufferIndex++] = floatingBusValue;
+        }
+        screenEventPointer += 2;
+    }
+}
+
+function updateTimexPageMaps():void {
+    /* Rebuild the page maps from port 0xF4 and bit 7 of the SCLD register.
+    Each bit of timexBankEnable switches one 8K chunk away from the HOME bank.
+    EXROM is only 8K, so it appears mirrored in every chunk switched to it -
+    that is real hardware behaviour, not a shortcut. */
+    if (!timexMMUEnabled) return;
+    const useExrom:bool = bool(timexScreenMode & 0x80);
+    const altPage:u8 = useExrom ? 32 : 33;  // 32 = EXROM, 33 = empty dock
+    for (let chunk:u8 = 0; chunk < 8; chunk++) {
+        if (timexBankEnable & (1 << chunk)) {
+            memoryPageReadMap[chunk] = altPage;
+            memoryPageWriteMap[chunk] = 22;   // alternate banks are read-only
+        } else {
+            memoryPageReadMap[chunk] = homePageReadMap[chunk];
+            memoryPageWriteMap[chunk] = homePageWriteMap[chunk];
+        }
+    }
+}
+
+function writeModeLogEntry(index:u32, mode:u8):void {
+    /* Record that `mode` takes effect at byte `index` of the pixel log.
+    Entries past MODE_LOG_MAX_ENTRIES are dropped; a per-scanline effect
+    needs at most 192, so legitimate software cannot hit the cap. */
+    if (modeLogCount >= MODE_LOG_MAX_ENTRIES) return;
+    frameBuffer[modeLogPointer] = u8(index & 0xff);
+    frameBuffer[modeLogPointer + 1] = u8(index >> 8);
+    frameBuffer[modeLogPointer + 2] = mode;
+    frameBuffer[modeLogPointer + 3] = 0;
+    modeLogPointer += 4;
+    modeLogCount++;
+}
+
+function resetModeLog():void {
+    modeLogPointer = MODE_LOG_OFFSET;
+    modeLogCount = 0;
+    /* Seed with the mode in force at the first pixel, so the renderer always
+    has a mode in hand without special-casing the start of the frame. */
+    writeModeLogEntry(0, timexScreenMode);
+}
+
+function terminateModeLog():void {
+    /* Does not advance the pointer, so a later entry overwrites the marker. */
+    frameBuffer[modeLogPointer] = 0xff;
+    frameBuffer[modeLogPointer + 1] = 0xff;
+    frameBuffer[modeLogPointer + 2] = 0;
+    frameBuffer[modeLogPointer + 3] = 0;
+}
+
+function updateFramebufferTimex(screenBaseAddr:u32):void {
+    /* Timex SCLD screen modes. The mode bits are independent enables:
+    bit 0 selects the display file, bit 1 enables hi-colour (one attribute
+    per 8x1 row), bit 2 enables hi-res 512x192, and bit 2 wins over bit 1.
+
+    Hi-colour and hi-res fetch identical addresses - the bitmap byte and the
+    byte 0x2000 above it - and differ only in how the renderer interprets
+    them, so they share a branch here. Every mode emits exactly 4 bytes per
+    16-pixel group, matching the standard frame buffer layout. */
+    const mode:u8 = timexScreenMode & 0x07;
+    while (screenEvents[screenEventPointer] <= t) {
+        const addressWord:u32 = screenEvents[screenEventPointer + 1];
+        if (addressWord == 0xffffffff) {
+            frameBuffer[framebufferIndex++] = borderColour;
+            floatingBusValue = 0xff;
+        } else if (mode & 0x06) {
+            const loAddr:u32 = screenBaseAddr | (addressWord & 0xffff);
+            const hiAddr:u32 = loAddr + 0x2000;
+            frameBuffer[framebufferIndex++] = machineMemory[loAddr];
+            frameBuffer[framebufferIndex++] = machineMemory[hiAddr];
+            frameBuffer[framebufferIndex++] = machineMemory[loAddr + 1];
+            floatingBusValue = machineMemory[hiAddr + 1];
+            frameBuffer[framebufferIndex++] = floatingBusValue;
+        } else {
+            const displayFile:u32 = (mode & 0x01) ? 0x2000 : 0;
+            const screenAddr:u32 = screenBaseAddr | (displayFile + (addressWord & 0xffff));
+            const attributeAddr:u32 = screenBaseAddr | (displayFile + (addressWord >> 16));
             frameBuffer[framebufferIndex++] = machineMemory[screenAddr];
             frameBuffer[framebufferIndex++] = machineMemory[attributeAddr];
             frameBuffer[framebufferIndex++] = machineMemory[screenAddr + 1];
@@ -761,6 +958,7 @@ function recalculateAYCyclesPerSample():void {
 export function runFrame():i16 {
     screenEventPointer = 0;
     framebufferIndex = 0;
+    resetModeLog();
 
     if (requestedSamplesPerFrame != samplesPerFrame) {
         samplesPerFrame = requestedSamplesPerFrame;
@@ -793,6 +991,7 @@ export function resumeFrame():i16 {
     }
 
     updateFramebuffer();
+    terminateModeLog();
     updateAudioBuffer(t);
 
     if (tapePulseWriteIndex > tapePulseReadIndex) {
@@ -859,11 +1058,21 @@ export function runUntil(maxT:u32):i16 {
             }
         }
 
-        if (
-            (pc == 0x056b || pc == 0x0111)
-            && (memoryPageReadMap[0] == 9 || memoryPageReadMap[0] == 10)
-            && tapeTrapsEnabled && willTrap
-        ) {
+        // Each trap address only belongs to its own ROM, so the address and
+        // the page it lives in have to be tested as a pair. Testing them as
+        // two independent sets made 0x0111 trap in the 48K-derived ROMs and
+        // 0x056b trap in the 2068's EXROM, where neither is LD-BYTES.
+        // 18 = 128K ROM 1, 20 = 48K ROM, 28 = TC2048 ROM, 32 = 2068 EXROM.
+        // The 2068's LD-BYTES is the 48K routine relocated by -0x045a into
+        // the EXROM, which puts it at 0x0111.
+        const atLDBytes = (
+            (pc == 0x056b && (
+                memoryPageReadMap[0] == 18 || memoryPageReadMap[0] == 20
+                || memoryPageReadMap[0] == 28
+            ))
+            || (pc == 0x0111 && memoryPageReadMap[0] == 32)
+        );
+        if (atLDBytes && tapeTrapsEnabled && willTrap) {
             // tape loading trap
             return 2;
         }
@@ -872,10 +1081,12 @@ export function runUntil(maxT:u32):i16 {
         if (betadiskEnabled) {
             if ((pc & 0xff00) == 0x3d00 && !betadiskROMActive && memoryPageReadMap[0] == rom1Page) {
                 betadiskROMActive = true;
-                memoryPageReadMap[0] = 13;
+                memoryPageReadMap[0] = 26;
+                memoryPageReadMap[1] = 27;
             } else if (pc >= 0x4000 && betadiskROMActive) {
                 betadiskROMActive = false;
                 memoryPageReadMap[0] = rom1Page;
+                memoryPageReadMap[1] = rom1Page + 1;
             }
         }
 

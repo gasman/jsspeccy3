@@ -1,3 +1,22 @@
+Unreleased
+----------
+
+* Add Timex TC2048 machine support, with all three SCLD video modes (dual
+  display file, hi-colour 8x1 attributes, and hi-res 512x192), including
+  switching screen mode part-way through a frame
+* Add Timex TC2068 machine support (PAL): HOME and EXROM banks, the 8K
+  horizontal MMU on port 0xF4, DOCK/EXROM selection via bit 7 of the SCLD
+  register, and AY-3-8912 sound on ports 0xF5 / 0xF6
+* Only fetch the ROM images the selected machine actually needs, in parallel,
+  instead of fetching every machine's ROMs sequentially at startup
+* Load TC2048 snapshots (SZX machine ID 8, .z80 hardware mode 14), restoring
+  the SCLD screen mode
+* Fix `pageIsContended` being too small to cover the Pentagon and TRDOS ROM
+  pages, which read past the end of the array
+* Fix a frame buffer view in the worker that passed a size where an end offset
+  was expected
+
+
 3.2 (2024-11-23)
 ----------------
 

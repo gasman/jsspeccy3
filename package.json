@@ -5,7 +5,14 @@
   "main": "jsspeccy.js",
   "type": "module",
   "scripts": {
-    "test": "npm run build && node --experimental-wasm-modules test/test.js test/tests.in test/tests.expected",
+    "test": "npm run build && npm run test:unit",
+    "test:unit": "npm run test:z80 && npm run test:paging && npm run test:screen && npm run test:render && npm run test:snapshot && npm run test:tapeload",
+    "test:z80": "node test/test.js test/tests.in test/tests.expected",
+    "test:paging": "node test/paging.js",
+    "test:screen": "node test/screen.js",
+    "test:render": "node test/render.js",
+    "test:snapshot": "node test/snapshot.js",
+    "test:tapeload": "node test/tapeload.js",
     "build:core": "node generator/gencore.js generator/core.ts.in build/core.ts",
     "build:wasm:debug": "asc build/core.ts --target debug",
     "build:wasm:release": "asc build/core.ts --target release",
@@ -38,7 +45,10 @@
         "runtime/icons/*.svg",
         "build/*.js"
       ],
-      "extensions": ["js", "svg"]
+      "extensions": [
+        "js",
+        "svg"
+      ]
     },
     "build:static": {
       "patterns": [
@@ -57,8 +67,8 @@
     "assemblyscript": "^0.19.6",
     "npm-watch": "^0.10.0",
     "svg-inline-loader": "^0.8.2",
-    "webpack": "^5.44.0",
-    "webpack-cli": "^4.7.2"
+    "webpack": "^5.109.0",
+    "webpack-cli": "^7.2.1"
   },
   "dependencies": {
     "file-dialog": "^0.0.8",
