@@ -12,6 +12,10 @@ let stopped = false;
 let tape = null;
 let tapeIsPlaying = false;
 
+let paced = false;
+let pacedMsPerFrame = 20;
+let nextFrameDue = 0;
+
 const loadCore = (baseUrl) => {
     WebAssembly.instantiateStreaming(
         fetch(new URL('jsspeccy-core.wasm', baseUrl), {})
@@ -113,81 +117,105 @@ const trapTapeLoad = () => {
     core.setPC(0x05e2);  /* address at which to exit the tape trap */
 }
 
+const executeFrame = (data) => {
+    if (stopped) return;
+    const frameBuffer = data.frameBuffer;
+    const frameData = new Uint8Array(frameBuffer);
+
+    let audioBufferLeft = null;
+    let audioBufferRight = null;
+    let audioLength = 0;
+    if ('audioBufferLeft' in data) {
+        audioBufferLeft = data.audioBufferLeft;
+        audioBufferRight = data.audioBufferRight;
+        audioLength = audioBufferLeft.byteLength / 4;
+        core.setAudioSamplesPerFrame(audioLength);
+    } else {
+        core.setAudioSamplesPerFrame(0);
+    }
+
+    if (tape && tapeIsPlaying) {
+        const tapePulseBufferTstateCount = core.getTapePulseBufferTstateCount();
+        const tapePulseWriteIndex = core.getTapePulseWriteIndex();
+        const [newTapePulseWriteIndex, tstatesGenerated, tapeFinished] = tape.pulseGenerator.emitPulses(
+            tapePulses, tapePulseWriteIndex, 80000 - tapePulseBufferTstateCount
+        );
+        core.setTapePulseBufferState(newTapePulseWriteIndex, tapePulseBufferTstateCount + tstatesGenerated);
+        if (tapeFinished) {
+            tapeIsPlaying = false;
+            postMessage({
+                message: 'stoppedTape',
+            });
+        }
+    }
+
+    let status = core.runFrame();
+    while (status) {
+        switch (status) {
+            case 1:
+                stopped = true;
+                throw("Unrecognised opcode!");
+            case 2:
+                trapTapeLoad();
+                break;
+            default:
+                stopped = true;
+                throw("runFrame returned unexpected result: " + status);
+        }
+
+        status = core.resumeFrame();
+    }
+
+    frameData.set(workerFrameData);
+    if (audioLength) {
+        const leftSource = new Float32Array(core.memory.buffer, core.AUDIO_BUFFER_LEFT, audioLength);
+        const rightSource = new Float32Array(core.memory.buffer, core.AUDIO_BUFFER_RIGHT, audioLength);
+        const leftData = new Float32Array(audioBufferLeft);
+        const rightData = new Float32Array(audioBufferRight);
+        leftData.set(leftSource);
+        rightData.set(rightSource);
+        postMessage({
+            message: 'frameCompleted',
+            frameBuffer,
+            audioBufferLeft,
+            audioBufferRight,
+        }, [frameBuffer, audioBufferLeft, audioBufferRight]);
+    } else {
+        postMessage({
+            message: 'frameCompleted',
+            frameBuffer,
+        }, [frameBuffer]);
+    }
+};
+
 onmessage = (e) => {
     switch (e.data.message) {
         case 'loadCore':
             loadCore(e.data.baseUrl);
             break;
         case 'runFrame':
-            if (stopped) return;
-            const frameBuffer = e.data.frameBuffer;
-            const frameData = new Uint8Array(frameBuffer);
-
-            let audioBufferLeft = null;
-            let audioBufferRight = null;
-            let audioLength = 0;
-            if ('audioBufferLeft' in e.data) {
-                audioBufferLeft = e.data.audioBufferLeft;
-                audioBufferRight = e.data.audioBufferRight;
-                audioLength = audioBufferLeft.byteLength / 4;
-                core.setAudioSamplesPerFrame(audioLength);
-            } else {
-                core.setAudioSamplesPerFrame(0);
-            }
-
-            if (tape && tapeIsPlaying) {
-                const tapePulseBufferTstateCount = core.getTapePulseBufferTstateCount();
-                const tapePulseWriteIndex = core.getTapePulseWriteIndex();
-                const [newTapePulseWriteIndex, tstatesGenerated, tapeFinished] = tape.pulseGenerator.emitPulses(
-                    tapePulses, tapePulseWriteIndex, 80000 - tapePulseBufferTstateCount
-                );
-                core.setTapePulseBufferState(newTapePulseWriteIndex, tapePulseBufferTstateCount + tstatesGenerated);
-                if (tapeFinished) {
-                    tapeIsPlaying = false;
-                    postMessage({
-                        message: 'stoppedTape',
-                    });
+            if (paced) {
+                /* while the page is hidden the main thread cannot pace
+                frames (rAF is suspended), so the worker spaces them
+                msPerFrame apart with its own timer */
+                const now = performance.now();
+                if (nextFrameDue < now - 2 * pacedMsPerFrame) {
+                    /* fallen too far behind (system sleep, long stall) -
+                    rebase rather than catching up with a burst of frames */
+                    nextFrameDue = now;
                 }
-            }
-
-            let status = core.runFrame();
-            while (status) {
-                switch (status) {
-                    case 1:
-                        stopped = true;
-                        throw("Unrecognised opcode!");
-                    case 2:
-                        trapTapeLoad();
-                        break;
-                    default:
-                        stopped = true;
-                        throw("runFrame returned unexpected result: " + status);
-                }
-
-                status = core.resumeFrame();
-            }
-
-            frameData.set(workerFrameData);
-            if (audioLength) {
-                const leftSource = new Float32Array(core.memory.buffer, core.AUDIO_BUFFER_LEFT, audioLength);
-                const rightSource = new Float32Array(core.memory.buffer, core.AUDIO_BUFFER_RIGHT, audioLength);
-                const leftData = new Float32Array(audioBufferLeft);
-                const rightData = new Float32Array(audioBufferRight);
-                leftData.set(leftSource);
-                rightData.set(rightSource);
-                postMessage({
-                    message: 'frameCompleted',
-                    frameBuffer,
-                    audioBufferLeft,
-                    audioBufferRight,
-                }, [frameBuffer, audioBufferLeft, audioBufferRight]);
+                setTimeout(() => executeFrame(e.data), Math.max(0, nextFrameDue - now));
+                nextFrameDue += pacedMsPerFrame;
             } else {
-                postMessage({
-                    message: 'frameCompleted',
-                    frameBuffer,
-                }, [frameBuffer]);
+                executeFrame(e.data);
             }
-
+            break;
+        case 'setPaced':
+            paced = e.data.paced;
+            if (paced) {
+                pacedMsPerFrame = e.data.msPerFrame;
+                nextFrameDue = performance.now();
+            }
             break;
         case 'keyDown':
             core.keyDown(e.data.row, e.data.mask);

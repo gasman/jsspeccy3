@@ -40,12 +40,19 @@ class Emulator extends EventEmitter {
         this.tapeAutoLoadMode = opts.tapeAutoLoadMode || 'default';  // or usr0
         this.tapeIsPlaying = false;
         this.tapeTrapsEnabled = ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true;
+        this.runInBackground = ('runInBackground' in opts) ? opts.runInBackground : true;
 
         this.msPerFrame = 20;
 
         this.isExecutingFrame = false;
         this.nextFrameTime = null;
         this.machineType = null;
+
+        this.isPacedByWorker = false;
+        this.onVisibilityChange = () => {
+            this.updatePacingMode();
+        };
+        document.addEventListener('visibilitychange', this.onVisibilityChange);
 
         this.nextFileOpenID = 0;
         this.fileOpenPromiseResolutions = {};
@@ -82,14 +89,20 @@ class Emulator extends EventEmitter {
 
                     this.displayHandler.frameCompleted(e.data.frameBuffer);
                     if (this.isRunning) {
-                        const time = performance.now();
-                        if (time > this.nextFrameTime) {
-                            /* running at full blast - start next frame but adjust time base
-                            to give it the full time allocation */
+                        if (this.isPacedByWorker) {
+                            /* the worker paces execution - keep the next
+                            frame request in flight immediately */
                             this.runFrame();
-                            this.nextFrameTime = time + this.msPerFrame;
                         } else {
-                            this.isExecutingFrame = false;
+                            const time = performance.now();
+                            if (time > this.nextFrameTime) {
+                                /* running at full blast - start next frame but adjust time base
+                                to give it the full time allocation */
+                                this.runFrame();
+                                this.nextFrameTime = time + this.msPerFrame;
+                            } else {
+                                this.isExecutingFrame = false;
+                            }
                         }
                     } else {
                         this.isExecutingFrame = false;
@@ -143,9 +156,35 @@ class Emulator extends EventEmitter {
             this.audioHandler.start();
             this.focus();
             this.emit('start');
+            this.updatePacingMode();
             window.requestAnimationFrame((t) => {
                 this.runAnimationFrame(t);
             });
+        }
+    }
+
+    /* While the page is hidden, requestAnimationFrame stops firing, so frame
+    pacing is handed to the worker, whose timers are not throttled; the main
+    thread then requests the next frame as soon as one completes. */
+    updatePacingMode() {
+        const shouldPace = document.hidden && this.isRunning && this.runInBackground;
+        if (shouldPace && !this.isPacedByWorker) {
+            this.isPacedByWorker = true;
+            this.worker.postMessage({
+                message: 'setPaced',
+                paced: true,
+                msPerFrame: this.msPerFrame,
+            });
+            if (!this.isExecutingFrame) {
+                this.runFrame();
+            }
+        } else if (!shouldPace && this.isPacedByWorker) {
+            this.isPacedByWorker = false;
+            this.worker.postMessage({
+                message: 'setPaced',
+                paced: false,
+            });
+            this.nextFrameTime = performance.now();
         }
     }
 
@@ -169,6 +208,7 @@ class Emulator extends EventEmitter {
             }
             this.audioHandler.stop();
             this.emit('pause');
+            this.updatePacingMode();
         }
     }
 
@@ -218,7 +258,7 @@ class Emulator extends EventEmitter {
             // benchmarkRenderCount++;
         }
         if (this.isRunning) {
-            if (time > this.nextFrameTime && !this.isExecutingFrame) {
+            if (!this.isPacedByWorker && time > this.nextFrameTime && !this.isExecutingFrame) {
                 this.runFrame();
                 this.nextFrameTime += this.msPerFrame;
             }
@@ -373,6 +413,11 @@ class Emulator extends EventEmitter {
         this.autoLoadTapes = val;
         this.emit('setAutoLoadTapes', val);
     }
+    setRunInBackground(val) {
+        this.runInBackground = val;
+        this.updatePacingMode();
+        this.emit('setRunInBackground', val);
+    }
     setTapeTraps(val) {
         this.tapeTrapsEnabled = val;
         this.worker.postMessage({
@@ -395,6 +440,7 @@ class Emulator extends EventEmitter {
 
     exit() {
         this.pause();
+        document.removeEventListener('visibilitychange', this.onVisibilityChange);
         this.worker.terminate();
     }
 }
@@ -418,6 +464,7 @@ window.JSSpeccy = (container, opts) => {
         tapeAutoLoadMode: opts.tapeAutoLoadMode || 'default',
         openUrl: opts.openUrl,
         tapeTrapsEnabled: ('tapeTrapsEnabled' in opts) ? opts.tapeTrapsEnabled : true,
+        runInBackground: ('runInBackground' in opts) ? opts.runInBackground : true,
         keyboardEnabled: keyboardEnabled,
         keyboardMap: opts.keyboardMap || 'standard',
     });
@@ -472,6 +519,20 @@ window.JSSpeccy = (container, opts) => {
         }
         emu.on('setTapeTraps', updateTapeTrapsCheckbox);
         updateTapeTrapsCheckbox();
+
+        const runInBackgroundMenuItem = fileMenu.addItem('Run in background', () => {
+            emu.setRunInBackground(!emu.runInBackground);
+            emu.focus();
+        });
+        const updateRunInBackgroundCheckbox = () => {
+            if (emu.runInBackground) {
+                runInBackgroundMenuItem.setCheckbox();
+            } else {
+                runInBackgroundMenuItem.unsetCheckbox();
+            }
+        }
+        emu.on('setRunInBackground', updateRunInBackgroundCheckbox);
+        updateRunInBackgroundCheckbox();
 
         const machineMenu = ui.menuBar.addMenu('Machine');
         const machine48Item = machineMenu.addItem('Spectrum 48K', () => {
@@ -712,6 +773,7 @@ window.JSSpeccy = (container, opts) => {
         enterFullscreen: () => {ui.enterFullscreen();},
         exitFullscreen: () => {ui.exitFullscreen();},
         setMachine: (model) => {emu.setMachine(model);},
+        setRunInBackground: (val) => {emu.setRunInBackground(val);},
         openFileDialog: () => {openFileDialog();},
         openUrl: (url) => {
             emu.openUrl(url).catch((err) => {alert(err);});

@@ -1,3 +1,12 @@
+Unreleased
+----------
+
+* Keep running - with audio - while the page is hidden, by handing frame
+  pacing to the emulation worker, whose timers are not throttled in
+  background tabs. Controlled by the "Run in background" File menu option
+  and the `runInBackground` constructor option (default on)
+
+
 3.2 (2024-11-23)
 ----------------
 
