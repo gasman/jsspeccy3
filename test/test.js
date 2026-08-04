@@ -2,7 +2,9 @@ import { argv, exit } from 'process';
 import * as fs from 'fs';
 import * as readline from 'readline';
 
-import * as core from '../dist/jsspeccy-core.wasm';
+import core from './core.js';
+
+let failureCount = 0;
 
 if (argv.length != 4) {
     console.log("Usage: node test.js path/to/tests.in path/to/tests.expected");
@@ -45,6 +47,7 @@ const getResultLine = (function () {
 
 function assertEqual(actual, expected, testName, reg) {
     if (actual != expected) {
+        failureCount++;
         console.log(testName, reg, '- expected', expected.toString(16), 'but got', actual.toString(16));
     }
 }
@@ -106,6 +109,7 @@ while (true) {
         }
     }
     if (resultLine != testName) {
+        failureCount++;
         console.log(
             "Test name in results file does not match: expected", testName, "but got", resultLine
         );
@@ -128,6 +132,7 @@ while (true) {
                 || (parseInt(expectedEventVal || '0', 16) != actualEventVal)
             ) {
                 const actualResult = '' + actualEventTime + ' ' + actualEventType + ' ' + actualEventAddr.toString(16) + ' ' + actualEventVal.toString(16);
+                failureCount++;
                 console.log("Event mismatch on test", testName, "- expected", resultLine, "but got", actualResult);
                 checkingEvents = false;
             }
@@ -136,6 +141,7 @@ while (true) {
         resultLine = await getResultLine();
     }
     if (checkingEvents && logEvents[logPtr] != 0xffff) {
+        failureCount++;
         console.log("Extra event on test", testName);
     }
 
@@ -147,6 +153,7 @@ while (true) {
     const [newi, newr, newiff1, newiff2, newim, newhalted] = auxRegistersOutStrings.map(x => parseInt(x, 16));
 
     if (status) {
+        failureCount++;
         console.log(testName, 'failed with status', status.toString(16));
 
         while (await getResultLine()) {
@@ -160,6 +167,7 @@ while (true) {
                 if (val == -1) break;
                 const actual = core.peek(addr)
                 if (actual != val) {
+                    failureCount++;
                     console.log(testName, 'mem', addr.toString(16), '- expected', val.toString(16), 'but got', actual.toString(16));
                 }
                 addr++;
@@ -189,3 +197,9 @@ while (true) {
 
 inFile.close();
 resultsFile.close();
+
+if (failureCount) {
+    console.log(`${failureCount} failure(s)`);
+    exit(1);
+}
+console.log('Z80 tests passed');

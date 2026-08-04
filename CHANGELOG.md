@@ -1,3 +1,17 @@
+Unreleased
+----------
+
+* Add Timex TC2048 machine support, with all three SCLD video modes (dual
+  display file, hi-colour 8x1 attributes, and hi-res 512x192), including
+  switching screen mode part-way through a frame
+* Load TC2048 snapshots (SZX machine ID 8, .z80 hardware mode 14), restoring
+  the SCLD screen mode
+* Fix `pageIsContended` being too small to cover the Pentagon and TRDOS ROM
+  pages, which read past the end of the array
+* Fix a frame buffer view in the worker that passed a size where an end offset
+  was expected
+
+
 3.2 (2024-11-23)
 ----------------
 

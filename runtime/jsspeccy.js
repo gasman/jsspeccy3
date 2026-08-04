@@ -101,9 +101,24 @@ class Emulator extends EventEmitter {
                             '48': {'default': 'tapeloaders/tape_48.szx', 'usr0': 'tapeloaders/tape_48.szx'},
                             '128': {'default': 'tapeloaders/tape_128.szx', 'usr0': 'tapeloaders/tape_128_usr0.szx'},
                             '5': {'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx'},
+                            /* The TC2048's loader code is identical to the
+                            48K's, but the snapshot records the machine it was
+                            taken on and loadSnapshot feeds that straight to
+                            setMachineType - so reusing tape_48.szx here would
+                            switch the emulator out of TC2048 mode on every
+                            tape. Hence a snapshot of its own. */
+                            '2048': {'default': 'tapeloaders/tape_2048.szx', 'usr0': 'tapeloaders/tape_2048.szx'},
                         };
-                        this.openUrl(new URL(TAPE_LOADERS_BY_MACHINE[this.machineType][this.tapeAutoLoadMode], scriptUrl));
-                        if (!this.tapeTrapsEnabled) {
+                        /* A machine with no loader snapshot must not break file
+                        opening; fall back to playing the tape so the user can
+                        type LOAD "" themselves. */
+                        const loaders = TAPE_LOADERS_BY_MACHINE[this.machineType];
+                        if (loaders) {
+                            this.openUrl(new URL(loaders[this.tapeAutoLoadMode], scriptUrl));
+                            if (!this.tapeTrapsEnabled) {
+                                this.playTape();
+                            }
+                        } else {
                             this.playTape();
                         }
                     }
@@ -187,6 +202,7 @@ class Emulator extends EventEmitter {
         await this.loadRom('roms/128-1.rom', 9);
         await this.loadRom('roms/48.rom', 10);
         await this.loadRom('roms/pentagon-0.rom', 12);
+        await this.loadRom('roms/tc2048.rom', 14);
         await this.loadRom('roms/trdos.rom', 13);
     }
 
@@ -229,7 +245,9 @@ class Emulator extends EventEmitter {
     };
 
     setMachine(type) {
-        if (type != 128 && type != 5) type = 48;
+        if (type != 128 && type != 5 && type != 2048) type = 48;
+        // Timex machines render 512px-wide hi-res, so they need a wider canvas
+        this.displayHandler.setVideoMode(type == 2048);
         this.worker.postMessage({
             message: 'setMachineType',
             type,
@@ -486,6 +504,10 @@ window.JSSpeccy = (container, opts) => {
             emu.setMachine(5);
             emu.focus();
         });
+        const machineTC2048Item = machineMenu.addItem('Timex TC2048', () => {
+            emu.setMachine(2048);
+            emu.focus();
+        });
         const displayMenu = ui.menuBar.addMenu('Display');
 
         const zoomItemsBySize = {
@@ -518,18 +540,18 @@ window.JSSpeccy = (container, opts) => {
         setZoomCheckbox(ui.zoom);
 
         emu.on('setMachine', (type) => {
+            machine48Item.unsetBullet();
+            machine128Item.unsetBullet();
+            machinePentagonItem.unsetBullet();
+            machineTC2048Item.unsetBullet();
             if (type == 48) {
                 machine48Item.setBullet();
-                machine128Item.unsetBullet();
-                machinePentagonItem.unsetBullet();
             } else if (type == 128) {
-                machine48Item.unsetBullet();
                 machine128Item.setBullet();
-                machinePentagonItem.unsetBullet();
-            } else { // pentagon
-                machine48Item.unsetBullet();
-                machine128Item.unsetBullet();
+            } else if (type == 5) {
                 machinePentagonItem.setBullet();
+            } else if (type == 2048) {
+                machineTC2048Item.setBullet();
             }
         });
 

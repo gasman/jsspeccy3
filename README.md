@@ -4,7 +4,9 @@ A ZX Spectrum emulator for the browser
 
 ## Features
 
-* Emulates the Spectrum 48K, Spectrum 128K and Pentagon machines
+* Emulates the Spectrum 48K, Spectrum 128K, Pentagon and Timex TC2048 machines
+* Supports all three Timex SCLD video modes - dual display file, hi-colour
+  (8x1 attributes) and hi-res 512x192 - including switching mode mid-frame
 * Handles all Z80 instructions, documented and undocumented
 * Cycle-accurate emulation of scanline / multicolour effects
 * AY and beeper audio
@@ -53,7 +55,7 @@ The available configuration options are:
 * `autoStart`: if true, the emulator will start immediately with no need to press the play button. Bear in mind that browser policies usually don't allow enabling audio without a user interaction, so if you enable this option (and don't put the `JSSpeccy` call behind an onclick event or similar), expect things to be silent.
 * `autoLoadTapes`: if true, any tape files opened (either manually or through the openUrl option) will be loaded automatically without the user having to enter LOAD "" or select the Tape Loader menu option.
 * `tapeAutoLoadMode`: specifies the mode that the machine should be set to before auto-loading tape files. When set to 'default' (the default), this is equivalent to selecting the Tape Loader menu option on machines that support it; when set to 'usr0', this is equivalent to entering 'usr0' in 128 BASIC then LOAD "" from the resulting 48K BASIC prompt (which leaves 128K memory paging available without the extra housekeeping of the 128K ROM - this mode is commonly used for launching demos).
-* `machine`: specifies the machine to emulate. Can be `48` (for a 48K Spectrum), `128` (for a 128K Spectrum), or `5` (for a Pentagon 128).
+* `machine`: specifies the machine to emulate. Can be `48` (for a 48K Spectrum), `128` (for a 128K Spectrum), `5` (for a Pentagon 128), or `2048` (for a Timex TC2048).
 * `openUrl`: specifies a URL, or an array of URLs, to a file (or files) to load on startup, in any supported snapshot, tape or archive format. Standard browser security restrictions apply for loading remote files: if the URL being loaded is not on the same domain as the calling page, it must serve [CORS HTTP headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) to be loadable.
 * `zoom`: specifies the size of the emulator window; 1 for 100% size (one Spectrum pixel per screen pixel), 2 for 200% size and so on.
 * `sandbox`: if true, all UI options for opening a new file are disabled - useful if you're showcasing a specific bit of Spectrum software on your page.
@@ -101,3 +103,10 @@ AddType application/wasm wasm
 ## Licence
 
 JSSpeccy 3 is licensed under the GPL version 3 - see COPYING.
+
+The bundled ROM images are not covered by that licence. The Sinclair ROMs
+(`48.rom`, `128-0.rom`, `128-1.rom`) are distributed under the blanket
+permission granted by Amstrad. `tc2048.rom` is the property of Timex
+Corporation and is not covered by that permission; it is included here for
+convenience, and can be removed or replaced with a locally supplied image if
+that is not appropriate for your deployment.

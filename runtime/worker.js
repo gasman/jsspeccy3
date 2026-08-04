@@ -19,7 +19,9 @@ const loadCore = (baseUrl) => {
         core = results.instance.exports;
         memory = core.memory;
         memoryData = new Uint8Array(memory.buffer);
-        workerFrameData = memoryData.subarray(core.FRAME_BUFFER, FRAME_BUFFER_SIZE);
+        // NB subarray takes (begin, end) - passing the size as the end offset
+        // only happened to work because FRAME_BUFFER is 0.
+        workerFrameData = memoryData.subarray(core.FRAME_BUFFER, core.FRAME_BUFFER + FRAME_BUFFER_SIZE);
         registerPairs = new Uint16Array(core.memory.buffer, core.REGISTERS, 12);
         tapePulses = new Uint16Array(core.memory.buffer, core.TAPE_PULSES, core.TAPE_PULSES_LENGTH);
 
@@ -50,8 +52,11 @@ const loadSnapshot = (snapshot) => {
     core.setHalted(!!snapshot.halted);
 
     core.writePort(0x00fe, snapshot.ulaState.borderColour);
-    if (snapshot.model != 48) {
+    if (snapshot.model == 128 || snapshot.model == 5) {
         core.writePort(0x7ffd, snapshot.ulaState.pagingFlags);
+    }
+    if ('timexScreenMode' in snapshot.ulaState) {
+        core.writePort(0x00ff, snapshot.ulaState.timexScreenMode);
     }
 
     core.setTStates(snapshot.tstates);
