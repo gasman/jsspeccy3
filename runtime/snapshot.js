@@ -282,7 +282,7 @@ export function parseSZXFile(data) {
                     'im': file.getUint8(offset + 28),
                 };
                 snapshot.tstates = file.getUint32(offset + 29, true);
-                snapshot.halted = !!(file.getUint8(offset + 37) & 0x02);
+                snapshot.halted = !!(file.getUint8(offset + 34) & 0x02);
                 // currently ignored:
                 // chHoldIntReqCycles, eilast, memptr
 

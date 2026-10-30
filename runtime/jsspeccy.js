@@ -96,16 +96,8 @@ class Emulator extends EventEmitter {
                     }
                     break;
                 case 'fileOpened':
-                    if (e.data.mediaType == 'tape' && this.autoLoadTapes) {
-                        const TAPE_LOADERS_BY_MACHINE = {
-                            '48': {'default': 'tapeloaders/tape_48.szx', 'usr0': 'tapeloaders/tape_48.szx'},
-                            '128': {'default': 'tapeloaders/tape_128.szx', 'usr0': 'tapeloaders/tape_128_usr0.szx'},
-                            '5': {'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx'},
-                        };
-                        this.openUrl(new URL(TAPE_LOADERS_BY_MACHINE[this.machineType][this.tapeAutoLoadMode], scriptUrl));
-                        if (!this.tapeTrapsEnabled) {
-                            this.playTape();
-                        }
+                    if (e.data.mediaType == 'tape' && this.autoLoadTapes && !this.tapeTrapsEnabled) {
+                        this.playTape();
                     }
                     this.fileOpenPromiseResolutions[e.data.id]({
                         mediaType: e.data.mediaType,
@@ -255,7 +247,19 @@ class Emulator extends EventEmitter {
         });
     }
 
-    openTAPFile(data) {
+    async loadTapeLoaderSnapshot() {
+        const TAPE_LOADERS_BY_MACHINE = {
+            '48': {'default': 'tapeloaders/tape_48.szx', 'usr0': 'tapeloaders/tape_48.szx'},
+            '128': {'default': 'tapeloaders/tape_128.szx', 'usr0': 'tapeloaders/tape_128_usr0.szx'},
+            '5': {'default': 'tapeloaders/tape_pentagon.szx', 'usr0': 'tapeloaders/tape_pentagon_usr0.szx'},
+        };
+        await this.openUrl(new URL(TAPE_LOADERS_BY_MACHINE[this.machineType][this.tapeAutoLoadMode], scriptUrl));
+    }
+
+    async openTAPFile(data) {
+        if (this.autoLoadTapes) {
+            await this.loadTapeLoaderSnapshot();
+        }
         const fileID = this.nextFileOpenID++;
         this.worker.postMessage({
             message: 'openTAPFile',
@@ -267,7 +271,10 @@ class Emulator extends EventEmitter {
         });
     }
 
-    openTZXFile(data) {
+    async openTZXFile(data) {
+        if (this.autoLoadTapes) {
+            await this.loadTapeLoaderSnapshot();
+        }
         const fileID = this.nextFileOpenID++;
         this.worker.postMessage({
             message: 'openTZXFile',
